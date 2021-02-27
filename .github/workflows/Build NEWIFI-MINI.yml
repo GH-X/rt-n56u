@@ -1,0 +1,158 @@
+# 自定义编译NEWIFI-MINI
+name: Build NEWIFI-MINI
+
+# Controls when the action will run. 
+on: 
+#  push:
+#  pull_request:
+#  workflow_dispatch:
+# 创建新版本开始编译
+  release:
+    types: [published]
+# 点击☆Star开始编译
+  watch:
+    types: [started]
+
+env:
+# 可替换 NEWIFI-MINI 为你要编译的机型
+  BNAME: NEWIFI-MINI
+  images_dir: /opt/images
+  cac_branch: ConfigAndCustom
+  src_git: https://github.com/${{ github.repository }}.git
+  cac_tmp: /opt/cac
+
+jobs:
+  build:
+    name: Build firmware
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Prepare environment
+        run: |
+          sudo apt update
+          sudo apt install libtool-bin gperf python-docutils autopoint gettext
+      - name: Config and Custom
+        run: |
+          git clone -b ${cac_branch} ${src_git} ${cac_tmp}
+          cd ${GITHUB_WORKSPACE}
+          cp -rf ${cac_tmp}/* ${GITHUB_WORKSPACE}
+          rm -rf ${cac_tmp}
+          cd ${GITHUB_WORKSPACE}/trunk/configs/templates
+          for m in $BNAME;
+          do
+          chmod 777 "$m.config"
+          #############################################################################################
+          # 自定义插件请参考源码trunk/configs/templates目录下的config文件并按照下面的格式添加即可
+          # 格式如下：
+          # sed -i '/自定义项=/d' $m.config #删除配置项
+          # echo "自定义项=y" >> $m.config #写入配置项
+          #############################################################################################
+          # "y"是添加插件 "n"是不添加插件
+          #############################################################################################
+          sed -i '/CONFIG_FIRMWARE_CPU_SLEEP=/d' $m.config #删除配置项CPU睡眠模式
+          echo "CONFIG_FIRMWARE_CPU_SLEEP=n" >> $m.config #写入配置项CPU睡眠模式
+          sed -i '/CONFIG_FIRMWARE_WIFI2_DRIVER=/d' $m.config #删除配置项无线2.4G驱动(!注意!机型!)
+          echo "CONFIG_FIRMWARE_WIFI2_DRIVER=2.7" >> $m.config #写入配置项无线2.4G驱动2.7版本(MT7620)
+          sed -i '/CONFIG_FIRMWARE_ENABLE_USB=/d' $m.config #删除配置项USB支持
+          echo "CONFIG_FIRMWARE_ENABLE_USB=y" >> $m.config #写入配置项USB支持
+          sed -i '/CONFIG_FIRMWARE_ENABLE_UFSD=/d' $m.config #删除配置项NTFS文件系统
+          echo "CONFIG_FIRMWARE_ENABLE_UFSD=n" >> $m.config #写入配置项NTFS文件系统
+          sed -i '/CONFIG_FIRMWARE_ENABLE_FAT=/d' $m.config #删除配置项FAT/FAT32文件系统
+          echo "CONFIG_FIRMWARE_ENABLE_FAT=n" >> $m.config #写入配置项FAT/FAT32文件系统
+          sed -i '/CONFIG_FIRMWARE_ENABLE_EXFAT=/d' $m.config #删除配置项exFAT文件系统
+          echo "CONFIG_FIRMWARE_ENABLE_EXFAT=y" >> $m.config #写入配置项exFAT文件系统
+          sed -i '/CONFIG_FIRMWARE_ENABLE_XFS=/d' $m.config #删除配置项XFS文件系统
+          echo "CONFIG_FIRMWARE_ENABLE_XFS=n" >> $m.config #写入配置项XFS文件系统
+          sed -i '/CONFIG_FIRMWARE_ENABLE_FUSE=/d' $m.config #删除配置项FUSE用户空间文件系统
+          echo "CONFIG_FIRMWARE_ENABLE_FUSE=n" >> $m.config #写入配置项FUSE用户空间文件系统
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_SERIAL=/d' $m.config #删除配置项USB转串口
+          echo "CONFIG_FIRMWARE_INCLUDE_SERIAL=n" >> $m.config #写入配置项USB转串口
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_NFSD=/d' $m.config #删除配置项NFS服务
+          echo "CONFIG_FIRMWARE_INCLUDE_NFSD=n" >> $m.config #写入配置项NFS服务
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_NFSC=/d' $m.config #删除配置项NFS客户
+          echo "CONFIG_FIRMWARE_INCLUDE_NFSC=n" >> $m.config #写入配置项NFS客户
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_LPRD=/d' $m.config #删除配置项LPR打印
+          echo "CONFIG_FIRMWARE_INCLUDE_LPRD=n" >> $m.config #写入配置项LPR打印
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_U2EC=/d' $m.config #删除配置项USB打印
+          echo "CONFIG_FIRMWARE_INCLUDE_U2EC=n" >> $m.config #写入配置项USB打印
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_TCPDUMP=/d' $m.config #删除配置项网络抓包工具TCPdump
+          echo "CONFIG_FIRMWARE_INCLUDE_TCPDUMP=n" >> $m.config #写入配置项网络抓包工具TCPdump
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_HDPARM=/d' $m.config #删除配置项硬盘高级电源管理HDparm
+          echo "CONFIG_FIRMWARE_INCLUDE_HDPARM=n" >> $m.config #写入配置项硬盘高级电源管理HDparm
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_PARTED=/d' $m.config #删除配置项磁盘分区工具Parted
+          echo "CONFIG_FIRMWARE_INCLUDE_PARTED=n" >> $m.config #写入配置项磁盘分区工具Parted
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_SMBD=/d' $m.config #删除配置项SMB(含WINS)局域网文件共享
+          echo "CONFIG_FIRMWARE_INCLUDE_SMBD=y" >> $m.config #写入配置项SMB(含WINS)局域网文件共享
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_SMBD36=/d' $m.config #删除配置项Samba3.6局域网文件共享
+          echo "CONFIG_FIRMWARE_INCLUDE_SMBD36=y" >> $m.config #写入配置项Samba3.6局域网文件共享
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_SMBD_SYSLOG=/d' $m.config #删除配置项SMB日志
+          echo "CONFIG_FIRMWARE_INCLUDE_SMBD_SYSLOG=n" >> $m.config #写入配置项SMB日志
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_FTPD=/d' $m.config #删除配置项FTP服务
+          echo "CONFIG_FIRMWARE_INCLUDE_FTPD=y" >> $m.config #写入配置项FTP服务
+          sed -i '/CONFIG_FIRMWARE_TREAT_LOGIN_SAFE=/d' $m.config #删除配置项处理登录安全
+          echo "CONFIG_FIRMWARE_TREAT_LOGIN_SAFE=n" >> $m.config #写入配置项处理登录安全
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_SFTP=/d' $m.config #删除配置项SFTP服务
+          echo "CONFIG_FIRMWARE_INCLUDE_SFTP=n" >> $m.config #写入配置项SFTP服务
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_MINIDLNA=/d' $m.config #删除配置项MiniDlna局域网多媒体共享
+          echo "CONFIG_FIRMWARE_INCLUDE_MINIDLNA=n" >> $m.config #写入配置项MiniDlna局域网多媒体共享
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_FFMPEG_NEW=/d' $m.config #删除配置项FFMPEG(MiniDlna和Firefly需要)
+          echo "CONFIG_FIRMWARE_INCLUDE_FFMPEG_NEW=n" >> $m.config #写入配置项FFMPEG(MiniDlna和Firefly需要)
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_ARIA=/d' $m.config #删除配置项下载工具Aria2
+          echo "CONFIG_FIRMWARE_INCLUDE_ARIA=y" >> $m.config #写入配置项下载工具Aria2
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_ARIA_WEB_CONTROL=/d' $m.config #删除配置项下载工具Aria2网页界面
+          echo "CONFIG_FIRMWARE_INCLUDE_ARIA_WEB_CONTROL=y" >> $m.config #写入配置项下载工具Aria2网页界面
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_HTOP=/d' $m.config #删除配置项系统监控与进程管理Htop
+          echo "CONFIG_FIRMWARE_INCLUDE_HTOP=n" >> $m.config #写入配置项系统监控与进程管理Htop
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_NANO=/d' $m.config #删除配置项文本编辑器命令行工具nano
+          echo "CONFIG_FIRMWARE_INCLUDE_NANO=n" >> $m.config #写入配置项文本编辑器命令行工具nano
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_IPERF3=/d' $m.config #删除配置项网络性能测试工具Iperf3
+          echo "CONFIG_FIRMWARE_INCLUDE_IPERF3=n" >> $m.config #写入配置项网络性能测试工具Iperf3
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_MTR=/d' $m.config #删除配置项网络诊断工具Mtr
+          echo "CONFIG_FIRMWARE_INCLUDE_MTR=n" >> $m.config #写入配置项网络诊断工具Mtr
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_SOCAT=/d' $m.config #删除配置项多功能的网络工具Socat
+          echo "CONFIG_FIRMWARE_INCLUDE_SOCAT=n" >> $m.config #写入配置项多功能的网络工具Socat
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_SFE=/d' $m.config #删除配置项shortcut-fe加速
+          echo "CONFIG_FIRMWARE_INCLUDE_SFE=y" >> $m.config #写入配置项shortcut-fe加速
+          sed -i '/CONFIG_FIRMWARE_INCLUDE_SMARTDNS=/d' $m.config #删除配置项本地DNS服务器SmartDNS
+          echo "CONFIG_FIRMWARE_INCLUDE_SMARTDNS=y" >> $m.config #写入配置项本地DNS服务器SmartDNS
+          #############################################################################################
+          done
+      - name: Run shellcheck
+        run: sh ${GITHUB_WORKSPACE}/trunk/tools/shellcheck.sh
+      - name: Prepare toolchain
+        run: |
+          cd toolchain-mipsel
+          sh dl_toolchain.sh
+      - name: Start build
+        run: |
+          cd trunk
+          mkdir -p ${images_dir}
+          for m in $BNAME; do fakeroot ./build_firmware_ci $m; \
+          if [ $? = 0 ]; then cp -f images/*.trx ${images_dir}/${m}_$(date +%Y%m%d).trx; else exit 1; fi; \
+          ./clear_tree_simple >/dev/null 2>&1; done
+      - name: Create archive
+        if: ${{ github.event_name != 'release' && success() }}
+        run: |
+          ls -lh ${images_dir}
+          GIT_VERSION=`git rev-parse --short=7 HEAD 2>/dev/null` && [ -n "$GIT_VERSION" ] && \
+          image_name=Padavan_$(date +%Y%m%d)_${BNAME}_${GIT_VERSION} || image_name=Padavan_$(date +%Y%m%d)_${BNAME}
+          cd ${images_dir}; md5sum *.trx |tee md5sum.txt; 7z a -mx=9 ${image_name}.7z ./*
+          echo "image_name=${image_name}" >> $GITHUB_ENV
+# 点击☆Star编译完成的固件到Artifacts下载
+      - name: Upload images to Artifacts
+        if: ${{ github.event_name != 'release' && success() }}
+        uses: actions/upload-artifact@v2.2.1
+        with:
+          name: ${{ env.image_name }}
+          path: ${{ env.images_dir }}/*.7z
+# 创建新版本编译完成的固件到Releases下载
+      - name: Upload images to Releases
+        if: ${{ github.event_name == 'release' && success() }}
+        uses: svenstaro/upload-release-action@2.2.0
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ env.images_dir }}/*.trx
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
