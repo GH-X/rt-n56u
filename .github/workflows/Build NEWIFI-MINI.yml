@@ -135,8 +135,7 @@ jobs:
         if: ${{ github.event_name != 'release' && success() }}
         run: |
           ls -lh ${images_dir}
-          GIT_VERSION=`git rev-parse --short=7 HEAD 2>/dev/null` && [ -n "$GIT_VERSION" ] && \
-          image_name=Padavan_$(date +%Y%m%d)_${BNAME}_${GIT_VERSION} || image_name=Padavan_$(date +%Y%m%d)_${BNAME}
+          image_name=Padavan_$(date +%Y%m%d)_${BNAME}
           cd ${images_dir}; md5sum *.trx |tee md5sum.txt; 7z a -mx=9 ${image_name}.7z ./*
           echo "image_name=${image_name}" >> $GITHUB_ENV
 # 点击☆Star编译完成的固件到Artifacts下载
