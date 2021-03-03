@@ -1,4 +1,4 @@
-SRC_NAME = smartdns-Release33
+SRC_NAME = smartdns-Release01
 THISDIR = $(shell pwd)
 
 all: extract_tar config_sdns
