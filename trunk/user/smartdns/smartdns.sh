@@ -25,6 +25,11 @@ GFWLIST_DIR="$CUSTOMCONF_DIR/gfwlist"
 GFWLIST_CONF="$GFWLIST_DIR/dnsmasq_gfwlist.conf"
 GFWLIST_TEMP="$CONF_DIR/dnsmasq_gfwlist.conf"
 GFWLIST_MD5="$CONF_DIR/dnsmasq_gfwlist.md5"
+ADDRESS_CONF="$CUSTOMCONF_DIR/smartdns_address.conf"
+ADDRESS_LOG="/tmp/smartdns_address.conf"
+ADDRESS_TEMP="$CONF_DIR/smartdns_address.conf"
+ADDRESS_MD5="$CONF_DIR/smartdns_address.md5"
+smartdns_process=`pidof smartdns`
 sdnse_enable=`nvram get sdnse_enable`
 sdnse_group=`nvram get sdnse_group`
 sdnse_nra=`nvram get sdnse_nra`
@@ -325,12 +330,14 @@ gensdnsserver
 gensdnswblist
 gensdnschngfw
 cat >> $SMARTDNS_CONF << EOF
-log-file /tmp/smartdns.log
+log-level notice
+log-file /tmp/syslog.log
 log-size 1m
 log-num 0
 audit-enable yes
+audit-SOA no
 audit-size 1m
-audit-file /tmp/smartdns.log
+audit-file $ADDRESS_LOG
 audit-num 0
 EOF
 }
@@ -408,21 +415,19 @@ sed -i '/^server=::1/d' $DNSQ_CONF
 sed -i '/^servers-file/d' $DNSM_CONF
 echo "servers-file=/tmp/dnsmasq.servers" >> $DNSM_CONF
 rm -rf /tmp/SmartDNS
-rm -rf /tmp/smartdns.log
-rm -rf /tmp/smartdns.log*.gz
 }
 
 sdnsguard()
 {
-smartdns_process=`pidof smartdns`
 while [ $sdns_enable == 1 ]
 do
 if [ -n "$smartdns_process" ]; then
   sleep 1m
-  awk 'END{print NR}' /tmp/syslog.log
-  logger -t "SmartDNS" "测试-$?-$0-$1-$2"
+  ADDRESS_NR="`wc -l \"$ADDRESS_LOG\"`"
+  logger -t "SmartDNS" "测试-$ADDRESS_NR"
 else
   logger -t "SmartDNS" "程序异常退出!正在重新启动"
+  stop_sdns
   start_sdns
 fi
 done
@@ -439,9 +444,10 @@ $SMARTDNS_BIN -f -c $SMARTDNS_CONF &> /dev/null &
 logger -t "SmartDNS" "配置域名解析方式"
 gensdnsmasq
 sdnsredirect
-smartdns_process=`pidof smartdns`
 if [ -n "$smartdns_process" ]; then
-logger -t "SmartDNS" "启动成功"
+  logger -t "SmartDNS" "启动成功"
+else
+  logger -t "SmartDNS" "启动失败"
 fi
 dnsmasq
 sdnsguard
@@ -450,14 +456,11 @@ sdnsguard
 stop_sdns()
 {
 killall dnsmasq
-smartdns_process=`pidof smartdns`
-if [ -n "$smartdns_process" ]; then
-  logger -t "SmartDNS" "关闭进程"
-  killall smartdns > /dev/null 2>&1
-  kill -9 "$smartdns_process" > /dev/null 2>&1
-  genrestore
-  logger -t "SmartDNS" "关闭成功"
-fi
+logger -t "SmartDNS" "关闭进程"
+killall smartdns > /dev/null 2>&1
+kill -9 "$smartdns_process" > /dev/null 2>&1
+genrestore
+logger -t "SmartDNS" "关闭成功"
 dnsmasq
 }
 
