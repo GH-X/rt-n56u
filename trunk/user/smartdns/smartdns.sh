@@ -424,7 +424,7 @@ do
 if [ -n "$smartdns_process" ]; then
   sleep 1m
   ADDRESS_NR="`wc -l \"$ADDRESS_LOG\"`"
-  logger -t "SmartDNS" "测试-$ADDRESS_NR"
+  echo "SmartDNS" "$ADDRESS_NR" >> /tmp/syslog.log
 else
   logger -t "SmartDNS" "程序异常退出!正在重新启动"
   stop_sdns
