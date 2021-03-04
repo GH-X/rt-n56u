@@ -414,10 +414,10 @@ rm -rf /tmp/smartdns.log*.gz
 
 sdnsguard()
 {
-sdnsprocess=`pidof smartdns`
-for sdnspid in $($sdnsprocess)
+smartdns_process=`pidof smartdns`
+while [ $sdns_enable == 1 ]
 do
-if [ -n "$sdnspid" ]; then
+if [ -n "$smartdns_process" ]; then
   sleep 1m
   ADDRESS_NR="`awk 'END{print NR} /tmp/syslog.log'`"
   logger -t "SmartDNS" "测试$ADDRESS_NR"
