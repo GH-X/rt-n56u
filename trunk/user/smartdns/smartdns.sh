@@ -329,6 +329,7 @@ fi
 gensdnsserver
 gensdnswblist
 gensdnschngfw
+touch $ADDRESS_LOG
 cat >> $SMARTDNS_CONF << EOF
 log-level notice
 log-file /tmp/syslog.log
