@@ -419,6 +419,8 @@ for sdnspid in $($sdnsprocess)
 do
 if [ -n "$sdnspid" ]; then
   sleep 1m
+  ADDRESS_NR="`awk 'END{print NR} /tmp/syslog.log'`"
+  logger -t "SmartDNS" "测试$ADDRESS_NR"
 else
   logger -t "SmartDNS" "程序异常退出!正在重新启动"
   start_sdns
