@@ -419,8 +419,8 @@ while [ $sdns_enable == 1 ]
 do
 if [ -n "$smartdns_process" ]; then
   sleep 1m
-  ADDRESS_NR="`awk \'END{print NR} /tmp/syslog.log\'`"
-  logger -t "SmartDNS" "测试$ADDRESS_NR"
+  awk 'END{print NR}' /tmp/syslog.log
+  logger -t "SmartDNS" "测试-$?-$0-$1-$2"
 else
   logger -t "SmartDNS" "程序异常退出!正在重新启动"
   start_sdns
