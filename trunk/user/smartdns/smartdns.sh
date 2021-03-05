@@ -422,8 +422,8 @@ if [ "$sdns_enable" = "0" ]; then
   stop_sdns
   exit 0
 else
-  if [ -n "$sdnspid" ]; then
-    sleep 1m
+sleep 1m
+  if [ -n "$smartdns_process" ]; then
     logger -t "SmartDNS" "守护中..."
   else
     logger -t "SmartDNS" "程序异常退出!正在重新启动"
