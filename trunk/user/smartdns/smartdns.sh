@@ -65,10 +65,6 @@ nvram set sdns_enable=0
 logger -t "SmartDNS" "程序退出!请重新设置"
 exit 0
 fi
-if [ "$sdns_enable" == "0" ]; then
-logger -t "SmartDNS" "程序未启用"
-exit 0
-fi
 }
 
 gensdnssecond()
@@ -431,8 +427,6 @@ dnsmasq
 smartdns_process=`pidof smartdns`
 if [ -n "$smartdns_process" ]; then
 logger -t "SmartDNS" "启动成功"
-else
-logger -t "SmartDNS" "启动失败"
 fi
 }
 
@@ -450,33 +444,24 @@ fi
 dnsmasq
 }
 
-while [ "$1" == "start" ]
-do
-sdns_check
+while [ "$sdns_enable" == "1" ]; do
+  case $1 in
+  stop)
+    stop_sdns
+    continue
+    ;;
+  restart)
+    stop_sdns
+    start_sdns
+    ;;
+  start)
+    sdns_check
+    start_sdns
+    ;;
+  esac
 smartdns_process=`pidof smartdns`
-if [ -n "$smartdns_process" ]; then
-#  sleep 1m
-#  logger -t "SmartDNS" "程序运行正常"
-#else
+if [ "$smartdns_process" == "" ]; then
   logger -t "SmartDNS" "程序异常退出!正在重新启动"
   start_sdns
 fi
 done
-
-case $1 in
-#start)
-#  sdns_check
-#  start_sdns
-#  ;;
-stop)
-  stop_sdns
-  ;;
-restart)
-  stop_sdns
-  start_sdns
-  ;;
-*)
-  echo "Usage: $0 { start | stop | restart }"
-	exit 1
-  ;;
-esac
