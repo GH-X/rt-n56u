@@ -454,13 +454,13 @@ while [ "$1" == "start" ]
 do
 sdns_check
 smartdns_process=`pidof smartdns`
-#if [ -n "$smartdns_process" ]; then
+if [ -n "$smartdns_process" ]; then
 #  sleep 1m
 #  logger -t "SmartDNS" "程序运行正常"
 #else
   logger -t "SmartDNS" "程序异常退出!正在重新启动"
   start_sdns
-#fi
+fi
 done
 
 case $1 in
