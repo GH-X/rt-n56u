@@ -25,7 +25,6 @@ GFWLIST_DIR="$CUSTOMCONF_DIR/gfwlist"
 GFWLIST_CONF="$GFWLIST_DIR/dnsmasq_gfwlist.conf"
 GFWLIST_TEMP="$CONF_DIR/dnsmasq_gfwlist.conf"
 GFWLIST_MD5="$CONF_DIR/dnsmasq_gfwlist.md5"
-smartdns_process=`pidof smartdns`
 sdnse_enable=`nvram get sdnse_enable`
 sdnse_group=`nvram get sdnse_group`
 sdnse_nra=`nvram get sdnse_nra`
@@ -64,6 +63,10 @@ if [ "$sdns_port" == "$sdnse_port" ]; then
 logger -t "SmartDNS" "设置错误!服务器端口$sdns_port与第二服务器端口$sdnse_port相同"
 nvram set sdns_enable=0
 logger -t "SmartDNS" "程序退出!请重新设置"
+exit 0
+fi
+if [ "$sdns_enable" == "0" ]; then
+logger -t "SmartDNS" "程序未启用"
 exit 0
 fi
 }
@@ -413,26 +416,6 @@ rm -rf /tmp/smartdns.log
 rm -rf /tmp/smartdns.log*.gz
 }
 
-guard_sdns()
-{
-while [ $sdns_enable -eq 1 ]
-do
-if [ "$sdns_enable" = "0" ]; then
-  logger -t "SmartDNS" "退出守护"
-  stop_sdns
-  exit 0
-else
-sleep 1m
-  if [ -n "$smartdns_process" ]; then
-    logger -t "SmartDNS" "守护中..."
-  else
-    logger -t "SmartDNS" "程序异常退出!正在重新启动"
-    start_sdns
-  fi
-fi
-done
-}
-
 start_sdns()
 {
 killall dnsmasq
@@ -444,17 +427,19 @@ $SMARTDNS_BIN -f -c $SMARTDNS_CONF &> /dev/null &
 logger -t "SmartDNS" "配置域名解析方式"
 gensdnsmasq
 sdnsredirect
-if [ -n "$smartdns_process" ]; then
-  logger -t "SmartDNS" "启动成功"
-else
-  logger -t "SmartDNS" "启动失败"
-fi
 dnsmasq
+smartdns_process=`pidof smartdns`
+if [ -n "$smartdns_process" ]; then
+logger -t "SmartDNS" "启动成功"
+else
+logger -t "SmartDNS" "启动失败"
+fi
 }
 
 stop_sdns()
 {
 killall dnsmasq
+smartdns_process=`pidof smartdns`
 if [ -n "$smartdns_process" ]; then
   logger -t "SmartDNS" "关闭进程"
   killall smartdns > /dev/null 2>&1
@@ -465,11 +450,23 @@ fi
 dnsmasq
 }
 
+while [ "$1" == "" ]
+do
+sdns_check
+smartdns_process=`pidof smartdns`
+if [ -n "$smartdns_process" ]; then
+  sleep 1m
+  logger -t "SmartDNS" "程序运行正常"
+else
+  logger -t "SmartDNS" "程序异常退出!正在重新启动"
+  start_sdns
+fi
+done
+
 case $1 in
 start)
   sdns_check
   start_sdns
-  guard_sdns
   ;;
 stop)
   stop_sdns
@@ -477,7 +474,6 @@ stop)
 restart)
   stop_sdns
   start_sdns
-  guard_sdns
   ;;
 *)
   echo "Usage: $0 { start | stop | restart }"
