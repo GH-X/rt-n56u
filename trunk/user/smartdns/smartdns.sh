@@ -450,7 +450,7 @@ fi
 dnsmasq
 }
 
-while [ "$1" == "" ]
+while [ "$1" == "start" ]
 do
 sdns_check
 smartdns_process=`pidof smartdns`
@@ -464,10 +464,10 @@ fi
 done
 
 case $1 in
-start)
-  sdns_check
-  start_sdns
-  ;;
+#start)
+#  sdns_check
+#  start_sdns
+#  ;;
 stop)
   stop_sdns
   ;;
