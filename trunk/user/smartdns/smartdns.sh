@@ -25,10 +25,6 @@ GFWLIST_DIR="$CUSTOMCONF_DIR/gfwlist"
 GFWLIST_CONF="$GFWLIST_DIR/dnsmasq_gfwlist.conf"
 GFWLIST_TEMP="$CONF_DIR/dnsmasq_gfwlist.conf"
 GFWLIST_MD5="$CONF_DIR/dnsmasq_gfwlist.md5"
-ADDRESS_CONF="$CUSTOMCONF_DIR/smartdns_address.conf"
-ADDRESS_LOG="/tmp/smartdns_address.conf"
-ADDRESS_TEMP="$CONF_DIR/smartdns_address.conf"
-ADDRESS_MD5="$CONF_DIR/smartdns_address.md5"
 smartdns_process=`pidof smartdns`
 sdnse_enable=`nvram get sdnse_enable`
 sdnse_group=`nvram get sdnse_group`
@@ -329,16 +325,13 @@ fi
 gensdnsserver
 gensdnswblist
 gensdnschngfw
-touch $ADDRESS_LOG
 cat >> $SMARTDNS_CONF << EOF
-log-level notice
-log-file /tmp/syslog.log
+log-file /tmp/smartdns.log
 log-size 1m
 log-num 0
 audit-enable yes
-audit-SOA no
 audit-size 1m
-audit-file $ADDRESS_LOG
+audit-file /tmp/smartdns.log
 audit-num 0
 EOF
 }
@@ -416,20 +409,26 @@ sed -i '/^server=::1/d' $DNSQ_CONF
 sed -i '/^servers-file/d' $DNSM_CONF
 echo "servers-file=/tmp/dnsmasq.servers" >> $DNSM_CONF
 rm -rf /tmp/SmartDNS
+rm -rf /tmp/smartdns.log
+rm -rf /tmp/smartdns.log*.gz
 }
 
-sdnsguard()
+guard_sdns()
 {
-while [ $sdns_enable == 1 ]
+while [ $sdns_enable -eq 1 ]
 do
-if [ -n "$smartdns_process" ]; then
-  sleep 1m
-  ADDRESS_NR="`wc -l \"$ADDRESS_LOG\"`"
-  echo "SmartDNS" "$ADDRESS_NR" >> /tmp/syslog.log
-else
-  logger -t "SmartDNS" "程序异常退出!正在重新启动"
+if [ "$sdns_enable" = "0" ]; then
+  logger -t "SmartDNS" "退出守护"
   stop_sdns
-  start_sdns
+  exit 0
+else
+  if [ -n "$sdnspid" ]; then
+    sleep 1m
+    logger -t "SmartDNS" "守护中..."
+  else
+    logger -t "SmartDNS" "程序异常退出!正在重新启动"
+    start_sdns
+  fi
 fi
 done
 }
@@ -451,17 +450,18 @@ else
   logger -t "SmartDNS" "启动失败"
 fi
 dnsmasq
-sdnsguard
 }
 
 stop_sdns()
 {
 killall dnsmasq
-logger -t "SmartDNS" "关闭进程"
-killall smartdns > /dev/null 2>&1
-kill -9 "$smartdns_process" > /dev/null 2>&1
-genrestore
-logger -t "SmartDNS" "关闭成功"
+if [ -n "$smartdns_process" ]; then
+  logger -t "SmartDNS" "关闭进程"
+  killall smartdns > /dev/null 2>&1
+  kill -9 "$smartdns_process" > /dev/null 2>&1
+  genrestore
+  logger -t "SmartDNS" "关闭成功"
+fi
 dnsmasq
 }
 
@@ -469,6 +469,7 @@ case $1 in
 start)
   sdns_check
   start_sdns
+  guard_sdns
   ;;
 stop)
   stop_sdns
@@ -476,6 +477,7 @@ stop)
 restart)
   stop_sdns
   start_sdns
+  guard_sdns
   ;;
 *)
   echo "Usage: $0 { start | stop | restart }"
