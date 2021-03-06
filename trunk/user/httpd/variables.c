@@ -224,9 +224,6 @@
 			{"st_samba_mode", "", NULL, EVM_RESTART_SMBD},
 #endif
 #if defined(APP_SMBD) || defined(APP_NMBD)
-			{"samba_m_xmit", "", NULL, EVM_RESTART_NMBD},
-			{"samba_w_buf", "", NULL, EVM_RESTART_NMBD},
-			{"samba_r_buf", "", NULL, EVM_RESTART_NMBD},
 			{"st_samba_lmb", "", NULL, EVM_RESTART_NMBD},
 			{"st_samba_workgroup", "", NULL, EVM_RESTART_NMBD},
 #endif
@@ -862,7 +859,10 @@
 			{"snds_cache", "", NULL, EVM_RESTART_SMARTDNS},
 			{"sdns_prefetch", "", NULL, EVM_RESTART_SMARTDNS},
 			{"sdns_expired", "", NULL, EVM_RESTART_SMARTDNS},
+			{"sdns_address", "", NULL, EVM_RESTART_SMARTDNS},
+			{"sdns_logl", "", NULL, EVM_RESTART_SMARTDNS},
 			{"scripts.GFWblack.conf", "File", NULL, EVM_RESTART_SMARTDNS},
+			{"scripts.smartdns_address.conf", "File", NULL, EVM_RESTART_SMARTDNS},
 			{"scripts.smartdns_blacklist.conf", "File", NULL, EVM_RESTART_SMARTDNS},
 			{"scripts.smartdns_custom.conf", "File", NULL, EVM_RESTART_SMARTDNS},
 			{"scripts.smartdns_whitelist.conf", "File", NULL, EVM_RESTART_SMARTDNS},
