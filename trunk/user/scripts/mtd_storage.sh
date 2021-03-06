@@ -219,6 +219,7 @@ func_fill()
 	user_sswan_secrets="$dir_sswan/ipsec.secrets"
 
 	smartdns_g_conf="$dir_storage/GFWblack.conf"
+	smartdns_a_conf="$dir_storage/smartdns_address.conf"
 	smartdns_b_conf="$dir_storage/smartdns_blacklist.conf"
 	smartdns_c_conf="$dir_storage/smartdns_custom.conf"
 	smartdns_w_conf="$dir_storage/smartdns_whitelist.conf"
@@ -236,6 +237,10 @@ func_fill()
 	if [ ! -f "$smartdns_g_conf" ] ; then
 		cp -rf /etc_ro/GFWblack.conf "$dir_storage"
 		chmod 755 "$smartdns_g_conf"
+	fi
+	if [ ! -f "$smartdns_a_conf" ] ; then
+		cp -rf /etc_ro/smartdns_address.conf "$dir_storage"
+		chmod 755 "$smartdns_a_conf"
 	fi
 	if [ ! -f "$smartdns_b_conf" ] ; then
 		cp -rf /etc_ro/smartdns_blacklist.conf "$dir_storage"
