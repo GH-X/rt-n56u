@@ -53,6 +53,8 @@ $j(document).ready(function(){
  init_itoggle('snds_cache');
  init_itoggle('sdns_prefetch');
  init_itoggle('sdns_expired');
+ init_itoggle('sdns_address');
+ init_itoggle('sdns_logl');
  init_itoggle('sdnss_enable_x_0');
  init_itoggle('sdnss_ip_x_0');
  init_itoggle('sdnss_port_x_0');
@@ -366,7 +368,7 @@ function showMRULESList(){
 
           <tr> <th><#SDNS_Local_Port#></th>
            <td>
-            <input type="text" maxlength="5" class="input" size="5" name="sdns_port" style="width: 134px" placeholder="60" value="<% nvram_get_x("", "sdns_port"); %>"> [1..65535]
+            <input type="text" maxlength="5" class="input" size="5" name="sdns_port" style="width: 134px" placeholder="5353" value="<% nvram_get_x("", "sdns_port"); %>"> [1..65535]
            </td>
           </tr>
 
@@ -401,8 +403,8 @@ function showMRULESList(){
              </div>
             </div>
             <div style="position: absolute; margin-left: -10000px;">
-             <input type="radio" value="1" name="snds_dis" id="snds_dis_1" <% nvram_match_x("", "snds_dis", "1", "checked"); %>><#checkbox_Yes#>
              <input type="radio" value="0" name="snds_dis" id="snds_dis_0" <% nvram_match_x("", "snds_dis", "0", "checked"); %>><#checkbox_No#>
+             <input type="radio" value="1" name="snds_dis" id="snds_dis_1" <% nvram_match_x("", "snds_dis", "1", "checked"); %>><#checkbox_Yes#>
             </div>
            </td>
           </tr>
@@ -421,8 +423,8 @@ function showMRULESList(){
              </div>
             </div>
             <div style="position: absolute; margin-left: -10000px;">
-             <input type="radio" value="1" name="sdns_prefetch" id="sdns_prefetch_1" <% nvram_match_x("", "sdns_prefetch", "1", "checked"); %>><#checkbox_Yes#>
              <input type="radio" value="0" name="sdns_prefetch" id="sdns_prefetch_0" <% nvram_match_x("", "sdns_prefetch", "0", "checked"); %>><#checkbox_No#>
+             <input type="radio" value="1" name="sdns_prefetch" id="sdns_prefetch_1" <% nvram_match_x("", "sdns_prefetch", "1", "checked"); %>><#checkbox_Yes#>
             </div>
            </td>
           </tr>
@@ -435,8 +437,22 @@ function showMRULESList(){
              </div>
             </div>
             <div style="position: absolute; margin-left: -10000px;">
-             <input type="radio" value="1" name="sdns_expired" id="sdns_expired_1" <% nvram_match_x("", "sdns_expired", "1", "checked"); %>><#checkbox_Yes#>
              <input type="radio" value="0" name="sdns_expired" id="sdns_expired_0" <% nvram_match_x("", "sdns_expired", "0", "checked"); %>><#checkbox_No#>
+             <input type="radio" value="1" name="sdns_expired" id="sdns_expired_1" <% nvram_match_x("", "sdns_expired", "1", "checked"); %>><#checkbox_Yes#>
+            </div>
+           </td>
+          </tr>
+
+          <tr> <th><#SDNS_Address_Memory#></th>
+           <td>
+            <div class="main_itoggle">
+             <div id="sdns_address_on_of">
+              <input type="checkbox" id="sdns_address_fake" <% nvram_match_x("", "sdns_address", "1", "value=1 checked"); %><% nvram_match_x("", "sdns_address", "0", "value=0"); %>>
+             </div>
+            </div>
+            <div style="position: absolute; margin-left: -10000px;">
+             <input type="radio" value="0" name="sdns_address" id="sdns_address_0" <% nvram_match_x("", "sdns_address", "0", "checked"); %>><#checkbox_No#>
+             <input type="radio" value="1" name="sdns_address" id="sdns_address_1" <% nvram_match_x("", "sdns_address", "1", "checked"); %>><#checkbox_Yes#>
             </div>
            </td>
           </tr>
@@ -446,6 +462,14 @@ function showMRULESList(){
 
          <div id="wnd_sm_cou">
          <table width="100%" cellpadding="0" cellspacing="0" class="table">
+          <tr> <th colspan="2" style="background-color: #E3E3E3;"><#SDNS_Custom_Settings#></th></tr>
+
+          <tr>
+           <td colspan="2" style="border-top: 0 none; padding-bottom: 0px;">
+            <textarea rows="8" wrap="off" spellcheck="false" class="span12" name="scripts.smartdns_custom.conf" style="font-family:'Courier New', Courier, mono; font-size:13px;"><% nvram_dump("scripts.smartdns_custom.conf",""); %></textarea>
+           </td>
+          </tr>
+
           <tr> <th width="50%"><#SDNS_Domains_Whitelist#></th>
            <td>
             <input type="text" maxlength="16" class="input" size="16" name="sdns_group" placeholder="<#SDNS_Server_Group#>" style="width: 134px" value="<% nvram_get_x("", "sdns_group"); %>">
@@ -470,15 +494,11 @@ function showMRULESList(){
            </td>
           </tr>
 
-          <tr> <th colspan="2" style="background-color: #E3E3E3;"><#SDNS_Custom_Settings#></th></tr>
-
-          <tr>
-           <td colspan="2" style="border-top: 0 none; padding-bottom: 0px;">
-            <textarea rows="8" wrap="off" spellcheck="false" class="span12" name="scripts.smartdns_custom.conf" style="font-family:'Courier New', Courier, mono; font-size:13px;"><% nvram_dump("scripts.smartdns_custom.conf",""); %></textarea>
+          <tr> <th width="50%"><#SDNS_Log_level#></th>
+           <td>
+            <input type="text" maxlength="6" class="input" size="6" name="sdns_logl" placeholder="notice" style="width: 134px" value="<% nvram_get_x("", "sdns_logl"); %>">
            </td>
           </tr>
-
-          <tr> <th colspan="2" style="background-color: #E3E3E3;"><#SDNS_Log_And_Audit#></th></tr>
 
           <tr>
            <td colspan="2" style="border-top: 0 none; padding-bottom: 0px;">
@@ -630,7 +650,7 @@ function showMRULESList(){
 
           <tr> <th><#SDNS_Local_Port#></th>
            <td>
-            <input type="text" maxlength="5" class="input" size="5" name="sdnse_port" placeholder="5353" style="width: 83px" value="<% nvram_get_x("", "sdnse_port"); %>">
+            <input type="text" maxlength="5" class="input" size="5" name="sdnse_port" placeholder="60" style="width: 83px" value="<% nvram_get_x("", "sdnse_port"); %>">
            </td>
           </tr>
 
