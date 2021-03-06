@@ -465,14 +465,12 @@ if [ "$ADDRESS_NR" >= "100" ]; then
     rm -f $ADDRESS_TEMP
     rm -f $ADDRESS_MD5
   else
-    stop_sdns
     logger -t "SmartDNS" "更新域名地址"
     rm -f $ADDRESS_CONF
     cp -rf $ADDRESS_TEMP $ADDRESS_CONF
     rm -f $ADDRESS_TEMP
     rm -f $ADDRESS_MD5
     sed -i '1,'$ADDRESS_NR'd' $ADDRESS_LOG
-    $SMARTDNS_BIN -f -c $SMARTDNS_CONF &> /dev/null &
     logger -t "SmartDNS" "域名地址更新成功"
   fi
 fi
