@@ -455,8 +455,9 @@ fi
 }
 
 while [ "$sdns_address" == "1" ]; do
+sleep 1m
 ADDRESS_NR="`wc -l \"$ADDRESS_LOG\"`"
-if [ "$ADDRESS_NR" >= "1024" ]; then
+if [ "$ADDRESS_NR" >= "100" ]; then
   cat $ADDRESS_CONF $ADDRESS_LOG | grep -v '^$' | awk -F/ '!a[$2]++{print $0}' >> $ADDRESS_TEMP
   md5sum $ADDRESS_TEMP >> $ADDRESS_MD5
   md5sum $ADDRESS_CONF -c $ADDRESS_MD5
