@@ -25,6 +25,10 @@ GFWLIST_DIR="$CUSTOMCONF_DIR/gfwlist"
 GFWLIST_CONF="$GFWLIST_DIR/dnsmasq_gfwlist.conf"
 GFWLIST_TEMP="$CONF_DIR/dnsmasq_gfwlist.conf"
 GFWLIST_MD5="$CONF_DIR/dnsmasq_gfwlist.md5"
+ADDRESS_CONF="$CUSTOMCONF_DIR/smartdns_address.conf"
+ADDRESS_LOG="/tmp/smartdns_address.log"
+ADDRESS_TEMP="$CONF_DIR/smartdns_address.conf"
+ADDRESS_MD5="$CONF_DIR/smartdns_address.md5"
 sdnse_enable=`nvram get sdnse_enable`
 sdnse_group=`nvram get sdnse_group`
 sdnse_nra=`nvram get sdnse_nra`
@@ -49,6 +53,8 @@ snds_dis=`nvram get snds_dis`
 snds_cache=`nvram get snds_cache`
 sdns_prefetch=`nvram get sdns_prefetch`
 sdns_expired=`nvram get sdns_expired`
+sdns_address=`nvram get sdns_address`
+sdns_logl=`nvram get sdns_logl`
 ss_enable=`nvram get ss_enable`
 
 sdns_check()
@@ -324,13 +330,18 @@ fi
 gensdnsserver
 gensdnswblist
 gensdnschngfw
+if [ "$sdns_address" = "1" ]; then
+echo "conf-file $ADDRESS_CONF" >> $SMARTDNS_CONF
+fi
 cat >> $SMARTDNS_CONF << EOF
+log-level $sdns_logl
 log-file /tmp/smartdns.log
 log-size 1m
 log-num 0
 audit-enable yes
+audit-SOA no
 audit-size 1m
-audit-file /tmp/smartdns.log
+audit-file $ADDRESS_LOG
 audit-num 0
 EOF
 }
@@ -397,8 +408,9 @@ fi
 fi
 }
 
-genrestore()
+sdns_restore()
 {
+killall dnsmasq
 logger -t "SmartDNS" "重置配置"
 sed -i 's/^min-cache-ttl=/#min-cache-ttl=/g' $DNSQ_CONF
 sed -i 's/^conf-dir=/#conf-dir=/g' $DNSQ_CONF
@@ -410,6 +422,7 @@ echo "servers-file=/tmp/dnsmasq.servers" >> $DNSM_CONF
 rm -rf /tmp/SmartDNS
 rm -rf /tmp/smartdns.log
 rm -rf /tmp/smartdns.log*.gz
+dnsmasq
 }
 
 start_sdns()
@@ -432,36 +445,55 @@ fi
 
 stop_sdns()
 {
-killall dnsmasq
 smartdns_process=`pidof smartdns`
 if [ -n "$smartdns_process" ]; then
   logger -t "SmartDNS" "关闭进程"
   killall smartdns > /dev/null 2>&1
   kill -9 "$smartdns_process" > /dev/null 2>&1
-  genrestore
   logger -t "SmartDNS" "关闭成功"
 fi
-dnsmasq
 }
 
-while [ "$sdns_enable" == "1" ]; do
-  case $1 in
-  stop)
+while [ "$sdns_address" == "1" ]; do
+ADDRESS_NR="`wc -l \"$ADDRESS_LOG\"`"
+if [ "$ADDRESS_NR" >= "1024" ]; then
+  cat $ADDRESS_CONF $ADDRESS_LOG | grep -v '^$' | awk -F/ '!a[$2]++{print $0}' >> $ADDRESS_TEMP
+  md5sum $ADDRESS_TEMP >> $ADDRESS_MD5
+  md5sum $ADDRESS_CONF -c $ADDRESS_MD5
+  if [ "$?" == "0" ]; then
+    rm -f $ADDRESS_TEMP
+    rm -f $ADDRESS_MD5
+  else
     stop_sdns
-    continue
-    ;;
-  restart)
-    stop_sdns
-    start_sdns
-    ;;
-  start)
-    sdns_check
-    start_sdns
-    ;;
-  esac
-smartdns_process=`pidof smartdns`
-if [ "$smartdns_process" == "" ]; then
-  logger -t "SmartDNS" "程序异常退出!正在重新启动"
-  start_sdns
+    logger -t "SmartDNS" "更新域名地址"
+    rm -f $ADDRESS_CONF
+    cp -rf $ADDRESS_TEMP $ADDRESS_CONF
+    rm -f $ADDRESS_TEMP
+    rm -f $ADDRESS_MD5
+    sed -i '1,'$ADDRESS_NR'd' $ADDRESS_LOG
+    $SMARTDNS_BIN -f -c $SMARTDNS_CONF &> /dev/null &
+    logger -t "SmartDNS" "域名地址更新成功"
+  fi
 fi
 done
+
+case $1 in
+start)
+  sdns_check
+  start_sdns
+  ;;
+stop)
+  stop_sdns
+  sdns_restore
+  ;;
+restart)
+  stop_sdns
+  sdns_restore
+  sdns_check
+  start_sdns
+  ;;
+*)
+  echo "Usage: $0 { start | stop | restart }"
+	exit 1
+  ;;
+esac
