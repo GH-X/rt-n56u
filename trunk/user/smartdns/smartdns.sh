@@ -454,28 +454,6 @@ if [ -n "$smartdns_process" ]; then
 fi
 }
 
-while [ "$sdns_address" == "1" ]; do
-sleep 1m
-ADDRESS_NR="`wc -l \"$ADDRESS_LOG\"`"
-if [ "$ADDRESS_NR" >= "100" ]; then
-  cat $ADDRESS_CONF $ADDRESS_LOG | grep -v '^$' | awk -F/ '!a[$2]++{print $0}' >> $ADDRESS_TEMP
-  md5sum $ADDRESS_TEMP >> $ADDRESS_MD5
-  md5sum $ADDRESS_CONF -c $ADDRESS_MD5
-  if [ "$?" == "0" ]; then
-    rm -f $ADDRESS_TEMP
-    rm -f $ADDRESS_MD5
-  else
-    logger -t "SmartDNS" "更新域名地址"
-    rm -f $ADDRESS_CONF
-    cp -rf $ADDRESS_TEMP $ADDRESS_CONF
-    rm -f $ADDRESS_TEMP
-    rm -f $ADDRESS_MD5
-    sed -i '1,'$ADDRESS_NR'd' $ADDRESS_LOG
-    logger -t "SmartDNS" "域名地址更新成功"
-  fi
-fi
-done
-
 case $1 in
 start)
   sdns_check
