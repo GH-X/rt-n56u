@@ -362,9 +362,6 @@ struct nvram_pair router_defaults[] = {
 #endif
 
 	// USB related
-	{ "samba_m_xmit", "32768" },
-	{ "samba_w_buf", "32768" },
-	{ "samba_r_buf", "65536" },
 	{ "acc_num", "0" },
 	{ "enable_ftp", "0" },
 	{ "enable_samba", "0" },
@@ -557,19 +554,21 @@ struct nvram_pair router_defaults[] = {
 	{ "sdnse_nds", "0" },
 	{ "sdnse_tcp_server", "0" },
 	{ "sdnse_ipv6_server", "0" },
-	{ "sdnse_port", "5353" },
+	{ "sdnse_port", "60" },
 	{ "sdnse_domain_gfw", "0" },
 	{ "sdns_enable", "0" },
 	{ "sdns_tcp_server", "0" },
 	{ "sdns_ipv6_server", "0" },
-	{ "sdns_port", "60" },
+	{ "sdns_port", "5353" },
 	{ "sdns_group", "CHN" },
 	{ "sdns_redirect", "0" },
 	{ "sdns_scm", "0" },
 	{ "snds_dis", "0" },
 	{ "snds_cache", "2048" },
-	{ "sdns_prefetch", "1" },
-	{ "sdns_expired", "1" },
+	{ "sdns_prefetch", "0" },
+	{ "sdns_expired", "0" },
+	{ "sdns_address", "0" },
+	{ "sdns_logl", "notice" },
 #endif
 
 #if defined(APP_DNSFORWARDER)
@@ -678,7 +677,6 @@ struct nvram_pair router_defaults[] = {
 	{ "force_mld", "0" },
 	{ "udpxy_enable_x", "0" },
 	{ "udpxy_clients", "10" },
-	{ "udpxy_renew_period", "120" },
 #if defined(APP_XUPNPD)
 	{ "xupnpd_enable_x", "0" },
 	{ "xupnpd_udpxy", "0" },
