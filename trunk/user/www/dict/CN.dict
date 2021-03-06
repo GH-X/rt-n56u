@@ -837,11 +837,12 @@ SDNS_Cache_Size=域名查询结果缓存数
 SDNS_Set_0_Disable_Cache=设置为 0 则禁用缓存
 SDNS_Domain_Prefetch=域名预获取
 SDNS_Serve_Expired=过期缓存服务
+SDNS_Address_Memory=域名地址记忆
+SDNS_Custom_Settings=自定义设置
 SDNS_Domains_Whitelist=白名单域名
 SDNS_Domains_Blacklist=黑名单域名
 SDNS_Server_Group=服务器分组
-SDNS_Custom_Settings=自定义设置
-SDNS_Log_And_Audit=日志与审计
+SDNS_Log_level=日志级别(fatal error warn notice info debug)
 SDNS_Enable_Upstream_Server=启用上游服务器
 SDNS_Upstream_Server_IP=上游服务器地址
 SDNS_Upstream_Server_Port=上游服务器端口
@@ -1920,9 +1921,5 @@ GfwList=GfwList
 Login=登录
 BTN_SHUTDOWN=关机
 JS_shutdown=关机后需要手动断电并重新接电才能启动路由!!!\n确定要关机吗？
-samba_mxmit=传输极限 (max xmit)
-samba_mxmit_text=32768
-samba_wbuf=接收缓存 (SO_RCVBUF)
-samba_wbuf_text=32768
-samba_rbuf=发送缓存 (SO_SNDBUF)
-samba_rbuf_text=65536
+
+
