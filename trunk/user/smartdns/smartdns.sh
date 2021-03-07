@@ -411,7 +411,7 @@ fi
 sdns_restore()
 {
 killall dnsmasq
-logger -t "SmartDNS" "重置配置"
+logger -t "SmartDNS" "恢复默认配置"
 sed -i 's/^min-cache-ttl=/#min-cache-ttl=/g' $DNSQ_CONF
 sed -i 's/^conf-dir=/#conf-dir=/g' $DNSQ_CONF
 sed -i '/^no-resolv/d' $DNSQ_CONF
@@ -437,6 +437,8 @@ logger -t "SmartDNS" "配置域名解析方式"
 gensdnsmasq
 sdnsredirect
 dnsmasq
+sleep 1
+wait
 smartdns_process=`pidof smartdns`
 if [ -n "$smartdns_process" ]; then
 logger -t "SmartDNS" "启动成功"
@@ -457,6 +459,7 @@ fi
 address_memory()
 {
 logger -t "SmartDNS" "启动域名地址记忆"
+echo "启动域名地址记忆"
 cat $ADDRESS_LOG $ADDRESS_CONF | grep -v '^$' | awk -F/ '!a[$2]++{print $0}' | while read line
 do
   echo "$line" >> $ADDRESS_TEMP
@@ -467,39 +470,41 @@ if [ "$?" == "0" ]; then
   rm -f $ADDRESS_TEMP
   rm -f $ADDRESS_MD5
   logger -t "SmartDNS" "没有新的域名地址"
+  echo "没有新的域名地址"
 else
   rm -f $ADDRESS_CONF
   cp -rf $ADDRESS_TEMP $ADDRESS_CONF
   rm -f $ADDRESS_TEMP
   rm -f $ADDRESS_LOG
   logger -t "SmartDNS" "域名地址更新成功"
+  echo "域名地址更新成功"
 fi
 }
 
 case "$1" in
-  start)
-    sdns_check
-    start_sdns
+start)
+  sdns_check
+  start_sdns
   ;;
-  stop)
-    stop_sdns
-    sdns_restore
+stop)
+  stop_sdns
+  sdns_restore
   ;;
-  restart)
-    stop_sdns
-    sdns_restore
-    sdns_check
-    start_sdns
+restart)
+  stop_sdns
+  sdns_restore
+  sdns_check
+  start_sdns
   ;;
-  addmem)
-    stop_sdns
-    address_memory
-    sdns_restore
-    sdns_check
-    start_sdns
+addmem)
+  stop_sdns
+  address_memory
+  sdns_restore
+  sdns_check
+  start_sdns
   ;;
-  *)
-    echo "Usage: $0 { start | stop | restart | addmem }"
-    exit 1
+*)
+  echo "Usage: $0 { start | stop | restart | addmem }"
+  exit 1
   ;;
 esac
