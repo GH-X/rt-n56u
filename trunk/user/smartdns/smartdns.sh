@@ -501,6 +501,6 @@ do
       logger -t "SmartDNS" "域名地址更新成功"
     fi
   else
-    break
+    continue
   fi
 done
