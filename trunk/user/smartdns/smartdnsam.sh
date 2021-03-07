@@ -7,8 +7,9 @@ ADDRESS_TEMP="$CONF_DIR/smartdns_address.conf"
 ADDRESS_MD5="$CONF_DIR/smartdns_address.md5"
 smartdns_process=`pidof smartdns`
 
+addressmemory()
+{
 logger -t "SmartDNS" "启用域名地址记忆"
-
 while [ -n "$smartdns_process" ]
 do
   sleep $smartdns_process
@@ -31,3 +32,10 @@ do
     smartdns.sh restart
   fi
 done
+}
+
+case $1 in
+start)
+  addressmemory
+  ;;
+esac

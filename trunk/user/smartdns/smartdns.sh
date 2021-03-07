@@ -442,7 +442,7 @@ if [ -n "$smartdns_process" ]; then
 logger -t "SmartDNS" "启动成功"
 fi
 if [ "$sdns_address" == "1" ]; then
-sh smartdnsam.sh
+smartdnsam.sh start
 fi
 }
 
