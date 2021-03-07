@@ -454,53 +454,52 @@ if [ -n "$smartdns_process" ]; then
 fi
 }
 
-while :
+address_memory()
+{
+logger -t "SmartDNS" "启动域名地址记忆"
+cat $ADDRESS_LOG $ADDRESS_CONF | grep -v '^$' | awk -F/ '!a[$2]++{print $0}' | while read line
 do
-  case "$1" in
+  echo "$line" >> $ADDRESS_TEMP
+done
+md5sum $ADDRESS_TEMP >> $ADDRESS_MD5
+md5sum $ADDRESS_CONF -c $ADDRESS_MD5
+if [ "$?" == "0" ]; then
+  rm -f $ADDRESS_TEMP
+  rm -f $ADDRESS_MD5
+  logger -t "SmartDNS" "没有新的域名地址"
+else
+  rm -f $ADDRESS_CONF
+  cp -rf $ADDRESS_TEMP $ADDRESS_CONF
+  rm -f $ADDRESS_TEMP
+  rm -f $ADDRESS_LOG
+  logger -t "SmartDNS" "域名地址更新成功"
+fi
+}
+
+case "$1" in
   start)
     sdns_check
     start_sdns
-    wait
-    ;;
+  ;;
   stop)
     stop_sdns
     sdns_restore
-    wait
-    ;;
+  ;;
   restart)
     stop_sdns
     sdns_restore
     sdns_check
     start_sdns
-    wait
-    ;;
+  ;;
+  addmem)
+    stop_sdns
+    address_memory
+    sdns_restore
+    sdns_check
+    start_sdns
+  ;;
   *)
-    echo "Usage: $0 { start | stop | restart }"
+    echo "Usage: $0 { start | stop | restart | addmem }"
     exit 1
-    ;;
-  esac
-  wait
-  smartdns_process=`pidof smartdns`
-  if [ -n "$smartdns_process" ] && [ "$sdns_address" == "1" ]; then
-    logger -t "SmartDNS" "启动域名地址记忆"
-    cat $ADDRESS_LOG $ADDRESS_CONF | grep -v '^$' | awk -F/ '!a[$2]++{print $0}' | while read line
-    do
-      echo "$line" >> $ADDRESS_TEMP
-    done
-    md5sum $ADDRESS_TEMP >> $ADDRESS_MD5
-    md5sum $ADDRESS_CONF -c $ADDRESS_MD5
-    if [ "$?" == "0" ]; then
-      rm -f $ADDRESS_TEMP
-      rm -f $ADDRESS_MD5
-      logger -t "SmartDNS" "没有新的域名地址"
-    else
-      rm -f $ADDRESS_CONF
-      cp -rf $ADDRESS_TEMP $ADDRESS_CONF
-      rm -f $ADDRESS_TEMP
-      rm -f $ADDRESS_LOG
-      logger -t "SmartDNS" "域名地址更新成功"
-    fi
-  else
-    continue
-  fi
-done
+  ;;
+esac
