@@ -454,35 +454,34 @@ if [ -n "$smartdns_process" ]; then
 fi
 }
 
-while [ "$sdns_enable" == "1" ]
+while :
 do
   case "$1" in
   start)
     sdns_check
     start_sdns
+    wait
     ;;
   stop)
     stop_sdns
     sdns_restore
+    wait
     ;;
   restart)
     stop_sdns
     sdns_restore
     sdns_check
     start_sdns
+    wait
     ;;
   *)
     echo "Usage: $0 { start | stop | restart }"
     exit 1
     ;;
   esac
-  smartdns_shpid="$$"
-  wait "$smartdns_shpid"
-  smartdns_shbpid="$!"
-  wait "$smartdns_shbpid"
+  wait
   smartdns_process=`pidof smartdns`
-  wait "$smartdns_process"
-  if [ "$sdns_address" == "1" ]; then
+  if [ -n "$smartdns_process" ] && [ "$sdns_address" == "1" ]; then
     logger -t "SmartDNS" "启动域名地址记忆"
     cat $ADDRESS_LOG $ADDRESS_CONF | grep -v '^$' | awk -F/ '!a[$2]++{print $0}' | while read line
     do
@@ -501,5 +500,7 @@ do
       rm -f $ADDRESS_LOG
       logger -t "SmartDNS" "域名地址更新成功"
     fi
+  else
+    break
   fi
 done
