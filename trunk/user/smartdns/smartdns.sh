@@ -456,7 +456,7 @@ fi
 
 while [ "$sdns_enable" == "1" ]
 do
-  case $1 in
+  case "$1" in
   start)
     sdns_check
     start_sdns
@@ -472,16 +472,16 @@ do
     start_sdns
     ;;
   *)
-  echo "Usage: $0 { start | stop | restart }"
-	exit 1
-  ;;
+    echo "Usage: $0 { start | stop | restart }"
+    exit 1
+    ;;
   esac
-  smartdns_shpid=$$
-  wait $smartdns_shpid
-  smartdns_shbpid=$!
-  wait $smartdns_shbpid
+  smartdns_shpid="$$"
+  wait "$smartdns_shpid"
+  smartdns_shbpid="$!"
+  wait "$smartdns_shbpid"
   smartdns_process=`pidof smartdns`
-  wait $smartdns_process
+  wait "$smartdns_process"
   if [ "$sdns_address" == "1" ]; then
     logger -t "SmartDNS" "启动域名地址记忆"
     cat $ADDRESS_LOG $ADDRESS_CONF | grep -v '^$' | awk -F/ '!a[$2]++{print $0}' | while read line
