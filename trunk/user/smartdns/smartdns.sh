@@ -425,29 +425,6 @@ rm -rf /tmp/smartdns.log*.gz
 dnsmasq
 }
 
-addressmemory()
-{
-if [ "$sdns_address" == "1" ]; then
-  cat $ADDRESS_LOG $ADDRESS_CONF | grep -v '^$' | awk -F/ '!a[$2]++{print $0}' | while read line
-  do
-    echo "$line" >> $ADDRESS_TEMP
-    sleep 1s
-  done
-  md5sum $ADDRESS_TEMP >> $ADDRESS_MD5
-  md5sum $ADDRESS_CONF -c $ADDRESS_MD5
-  if [ "$?" == "0" ]; then
-    rm -f $ADDRESS_TEMP
-    rm -f $ADDRESS_MD5
-    logger -t "SmartDNS" "没有新的域名地址"
-  else
-    rm -f $ADDRESS_CONF
-    cp -rf $ADDRESS_TEMP $ADDRESS_CONF
-    rm -f $ADDRESS_TEMP
-    logger -t "SmartDNS" "域名地址更新成功"
-  fi
-fi
-}
-
 start_sdns()
 {
 killall dnsmasq
@@ -464,7 +441,9 @@ smartdns_process=`pidof smartdns`
 if [ -n "$smartdns_process" ]; then
 logger -t "SmartDNS" "启动成功"
 fi
-addressmemory
+if [ "$sdns_address" == "1" ]; then
+sh smartdnsam.sh
+fi
 }
 
 stop_sdns()

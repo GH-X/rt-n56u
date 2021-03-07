@@ -25,6 +25,7 @@ clean:
 romfs:
 	$(ROMFSINST) -p +x $(THISDIR)/$(SRC_NAME)/src/smartdns /usr/bin/smartdns
 	$(ROMFSINST) -p +x $(THISDIR)/smartdns.sh /usr/bin/smartdns.sh
+	$(ROMFSINST) -p +x $(THISDIR)/smartdnsam.sh /usr/bin/smartdnsam.sh
 	$(ROMFSINST) /etc_ro/smartdns_address.conf
 	$(ROMFSINST) /etc_ro/smartdns_blacklist.conf
 	$(ROMFSINST) /etc_ro/smartdns_custom.conf
