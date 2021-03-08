@@ -437,7 +437,6 @@ logger -t "SmartDNS" "配置域名解析方式"
 gensdnsmasq
 sdnsredirect
 dnsmasq
-wait
 sleep 1
 smartdns_process=`pidof smartdns`
 if [ -n "$smartdns_process" ]; then
