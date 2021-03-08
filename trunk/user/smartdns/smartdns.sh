@@ -333,10 +333,9 @@ gensdnswblist
 gensdnschngfw
 if [ "$sdns_address" = "1" ]; then
   echo "conf-file $ADDRESS_CONF" >> $SMARTDNS_CONF
-  sed -i '/smartdns.sh addmem/d' $CRON_CONF
-  echo "33 3 * * * /usr/bin/smartdns.sh addmem > /dev/null 2>&1" >> $CRON_CONF
-else
-  sed -i '/smartdns.sh addmem/d' $CRON_CONF
+  if [ -z `cat $CRON_CONF | grep "smartdns.sh addmem"` ]; then
+    echo "33 3 * * * /usr/bin/smartdns.sh addmem > /dev/null 2>&1" >> $CRON_CONF
+  fi
 fi
 cat >> $SMARTDNS_CONF << EOF
 log-level $sdns_logl
