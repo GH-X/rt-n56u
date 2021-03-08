@@ -333,8 +333,8 @@ gensdnswblist
 gensdnschngfw
 if [ "$sdns_address" = "1" ]; then
   echo "conf-file $ADDRESS_CONF" >> $SMARTDNS_CONF
-  if [ -z `cat $CRON_CONF | grep "smartdns.sh addmem"` ]; then
-    echo "33 3 * * * /usr/bin/smartdns.sh addmem > /dev/null 2>&1" >> $CRON_CONF
+  if [ -z `cat $CRON_CONF | grep 'smartdns.sh addmem'` ]; then
+    echo "33 3 * * * /usr/bin/smartdns.sh addmem &>/dev/null" >> $CRON_CONF
   fi
 fi
 cat >> $SMARTDNS_CONF << EOF
@@ -436,7 +436,7 @@ logger -t "SmartDNS" "开始启动"
 ulimit -n 65536
 mkdir -p /tmp/SmartDNS
 gensdnsconf
-$SMARTDNS_BIN -f -c $SMARTDNS_CONF &> /dev/null &
+$SMARTDNS_BIN -f -c $SMARTDNS_CONF &>/dev/null
 logger -t "SmartDNS" "配置域名解析方式"
 gensdnsmasq
 sdnsredirect
@@ -453,8 +453,8 @@ stop_sdns()
 smartdns_process=`pidof smartdns`
 if [ -n "$smartdns_process" ]; then
   logger -t "SmartDNS" "关闭进程"
-  killall smartdns > /dev/null 2>&1
-  kill -9 "$smartdns_process" > /dev/null 2>&1
+  killall smartdns &>/dev/null
+  kill -9 "$smartdns_process" &>/dev/null
   logger -t "SmartDNS" "关闭成功"
 fi
 }
@@ -467,8 +467,8 @@ cat $ADDRESS_LOG $ADDRESS_CONF | grep -v '^$' | awk -F/ '!a[$2]++{print $0}' | w
 do
   echo "$line" >> $ADDRESS_TEMP
 done
-md5sum $ADDRESS_TEMP >> $ADDRESS_MD5
-md5sum $ADDRESS_CONF -c $ADDRESS_MD5
+md5sum $ADDRESS_TEMP >> $ADDRESS_MD5 &>/dev/null
+md5sum $ADDRESS_CONF -c $ADDRESS_MD5 &>/dev/null
 if [ "$?" == "0" ]; then
   rm -f $ADDRESS_TEMP
   rm -f $ADDRESS_MD5
