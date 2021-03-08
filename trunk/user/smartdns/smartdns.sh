@@ -457,8 +457,8 @@ fi
 
 address_memory()
 {
-logger -t "SmartDNS" "启动域名地址记忆"
-echo "启动域名地址记忆"
+logger -t "SmartDNS" "开始更新域名地址"
+echo "开始更新域名地址"
 cat $ADDRESS_LOG $ADDRESS_CONF | grep -v '^$' | awk -F/ '!a[$2]++{print $0}' | while read line
 do
   echo "$line" >> $ADDRESS_TEMP
