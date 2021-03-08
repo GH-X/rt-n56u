@@ -29,6 +29,7 @@ ADDRESS_CONF="$CUSTOMCONF_DIR/smartdns_address.conf"
 ADDRESS_LOG="/tmp/smartdns_address.log"
 ADDRESS_TEMP="$CONF_DIR/smartdns_address.conf"
 ADDRESS_MD5="$CONF_DIR/smartdns_address.md5"
+CRON_CONF="$CUSTOMCONF_DIR/cron/crontabs/admin"
 sdnse_enable=`nvram get sdnse_enable`
 sdnse_group=`nvram get sdnse_group`
 sdnse_nra=`nvram get sdnse_nra`
@@ -331,7 +332,11 @@ gensdnsserver
 gensdnswblist
 gensdnschngfw
 if [ "$sdns_address" = "1" ]; then
-echo "conf-file $ADDRESS_CONF" >> $SMARTDNS_CONF
+  echo "conf-file $ADDRESS_CONF" >> $SMARTDNS_CONF
+  sed -i '/smartdns.sh addmem/d' $CRON_CONF
+  echo "33 3 * * * /usr/bin/smartdns.sh addmem > /dev/null 2>&1" >> $CRON_CONF
+else
+  sed -i '/smartdns.sh addmem/d' $CRON_CONF
 fi
 cat >> $SMARTDNS_CONF << EOF
 log-level $sdns_logl
@@ -340,7 +345,7 @@ log-size 1m
 log-num 0
 audit-enable yes
 audit-SOA no
-audit-size 1m
+audit-size 2m
 audit-file $ADDRESS_LOG
 audit-num 0
 EOF
@@ -436,11 +441,11 @@ $SMARTDNS_BIN -f -c $SMARTDNS_CONF &> /dev/null &
 logger -t "SmartDNS" "配置域名解析方式"
 gensdnsmasq
 sdnsredirect
-dnsmasq
-sleep 1
 smartdns_process=`pidof smartdns`
+dnsmasq
 if [ -n "$smartdns_process" ]; then
-logger -t "SmartDNS" "启动成功"
+  sleep 1
+  logger -t "SmartDNS" "启动成功"
 fi
 }
 
