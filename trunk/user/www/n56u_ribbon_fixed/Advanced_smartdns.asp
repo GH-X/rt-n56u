@@ -198,7 +198,7 @@ function showMRULESList(){
   else if(m_list[i][6] == "whitelist"){
   sdnssipc="<#WhiteList#>";
   }else{
-  sdnssipc="<#SDNS_Unlimited#>";
+  sdnssipc="<#SDNS_Not#>";
   }
   code +='<tr id="rowrl' + i + '">';
   code +='<td colspan="1">' + sdnssenable + '</td>';
@@ -502,7 +502,7 @@ function showMRULESList(){
 
           <tr>
            <td colspan="2" style="border-top: 0 none; padding-bottom: 0px;">
-             <textarea rows="16" class="span12" style="font-family:'Courier New', Courier, mono; font-size:13px;" readonly="readonly" wrap="off" id="textarea"><% nvram_dump("smartdns.log",""); %></textarea>
+             <textarea rows="8" class="span12" style="font-family:'Courier New', Courier, mono; font-size:13px;" readonly="readonly" wrap="off" id="textarea"><% nvram_dump("smartdns.log",""); %></textarea>
            </td>
           </tr>
          </table>
