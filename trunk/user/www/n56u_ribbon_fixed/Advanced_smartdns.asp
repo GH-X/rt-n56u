@@ -443,7 +443,7 @@ function showMRULESList(){
            </td>
           </tr>
 
-          <tr> <th><#SDNS_Address_Memory#></th>
+          <tr> <th><#SDNS_Address#></th>
            <td>
             <div class="main_itoggle">
              <div id="sdns_address_on_of">
