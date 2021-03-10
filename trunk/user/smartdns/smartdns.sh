@@ -333,8 +333,8 @@ gensdnswblist
 gensdnschngfw
 if [ "$sdns_address" = "1" ]; then
   echo "conf-file $ADDRESS_CONF" >> $SMARTDNS_CONF
-  if [ -z "$(cat "$CRON_CONF" | grep "smartdns.sh addmem")" ]; then
-    echo "33 3 * * * /usr/bin/smartdns.sh addmem 2>/dev/null" >> $CRON_CONF
+  if [ -z "$(cat "$CRON_CONF" | grep "smartdns.sh address")" ]; then
+    echo "33 3 * * * /usr/bin/smartdns.sh address 2>/dev/null" >> $CRON_CONF
   fi
 fi
 cat >> $SMARTDNS_CONF << EOF
@@ -453,22 +453,22 @@ stop_sdns()
 smartdns_process=`pidof smartdns`
 if [ -n "$smartdns_process" ]; then
   logger -t "SmartDNS" "关闭进程"
-  killall smartdns 2>/dev/null
-  kill -9 "$smartdns_process" 2>/dev/null
+  killall smartdns &>/dev/null
+  kill -9 "$smartdns_process" &>/dev/null
   logger -t "SmartDNS" "关闭成功"
 fi
 }
 
-address_memory()
+address_storage()
 {
-logger -t "SmartDNS" "开始更新域名地址"
-echo "开始更新域名地址"
+logger -t "SmartDNS" "开始更新域名地址列表"
+echo "开始更新域名地址列表"
 cat $ADDRESS_LOG $ADDRESS_CONF | grep -v '^$' | awk -F/ '!a[$2]++{print $0}' | while read line
 do
   echo "$line" >> $ADDRESS_TEMP
 done
-md5sum $ADDRESS_TEMP >> $ADDRESS_MD5 2>/dev/null
-md5sum $ADDRESS_CONF -c $ADDRESS_MD5 2>/dev/null
+md5sum $ADDRESS_TEMP >> $ADDRESS_MD5 &>/dev/null
+md5sum $ADDRESS_CONF -c $ADDRESS_MD5 &>/dev/null
 if [ "$?" == "0" ]; then
   rm -f $ADDRESS_TEMP
   rm -f $ADDRESS_MD5
@@ -479,8 +479,8 @@ else
   cp -rf $ADDRESS_TEMP $ADDRESS_CONF
   rm -f $ADDRESS_TEMP
   rm -f $ADDRESS_LOG
-  logger -t "SmartDNS" "域名地址更新成功"
-  echo "域名地址更新成功"
+  logger -t "SmartDNS" "域名地址列表更新成功"
+  echo "域名地址列表更新成功"
 fi
 }
 
@@ -499,15 +499,15 @@ restart)
   sdns_check
   start_sdns
   ;;
-addmem)
+address)
   stop_sdns
-  address_memory
+  address_storage
   sdns_restore
   sdns_check
   start_sdns
   ;;
 *)
-  echo "Usage: $0 { start | stop | restart | addmem }"
+  echo "Usage: $0 { start | stop | restart | address }"
   exit 1
   ;;
 esac
