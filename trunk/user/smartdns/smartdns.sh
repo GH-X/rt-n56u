@@ -211,8 +211,8 @@ fi
 upgfwblack()
 {
 cat $GFWRO_CONF $BLACKLIST_CONF | grep -v '^#' | grep -v '^$' | awk '!a[$0]++' >> $GFWBLACK_TEMP
-md5sum $GFWBLACK_TEMP >> $GFWBLACK_MD5 &>/dev/null
-md5sum $GFWBLACK_CONF -c $GFWBLACK_MD5 &>/dev/null
+md5sum $GFWBLACK_TEMP >> $GFWBLACK_MD5
+md5sum $GFWBLACK_CONF --status -c $GFWBLACK_MD5
 if [ "$?" == "0" ]; then
   rm -f $GFWBLACK_TEMP
   rm -f $GFWBLACK_MD5
@@ -227,8 +227,8 @@ fi
 upgfwdnsmq()
 {
 grep -v '^#' $GFWBLACK_CONF | grep -v '^$' | awk '{printf("server=/%s/'$DNSS_B'\n", $1, $1 )}' >> $GFWLIST_TEMP
-md5sum $GFWLIST_TEMP >> $GFWLIST_MD5 &>/dev/null
-md5sum $GFWLIST_CONF -c $GFWLIST_MD5 &>/dev/null
+md5sum $GFWLIST_TEMP >> $GFWLIST_MD5
+md5sum $GFWLIST_CONF --status -c $GFWLIST_MD5
 if [ "$?" == "0" ]; then
   rm -f $GFWLIST_TEMP
   rm -f $GFWLIST_MD5
@@ -467,8 +467,8 @@ cat $ADDRESS_LOG $ADDRESS_CONF | grep -v '^$' | awk -F/ '!a[$2]++{print $0}' | w
 do
   echo "$line" >> $ADDRESS_TEMP
 done
-md5sum $ADDRESS_TEMP >> $ADDRESS_MD5 &>/dev/null
-md5sum $ADDRESS_CONF -c $ADDRESS_MD5 &>/dev/null
+md5sum $ADDRESS_TEMP >> $ADDRESS_MD5
+md5sum $ADDRESS_CONF --status -c $ADDRESS_MD5
 if [ "$?" == "0" ]; then
   rm -f $ADDRESS_TEMP
   rm -f $ADDRESS_MD5
