@@ -463,15 +463,13 @@ address_storage()
 {
 logger -t "SmartDNS" "开始更新域名地址列表"
 echo "开始更新域名地址列表"
-cat $ADDRESS_LOG $ADDRESS_CONF | grep -v '^$' | awk -F/ '!a[$2]++{print $0}' | while read line
-do
-  echo "$line" >> $ADDRESS_TEMP
-done
-md5sum $ADDRESS_TEMP >> $ADDRESS_MD5
-md5sum $ADDRESS_CONF -c -s $ADDRESS_MD5
+cp -rf $ADDRESS_CONF $ADDRESS_TEMP
+md5sum $ADDRESS_TEMP
+rm -f $ADDRESS_TEMP
+cat $ADDRESS_LOG $ADDRESS_CONF | grep -v '^$' | awk -F/ '!a[$2]++{print $0}' | sort -o > $ADDRESS_TEMP
+md5sum -c -s $ADDRESS_TEMP
 if [ "$?" == "0" ]; then
   rm -f $ADDRESS_TEMP
-  rm -f $ADDRESS_MD5
   logger -t "SmartDNS" "没有新的域名地址"
   echo "没有新的域名地址"
 else
