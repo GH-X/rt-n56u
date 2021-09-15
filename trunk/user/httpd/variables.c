@@ -224,6 +224,10 @@
 			{"st_samba_mode", "", NULL, EVM_RESTART_SMBD},
 #endif
 #if defined(APP_SMBD) || defined(APP_NMBD)
+			{"samba_r_size", "", NULL, EVM_RESTART_NMBD},
+			{"samba_m_xmit", "", NULL, EVM_RESTART_NMBD},
+			{"samba_rmem_buf", "", NULL, EVM_RESTART_NMBD},
+			{"samba_wmem_buf", "", NULL, EVM_RESTART_NMBD},
 			{"st_samba_lmb", "", NULL, EVM_RESTART_NMBD},
 			{"st_samba_workgroup", "", NULL, EVM_RESTART_NMBD},
 #endif
