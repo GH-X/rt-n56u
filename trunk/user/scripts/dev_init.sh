@@ -83,8 +83,14 @@ ln -sf /etc_ro/e2fsck.conf /etc/e2fsck.conf
 ln -sf /etc_ro/ipkg.conf /etc/ipkg.conf
 
 # tune linux kernel
-echo 65536        > /proc/sys/fs/file-max
-echo "1024 65535" > /proc/sys/net/ipv4/ip_local_port_range
+echo 65536 > /proc/sys/fs/file-max
+echo 1024 65535 > /proc/sys/net/ipv4/ip_local_port_range
+echo 20480 87380 8388608 > /proc/sys/net/ipv4/tcp_rmem
+echo 20480 87380 8388608 > /proc/sys/net/ipv4/tcp_wmem
+echo 2048 4096 6144 > /proc/sys/net/ipv4/tcp_mem
+echo 65535 > /proc/sys/net/ipv4/udp_rmem_min
+echo 65535 > /proc/sys/net/ipv4/udp_wmem_min
+echo 2048 4096 6144 > /proc/sys/net/ipv4/udp_mem
 
 # fill storage
 mtd_storage.sh fill
