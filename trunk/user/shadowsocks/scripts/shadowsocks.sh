@@ -1,0 +1,255 @@
+#!/bin/sh
+
+ss_bin="/usr/bin/ss-orig-redir"
+ssr_bin="/usr/bin/ssr-redir"
+trojan_bin="/usr/bin/trojan"
+use_bin="ss-redir"
+log_file="/tmp/SSP.log"
+use_json_file="/tmp/SSP.json"
+ssp_link="/var/ss-redir"
+
+ss_type=$(nvram get ss_type)
+ssp_type=${ss_type:0} # 0=ss 1=ssr 2=trojan
+
+ss_server=$(nvram get ss_server)
+ss_server_sni=$(nvram get ss_server_sni)
+ss_server_port=$(nvram get ss_server_port)
+ss_local_port=$(nvram get ss_local_port)
+ss_password=$(nvram get ss_key)
+ss_method=$(nvram get ss_method)
+ss_timeout=$(nvram get ss_timeout)
+ss_protocol=$(nvram get ss_protocol)
+ss_proto_param=$(nvram get ss_proto_param)
+ss_obfs=$(nvram get ss_obfs)
+ss_obfs_param=$(nvram get ss_obfs_param)
+ss_mtu=$(nvram get ss_mtu)
+
+ss_mode=$(nvram get ss_mode) # 0=global 1=chnroute 2=gfwlist
+ss_udp=$(nvram get ss_udp)
+
+GFWBLACK_CONF="/etc/storage/GFWblack.conf"
+GFWLIST_CONF="/etc/storage/gfwlist/dnsmasq_gfwlist.conf"
+GFWLIST_TEMP="/tmp/dnsmasq_gfwlist.conf"
+GFWLIST_MD5="/tmp/dnsmasq_gfwlist.md5"
+DNSQ_CONF="/etc/storage/dnsmasq/dnsmasq.conf"
+
+[ "$ssp_type" = "0" ] && bin_type="SS" && ln -sf $ss_bin $ssp_link
+[ "$ssp_type" = "1" ] && bin_type="SSR" && ln -sf $ssr_bin $ssp_link
+[ "$ssp_type" = "2" ] && [ -x "$trojan_bin" ] && bin_type="Trojan" && ln -sf $trojan_bin $ssp_link
+[ "$bin_type" != "" ] || logger -st "SSP[$$]$bin_type" "找不到可执行文件!"
+
+gen_dns_conf()
+{
+if [ "$(nvram get sdns_enable)" = "0" ]; then
+  logger -st "SSP[$$]$bin_type" "创建域名解析规则"
+  if [ -x /usr/bin/dns-forwarder.sh ] && [ "$(nvram get dns_forwarder_enable)" = "1" ]; then
+    DNS_APP="dnsForwarder" && DNS_PORT=$(nvram get dns_forwarder_port)
+  elif [ "$(nvram get ss-tunnel_enable)" = "1" ]; then
+    DNS_APP="ssTunnel" && DNS_PORT=$(nvram get ss-tunnel_local_port)
+  fi
+  ADDR_PORT="127.0.0.1#$DNS_PORT"
+  cp -rf $GFWLIST_CONF $GFWLIST_TEMP
+  md5sum $GFWLIST_TEMP >> $GFWLIST_MD5
+  rm -rf $GFWLIST_TEMP
+  grep -v '^#' $GFWBLACK_CONF | grep -v '^$' | awk '{printf("ipset=/%s/gfwlist\n", $1, $1 )}' >> $GFWLIST_TEMP
+  md5sum -c -s $GFWLIST_MD5
+  if [ "$?" != "0" ]; then
+    rm -rf $GFWLIST_CONF
+    cp -rf $GFWLIST_TEMP $GFWLIST_CONF
+  fi
+  rm -rf $GFWLIST_TEMP
+  rm -rf $GFWLIST_MD5
+  killall dnsmasq && \
+  grep -v '^#' $GFWBLACK_CONF | grep -v '^$' | awk '{printf("server=/%s/'$ADDR_PORT'\n", $1, $1 )}' > /tmp/dnsmasq.servers && \
+  sed -i 's/### gfwlist related.*/### gfwlist related resolve by '$DNS_APP' '$ADDR_PORT'/g' $DNSQ_CONF && \
+  sed -i 's/^#min-cache-ttl=/min-cache-ttl=/g' $DNSQ_CONF && \
+  sed -i 's/^#conf-dir=/conf-dir=/g' $DNSQ_CONF && \
+  sleep 1 && dnsmasq
+fi
+}
+
+gen_json_file()
+{
+logger -st "SSP[$$]$bin_type" "创建配置文件"
+if [ "$ssp_type" = "0" ]; then
+	cat > "$use_json_file" << EOF
+{
+    "server": "$ss_server",
+    "server_port": $ss_server_port,
+    "password": "$ss_password",
+    "method": "$ss_method",
+    "timeout": $ss_timeout,
+    "local_address": "0.0.0.0",
+    "local_port": $ss_local_port,
+    "mtu": $ss_mtu
+}
+
+EOF
+elif [ "$ssp_type" = "1" ]; then
+	cat > "$use_json_file" << EOF
+{
+    "server": "$ss_server",
+    "server_port": $ss_server_port,
+    "password": "$ss_password",
+    "method": "$ss_method",
+    "timeout": $ss_timeout,
+    "protocol": "$ss_protocol",
+    "protocol_param": "$ss_proto_param",
+    "obfs": "$ss_obfs",
+    "obfs_param": "$ss_obfs_param",
+    "local_address": "0.0.0.0",
+    "local_port": $ss_local_port,
+    "mtu": $ss_mtu
+}
+
+EOF
+elif [ "$ssp_type" = "2" ]; then
+  if [ "$ss_server_sni" = "" ]; then
+    VHN="false"
+  else
+    VHN="true"
+  fi
+	cat > "$use_json_file" << EOF
+{
+    "run_type": "nat",
+    "local_addr": "0.0.0.0",
+    "local_port": $ss_local_port,
+    "remote_addr": "$ss_server",
+    "remote_port": $ss_server_port,
+    "password": [
+        "$ss_password"
+    ],
+    "log_level": 2,
+    "ssl": {
+        "verify": false,
+        "verify_hostname": $VHN,
+        "sni": "$ss_server_sni"
+    }
+}
+
+EOF
+fi
+}
+
+chn_list()
+{
+if [ "$ss_mode" = "0" ]; then # global
+  echo ""
+elif [ "$ss_mode" = "1" ]; then # chnroute
+  echo " -c /etc/storage/CHNwhiteip.conf"
+elif [ "$ss_mode" = "2" ]; then # gfwlist
+  echo " -c /etc/storage/CHNwhiteip.conf"
+fi
+}
+
+gfw_list()
+{
+if [ "$ss_mode" = "0" ]; then # global
+  echo ""
+elif [ "$ss_mode" = "1" ]; then # chnroute
+  echo " -g /etc/storage/GFWblackip.conf"
+elif [ "$ss_mode" = "2" ]; then # gfwlist
+  echo " -g /etc/storage/GFWblackip.conf"
+fi
+}
+
+exc_list()
+{
+if [ "$ss_mode" = "0" ]; then # global
+  echo ""
+elif [ "$ss_mode" = "1" ]; then # chnroute
+  echo " -e /etc/storage/chinadns/chnroute.txt"
+elif [ "$ss_mode" = "2" ]; then # gfwlist
+  echo " -e /etc/storage/ssprules/allroute.txt"
+fi
+}
+
+agent_mode()
+{
+if [ "$ss_udp" = "0" ]; then
+  echo " -t"
+elif [ "$ss_udp" = "1" ]; then
+  echo " -m"
+fi
+}
+
+start_rules()
+{
+logger -st "SSP[$$]$bin_type" "创建透明代理规则"
+ss-rules\
+ -s "$ss_server"\
+ -i "$ss_local_port"\
+$(chn_list)\
+$(gfw_list)\
+$(exc_list)\
+$(agent_mode)
+}
+
+udp_ext()
+{
+if [ "$ss_udp" = "1" ]; then
+  if [ "$ssp_type" = "0" ] || [ "$ssp_type" = "1" ]; then
+    echo " -u"
+  fi
+fi
+}
+
+start_redir()
+{
+logger -st "SSP[$$]$bin_type" "启动代理"
+nohup $use_bin -c $use_json_file\
+$(udp_ext)\
+ &>$log_file &
+}
+
+stop_watchcat()
+{
+killall -q -9 ss-watchcat.sh
+sed -i '/ss-watchcat.sh/d' /etc/storage/cron/crontabs/admin
+rm -rf /var/ss-watchcat.pid
+rm -rf /tmp/ss-watchcat.log
+}
+
+start_ssp()
+{
+ulimit -n 65536
+logger -st "SSP[$$]$bin_type" "开始启动" && \
+gen_dns_conf && gen_json_file && start_rules && start_redir
+pidof ss-watchcat.sh &>/dev/null || /usr/bin/ss-watchcat.sh
+[ "$?" = "0" ] && sleep 1 && logger -st "SSP[$(pidof $use_bin)]$bin_type" "成功启动"
+}
+
+stop_ssp()
+{
+logger -st "SSP[$$]$bin_type" "关闭程序" && killall -q -9 $use_bin && \
+logger -st "SSP[$$]$bin_type" "清除透明代理规则" && ss-rules -f && \
+logger -st "SSP[$$]$bin_type" "清除配置文件" && rm -rf $use_json_file && rm -rf $log_file
+if [ "$(nvram get sdns_enable)" = "0" ]; then
+  logger -st "SSP[$$]$bin_type" "清除域名解析规则"
+  killall dnsmasq && \
+  echo "" > /tmp/dnsmasq.servers && \
+  sed -i 's/^min-cache-ttl=/#min-cache-ttl=/g' $DNSQ_CONF && \
+  sed -i 's/^conf-dir=/#conf-dir=/g' $DNSQ_CONF && \
+  dnsmasq
+fi
+pidof $use_bin &>/dev/null || logger -st "SSP[$$]$bin_type" "成功关闭"
+}
+
+case "$1" in
+start)
+  stop_watchcat
+  start_ssp
+  ;;
+stop)
+  stop_ssp
+  stop_watchcat
+  ;;
+restart)
+  stop_ssp
+  start_ssp
+  ;;
+*)
+  echo "Usage: $0 { start | stop | restart }"
+  exit 1
+  ;;
+esac

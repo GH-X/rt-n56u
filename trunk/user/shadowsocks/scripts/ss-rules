@@ -1,0 +1,209 @@
+#!/bin/sh
+#
+# Copyright (C) 2021 GH-X
+
+private_addr="0.0.0.0/8
+              10.0.0.0/8
+              100.64.0.0/10
+              127.0.0.0/8
+              169.254.0.0/16
+              172.16.0.0/12
+              192.0.0.0/24
+              192.0.2.0/24
+              192.31.196.0/24
+              192.52.193.0/24
+              192.88.99.0/24
+              192.168.0.0/16
+              192.175.48.0/24
+              198.18.0.0/15
+              198.51.100.0/24
+              203.0.113.0/24
+              224.0.0.0/4
+              240.0.0.0/4
+              255.255.255.255/32"
+cdns_address="223.5.5.5
+              223.6.6.6
+              162.14.21.56
+              162.14.21.178"
+gdns_address="1.0.0.1
+              1.1.1.1
+              8.8.4.4
+              8.8.8.8"
+
+iptn="iptables -t nat"
+iptm="iptables -t mangle"
+
+flush_rules()
+{
+$iptn -F SSP_PREROUTING
+$iptn -F SSP_OUTPUT
+$iptn -F SSP_RULES
+$iptn -F SSP_AGENT
+$iptn -X SSP_PREROUTING
+$iptn -X SSP_OUTPUT
+$iptn -X SSP_RULES
+$iptn -X SSP_AGENT
+$iptn -D OUTPUT -p tcp -j SSP_OUTPUT
+$iptn -D PREROUTING -p tcp -j SSP_PREROUTING
+$iptm -F SSP_PREROUTING
+$iptm -F SSP_OUTPUT
+$iptm -F SSP_RULES
+$iptm -F SSP_AGENT
+$iptm -X SSP_PREROUTING
+$iptm -X SSP_OUTPUT
+$iptm -X SSP_RULES
+$iptm -X SSP_AGENT
+$iptm -D OUTPUT -p udp -j SSP_OUTPUT
+$iptm -D PREROUTING -p udp -j SSP_PREROUTING
+ip route del local 0.0.0.0/0 dev lo table 100
+ip rule del fwmark 0x64 lookup 100
+ip route flush cache
+iptables-save -c | grep -v "SSP_" | iptables-restore -c
+iptables-save -c | grep -v "TPROXY" | iptables-restore -c
+ipset destroy private
+ipset destroy chnlist
+ipset destroy gfwlist
+ipset destroy exclude
+return 0
+}
+
+gen_ipset()
+{
+ipset -! restore <<-EOF || return 1
+  create private hash:net hashsize 64
+  create chnlist hash:net hashsize 64
+  create gfwlist hash:net hashsize 64
+  create exclude hash:net hashsize 64
+  $(for privateaddr in $private_addr; do echo "add private $privateaddr"; done)
+  $(for cdnsaddress in $cdns_address; do echo "add chnlist $cdnsaddress"; done)
+  $(for gdnsaddress in $gdns_address; do echo "add gfwlist $gdnsaddress"; done)
+  $(for whiteip in $white_ip; do echo "add chnlist $whiteip"; done)
+  $(for blackip in $black_ip; do echo "add gfwlist $blackip"; done)
+  $(sed -e "s/^/add chnlist /" ${chn_list:=/dev/null} 2>/dev/null)
+  $(sed -e "s/^/add gfwlist /" ${gfw_list:=/dev/null} 2>/dev/null)
+  $(sed -e "s/^/add exclude /" ${exc_list:=/dev/null} 2>/dev/null)
+EOF
+return 0
+}
+
+ipt_nat()
+{
+$iptn -N SSP_PREROUTING
+$iptn -N SSP_OUTPUT
+$iptn -N SSP_RULES
+$iptn -N SSP_AGENT
+$iptn -A SSP_PREROUTING -d $server_addr -j RETURN
+$iptn -A SSP_PREROUTING -j SSP_RULES
+$iptn -A SSP_OUTPUT -d $server_addr -j RETURN
+$iptn -A SSP_OUTPUT -j SSP_RULES
+$iptn -A SSP_RULES -m set --match-set private dst -j RETURN
+$iptn -A SSP_RULES -m set --match-set chnlist dst -j RETURN
+$iptn -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
+$iptn -A SSP_RULES -m set --match-set exclude dst -j RETURN
+$iptn -A SSP_RULES -j SSP_AGENT
+$iptn -A SSP_AGENT -p tcp -j REDIRECT --to-ports $local_port
+$iptn -I OUTPUT 1 -p tcp -j SSP_OUTPUT
+$iptn -I PREROUTING 1 -p tcp -j SSP_PREROUTING
+return 0
+}
+
+ipt_mangle()
+{
+if !(lsmod | grep -q xt_TPROXY ); then
+  modprobe xt_TPROXY
+fi
+ip rule add fwmark 0x64 lookup 100
+ip route add local 0.0.0.0/0 dev lo table 100
+$iptm -N SSP_PREROUTING
+$iptm -N SSP_OUTPUT
+$iptm -N SSP_RULES
+$iptm -N SSP_AGENT
+$iptm -A SSP_PREROUTING -d $server_addr -j RETURN
+$iptm -A SSP_PREROUTING -j SSP_RULES
+$iptm -A SSP_OUTPUT -d $server_addr -j RETURN
+$iptm -A SSP_OUTPUT -j SSP_RULES
+$iptm -A SSP_RULES -m mark --mark 0x64/0x64 -j RETURN
+$iptm -A SSP_RULES -m set --match-set private dst -j RETURN
+$iptm -A SSP_RULES -m set --match-set chnlist dst -j RETURN
+$iptm -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
+$iptm -A SSP_RULES -m set --match-set exclude dst -j RETURN
+$iptm -A SSP_RULES -j SSP_AGENT
+$iptm -A SSP_AGENT -j CONNMARK --restore-mark
+$iptm -A SSP_AGENT -p udp -m conntrack --ctstate NEW -j CONNMARK --set-mark 0x64/0x64
+$iptm -A SSP_AGENT -j CONNMARK --save-mark
+$iptm -I OUTPUT 1 -p udp -j SSP_OUTPUT
+$iptm -I PREROUTING 1 -p udp -j SSP_PREROUTING
+$iptm -I PREROUTING 2 -p udp -m mark --mark 0x64/0x64 -j TPROXY --on-port $local_port
+return 0
+}
+
+usage()
+{
+cat <<-EOF
+
+  ss-rules [选项] [赋值]         [说明]
+           -s     <server_addr>  服务器地址      支持域名
+           -i     <local_port>   本地端口
+           -c     <chn_list>     白名单地址列表  IP/CIDR格式
+           -g     <gfw_list>     黑名单地址列表  IP/CIDR格式
+           -e     <exc_list>     排除地址列表    IP/CIDR格式
+           -w     <white_ip>     绕过地址        多个IP/CIDR使用[,]隔开
+           -b     <black_ip>     转发地址        多个IP/CIDR使用[,]隔开
+           -t                    透明代理模式    REDIRECT-TCP
+           -m                    透明代理模式    REDIRECT-TCP TPROXY-UDP
+           -f                    清除规则
+           -h                    显示帮助
+
+EOF
+exit $1
+}
+
+while getopts ":s:i:c:g:e:w:b:tmfh" arg; do
+  [ "$arg" != "" ] && logger -st "SSP[$$]Rules" "任务开始"
+  case "$arg" in
+    s)
+      [ -z "$OPTARG" ] && usage 2
+      server_addr="$OPTARG"
+      ;;
+    i)
+      [ -z "$OPTARG" ] && usage 2
+      local_port="$OPTARG"
+      ;;
+    c)
+      [ -z "$OPTARG" ] && usage 2
+      chn_list="$OPTARG"
+      ;;
+    g)
+      [ -z "$OPTARG" ] && usage 2
+      gfw_list="$OPTARG"
+      ;;
+    e)
+      [ -z "$OPTARG" ] && usage 2
+      exc_list="$OPTARG"
+      ;;
+    w)
+      [ -z "$OPTARG" ] && usage 2
+      white_ip=$(echo "$OPTARG" | sed 's/,/ /g')
+      ;;
+    b)
+      [ -z "$OPTARG" ] && usage 2
+      black_ip=$(echo "$OPTARG" | sed 's/,/ /g')
+      ;;
+    t)
+      gen_ipset && ipt_nat
+      ;;
+    m)
+      gen_ipset && ipt_nat && ipt_mangle
+      ;;
+    f)
+      flush_rules 2>/dev/null
+      ;;
+    h)
+      usage 0
+      ;;
+  esac
+done
+
+EC=$?
+[ $EC -eq 0 ] && logger -st "SSP[$$]Rules" "任务成功" || logger -st "SSP[$$]Rules" "任务失败"
+exit $EC
