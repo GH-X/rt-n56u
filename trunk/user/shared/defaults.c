@@ -168,8 +168,8 @@ struct nvram_pair router_defaults[] = {
 	{ "wl_channel", "0" },			/* Channel number */
 	{ "wl_bcn", "100" },			/* Beacon interval */
 	{ "wl_dtim", "1" },			/* DTIM period */
-	{ "wl_rts", "2347" },			/* RTS threshold */
-	{ "wl_frag", "2346" },			/* Fragmentation threshold */
+	{ "wl_rts", DEF_WLAN_RTS },			/* RTS threshold */
+	{ "wl_frag", DEF_WLAN_MSS },			/* Fragmentation threshold */
 	{ "wl_ap_isolate", "0" },		/* AP isolate mode */
 	{ "wl_closed", "0" },			/* Closed (hidden) network */
 	{ "wl_macmode", "disabled" },		/* "allow" only, "deny" only, or "disabled"(allow all) */
@@ -276,8 +276,8 @@ struct nvram_pair router_defaults[] = {
 	{ "rt_bcn", "100" },
 	{ "rt_dtim", "1" },
 	{ "rt_gmode_protection", "auto" },
-	{ "rt_rts", "2347" },
-	{ "rt_frag", "2346" },
+	{ "rt_rts", DEF_WLAN_RTS },
+	{ "rt_frag", DEF_WLAN_MSS },
 	{ "rt_ap_isolate", "0" },
 	{ "rt_closed", "0" },
 	{ "rt_macmode", "disabled" },
@@ -367,14 +367,18 @@ struct nvram_pair router_defaults[] = {
 #endif
 
 	// USB related
+	{ "samba_r_size", DEF_WLAN_MSS },
+	{ "samba_m_xmit", "65535" },
+	{ "samba_rmem_buf", "65535" },
+	{ "samba_wmem_buf", "65535" },
 	{ "acc_num", "0" },
 	{ "enable_ftp", "0" },
 	{ "enable_samba", "0" },
-	{ "st_samba_fp", "0" },
-	{ "st_samba_mode", "1" },
+	{ "st_samba_fp", "1" },
+	{ "st_samba_mode", "4" },
 	{ "st_samba_lmb", "1" },
 	{ "st_samba_workgroup", DEF_SMB_WORKGROUP },
-	{ "st_ftp_mode", "1" },
+	{ "st_ftp_mode", "4" },
 	{ "st_ftp_log", "0" },
 	{ "st_ftp_pmin", "50000" },
 	{ "st_ftp_pmax", "50100" },
