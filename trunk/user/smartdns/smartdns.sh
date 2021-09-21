@@ -383,9 +383,9 @@ cp -rf $CHNWHITEIP_CONF $CHNWHITEIP_TEMP
 md5sum $CHNWHITEIP_TEMP >> $CHNWHITEIP_MD5
 rm -rf $CHNWHITEIP_TEMP
 cat $ADDRESS_TMP | awk -F/ '{print $3}' >> $CHNWHITEIP_TMP
-for ip in $(cat $GFWBLACKIP_TMP)
+for addr in $(cat $GFWBLACKIP_TMP)
 do
-  sed -i '/'$ip'/d' $CHNWHITEIP_TMP
+  sed -i '/'$addr'/d' $CHNWHITEIP_TMP
 done
 cat $CHNWHITEIP_TMP $CHNWHITEIP_CONF | grep -v '^$' | sort -u >> $CHNWHITEIP_TEMP
 md5sum -c -s $CHNWHITEIP_MD5
@@ -409,7 +409,9 @@ if [ "$sdns_address" = "1" ] || [ -e /tmp/smartdns_address.conf ]; then
   md5sum $ADDRESS_TEMP >> $ADDRESS_MD5
   rm -rf $ADDRESS_TEMP
   cat $ADDRESS_LOG | grep 'type: ' | awk '{printf("address /%s/%s\n", $7,$9, $1 )}' >> $ADDRESS_TMP
-  cat $ADDRESS_TMP $ADDRESS_UPD $ADDRESS_CONF | grep -v '^$' | awk -F/ '!a[$2]++{print $0}' | sort >> $ADDRESS_TEMP
+  cat $ADDRESS_TMP $ADDRESS_UPD $ADDRESS_CONF | grep -v '^$' | \
+  grep -v "cdn" | grep -v "googlevideo.com" | \
+  awk -F/ '!a[$2]++{print $0}' | sort >> $ADDRESS_TEMP
   md5sum -c -s $ADDRESS_MD5
   if [ "$?" == "0" ]; then
     logger -st "SmartDNS[$$]" "没有新的域名地址"
@@ -443,12 +445,9 @@ mkdir -p /tmp/SmartDNS
 touch $SMARTDNS_CONF
 echo "conf-file $CUSTOM_CONF" >> $SMARTDNS_CONF
 if [ "$sdns_address" = "1" ]; then
-  if [ -z "$(cat "$CRON_CONF" | grep "smartdns.sh")" ]; then
-    echo "33 3 * * * /usr/bin/smartdns.sh update 2>/dev/null" >> $CRON_CONF
-  fi
+  $(cat "$CRON_CONF" | grep -q "smartdns.sh") || \
+  echo "33 3 * * * /usr/bin/smartdns.sh update 2>/dev/null" >> $CRON_CONF
   echo "conf-file $ADDRESS_CONF" >> $SMARTDNS_CONF
-else
-  sed -i '/smartdns.sh/d' $CRON_CONF
 fi
 if [ "$sdns_ipv6_server" = "1" ]; then
   echo "bind" "[::]:$sdns_port" >> $SMARTDNS_CONF
@@ -535,6 +534,7 @@ rm -rf /tmp/SmartDNS
 rm -rf /tmp/smartdns.log
 rm -rf /tmp/smartdns.log*.gz
 rm -rf /tmp/smartdns_address.log*.gz
+sed -i '/smartdns.sh/d' $CRON_CONF
 }
 
 update_restore()
