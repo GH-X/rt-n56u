@@ -2,6 +2,7 @@
 
 pidfile="/var/ss-watchcat.pid"
 log_file="/tmp/ss-watchcat.log"
+use_log_file="/tmp/ss-redir.log"
 max_log_bytes="1000000"
 chn_domain="www.qq.com"
 gfw_domain="https://www.youtube.com/"
@@ -42,14 +43,16 @@ restart_ssp(){
 check(){
 	[ -e $pidfile ] && kill -9 $(cat $pidfile) &>/dev/null
 	echo "$$" > $pidfile
+	[ -e $log_file ] || echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_首次启动!创建日志" > $log_file
+	[ $(stat -c %s $log_file) -lt $max_log_bytes ] || \
+	echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_日志文件过大!清空日志文件" > $log_file
 	[ "$(nvram get ss_enable)" = "1" ] || goout 0
+	!(pidof ss-redir &>/dev/null) && loger "代理程序未运行" && restart_ssp
+	!(iptables-save -c | grep -q "SSP_") && loger "没有防火墙规则" && restart_ssp
+	!(ipset list -n | grep -q "gfwlist") && loger "找不到地址集合" && restart_ssp
+	[ $(stat -c %s $use_log_file) -lt $max_log_bytes ] || \
+	echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_日志文件过大!清空日志文件" > $use_log_file
 	[ "$(nvram get ss_watchcat)" = "1" ] || goout 0
-	pidof ss-redir &>/dev/null || restart_ssp
-	$(iptables-save -c | grep "SSP_" &>/dev/null) || restart_ssp
-	[ -n "$(cat "/etc/storage/cron/crontabs/admin" | grep "ss-watchcat.sh")" ] || \
-	echo "*/5 * * * * /usr/bin/ss-watchcat.sh 2>/dev/null" >> /etc/storage/cron/crontabs/admin
-	[ $(stat -c %s $log_file) -gt $max_log_bytes ] && rm -rf $log_file
-	[ -e $log_file ] || echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_创建日志" >> $log_file
 }
 
 detect_ssp(){

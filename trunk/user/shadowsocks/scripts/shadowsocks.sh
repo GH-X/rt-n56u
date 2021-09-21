@@ -4,9 +4,9 @@ ss_bin="/usr/bin/ss-orig-redir"
 ssr_bin="/usr/bin/ssr-redir"
 trojan_bin="/usr/bin/trojan"
 use_bin="ss-redir"
-log_file="/tmp/SSP.log"
-use_json_file="/tmp/SSP.json"
-ssp_link="/var/ss-redir"
+use_link="/var/ss-redir"
+use_log_file="/tmp/ss-redir.log"
+use_json_file="/tmp/ss-redir.json"
 
 ss_type=$(nvram get ss_type)
 ssp_type=${ss_type:0} # 0=ss 1=ssr 2=trojan
@@ -33,9 +33,9 @@ GFWLIST_TEMP="/tmp/dnsmasq_gfwlist.conf"
 GFWLIST_MD5="/tmp/dnsmasq_gfwlist.md5"
 DNSQ_CONF="/etc/storage/dnsmasq/dnsmasq.conf"
 
-[ "$ssp_type" = "0" ] && bin_type="SS" && ln -sf $ss_bin $ssp_link
-[ "$ssp_type" = "1" ] && bin_type="SSR" && ln -sf $ssr_bin $ssp_link
-[ "$ssp_type" = "2" ] && [ -x "$trojan_bin" ] && bin_type="Trojan" && ln -sf $trojan_bin $ssp_link
+[ "$ssp_type" = "0" ] && bin_type="SS" && ln -sf $ss_bin $use_link
+[ "$ssp_type" = "1" ] && bin_type="SSR" && ln -sf $ssr_bin $use_link
+[ "$ssp_type" = "2" ] && [ -x "$trojan_bin" ] && bin_type="Trojan" && ln -sf $trojan_bin $use_link
 [ "$bin_type" != "" ] || logger -st "SSP[$$]$bin_type" "找不到可执行文件!"
 
 gen_dns_conf()
@@ -175,7 +175,7 @@ fi
 
 start_rules()
 {
-logger -st "SSP[$$]$bin_type" "创建透明代理规则"
+logger -st "SSP[$$]$bin_type" "开启透明代理"
 ss-rules\
  -s "$ss_server"\
  -i "$ss_local_port"\
@@ -198,8 +198,7 @@ start_redir()
 {
 logger -st "SSP[$$]$bin_type" "启动代理"
 nohup $use_bin -c $use_json_file\
-$(udp_ext)\
- &>$log_file &
+$(udp_ext) &>$use_log_file &
 }
 
 stop_watchcat()
@@ -207,23 +206,30 @@ stop_watchcat()
 killall -q -9 ss-watchcat.sh
 sed -i '/ss-watchcat.sh/d' /etc/storage/cron/crontabs/admin
 rm -rf /var/ss-watchcat.pid
-rm -rf /tmp/ss-watchcat.log
 }
 
 start_ssp()
 {
 ulimit -n 65536
+touch $use_log_file
 logger -st "SSP[$$]$bin_type" "开始启动" && \
 gen_dns_conf && gen_json_file && start_rules && start_redir
 pidof ss-watchcat.sh &>/dev/null || /usr/bin/ss-watchcat.sh
-[ "$?" = "0" ] && sleep 1 && logger -st "SSP[$(pidof $use_bin)]$bin_type" "成功启动"
+[ "$?" = "0" ] && sleep 1 && pidof $use_bin &>/dev/null && \
+$(iptables-save -c | grep -q "SSP_") && $(ipset list -n | grep -q "gfwlist") && \
+logger -st "SSP[$(pidof $use_bin)]$bin_type" "成功启动"
+$(cat "/etc/storage/cron/crontabs/admin" | grep -q "ss-watchcat.sh") || \
+echo "*/5 * * * * /usr/bin/ss-watchcat.sh 2>/dev/null" >> /etc/storage/cron/crontabs/admin
 }
 
 stop_ssp()
 {
-logger -st "SSP[$$]$bin_type" "关闭程序" && killall -q -9 $use_bin && \
-logger -st "SSP[$$]$bin_type" "清除透明代理规则" && ss-rules -f && \
-logger -st "SSP[$$]$bin_type" "清除配置文件" && rm -rf $use_json_file && rm -rf $log_file
+pidof $use_bin &>/dev/null && \
+logger -st "SSP[$$]$bin_type" "关闭程序" && killall -q -9 $use_bin
+if $(iptables-save -c | grep -q "SSP_") || $(ipset list -n | grep -q "gfwlist"); then
+  logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f
+fi
+[ -e $use_json_file ] && logger -st "SSP[$$]$bin_type" "清除配置文件" && rm -rf $use_json_file
 if [ "$(nvram get sdns_enable)" = "0" ]; then
   logger -st "SSP[$$]$bin_type" "清除域名解析规则"
   killall dnsmasq && \
@@ -232,7 +238,9 @@ if [ "$(nvram get sdns_enable)" = "0" ]; then
   sed -i 's/^conf-dir=/#conf-dir=/g' $DNSQ_CONF && \
   dnsmasq
 fi
-pidof $use_bin &>/dev/null || logger -st "SSP[$$]$bin_type" "成功关闭"
+!(pidof $use_bin &>/dev/null) && \
+!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q "gfwlist") && \
+logger -st "SSP[$$]$bin_type" "程序已经关闭"
 }
 
 case "$1" in
