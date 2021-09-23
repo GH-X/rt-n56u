@@ -85,6 +85,7 @@ if [ -e /tmp/smartdns_address.conf ]; then
 else
   ADDRESS_UPD="/dev/null"
 fi
+[ -e /tmp/SmartDNSupdate ] && logger -st "SmartDNS[$$]" "上次更新被错误终止" && rm -rf /tmp/SmartDNSupdate
 if [ "$sdns_port" == "$sdnse_port" ]; then
   logger -st "SmartDNS[$$]" "设置错误!服务器端口$sdns_port与第二服务器端口$sdnse_port相同"
   nvram set sdns_enable=0
@@ -195,24 +196,22 @@ sdnsredirect
 upgfwblack()
 {
 logger -st "SmartDNS[$$]" "更新黑名单域名"
-echo "更新黑名单域名"
 cp -rf $GFWBLACK_CONF $GFWBLACK_TEMP
 md5sum $GFWBLACK_TEMP >> $GFWBLACK_MD5
 rm -rf $GFWBLACK_TEMP
 cat $GFWBLACK_UPD $BLACKLIST_CONF | grep -v '^#' | grep -v '^$' | awk '!a[$0]++' >> $GFWBLACK_TEMP
-for wd in $(cat $WHITELIST_CONF | grep -v '^#' | grep -v '^$')
+for whitedomain in $(cat $WHITELIST_CONF | grep -v '^#' | grep -v '^$')
 do
-  sed -i '/'$wd'/d' $GFWBLACK_TEMP
+  echo "delete $whitedomain"
+  sed -i '/'$whitedomain'/d' $GFWBLACK_TEMP
 done
 md5sum -c -s $GFWBLACK_MD5
 if [ "$?" == "0" ]; then
   logger -st "SmartDNS[$$]" "没有新的黑名单域名"
-  echo "没有新的黑名单域名"
 else
   rm -rf $GFWBLACK_CONF
   cp -rf $GFWBLACK_TEMP $GFWBLACK_CONF
   logger -st "SmartDNS[$$]" "黑名单域名更新成功"
-  echo "黑名单域名更新成功"
 fi
 rm -rf $GFWBLACK_TEMP
 rm -rf $GFWBLACK_MD5
@@ -245,13 +244,13 @@ touch $CHN_CONF
 touch $GFW_CONF
 touch $DNSS_CONF
 if [ "$sdnse_enable" = "1" ]; then
-  upgfwblack
+  [ -e /tmp/SmartDNSupdate ] || upgfwblack
   logger -st "SmartDNS[$$]" "配置黑名单域名"
   grep -v '^#' $GFWBLACK_CONF | grep -v '^$' | awk '{printf("nameserver /%s/'$sdnse_group'\n", $1, $1 )}' >> $GFW_CONF
   echo "conf-file $GFW_CONF" >> $SMARTDNS_CONF
   grep -v '^#' $GFWBLACK_CONF | grep -v '^$' | awk '{printf("server=/%s/'$DNSS_B'\n", $1, $1 )}' >> $DNSS_CONF
 if [ "$sdnse_domain_gfw" = "1" ]; then
-  upgfwdnsmq
+  [ -e /tmp/SmartDNSupdate ] || upgfwdnsmq
 fi
 fi
 logger -st "SmartDNS[$$]" "配置白名单域名"
@@ -354,49 +353,45 @@ done
 upgfwblackip()
 {
 logger -st "SmartDNS[$$]" "更新黑名单地址"
-echo "更新黑名单地址"
 cp -rf $GFWBLACKIP_CONF $GFWBLACKIP_TEMP
 md5sum $GFWBLACKIP_TEMP >> $GFWBLACKIP_MD5
 rm -rf $GFWBLACKIP_TEMP
 for domain in $(cat $GFWBLACK_CONF)
 do
+  echo "search $domain"
   cat $ADDRESS_TMP | grep "$domain" | awk -F/ '{print $3}' >> $GFWBLACKIP_TMP
 done
 cat $GFWBLACKIP_TMP $GFWBLACKIP_UPD $GFWBLACKIP_CONF | grep -v '^$' | sort -u >> $GFWBLACKIP_TEMP
 md5sum -c -s $GFWBLACKIP_MD5
 if [ "$?" == "0" ]; then
   logger -st "SmartDNS[$$]" "没有新的黑名单地址"
-  echo "没有新的黑名单地址"
 else
   rm -rf $GFWBLACKIP_CONF
   cp -rf $GFWBLACKIP_TEMP $GFWBLACKIP_CONF
   logger -st "SmartDNS[$$]" "黑名单地址更新成功"
-  echo "黑名单地址更新成功"
 fi
 }
 
 upchnwhiteip()
 {
 logger -st "SmartDNS[$$]" "更新白名单地址"
-echo "更新白名单地址"
 cp -rf $CHNWHITEIP_CONF $CHNWHITEIP_TEMP
 md5sum $CHNWHITEIP_TEMP >> $CHNWHITEIP_MD5
 rm -rf $CHNWHITEIP_TEMP
-cat $ADDRESS_TMP | awk -F/ '{print $3}' >> $CHNWHITEIP_TMP
-for addr in $(cat $GFWBLACKIP_TMP)
+cat $ADDRESS_TMP | awk -F/ '{print $3}' | sort -u >> $CHNWHITEIP_TMP
+for address in $(cat $GFWBLACKIP_TEMP)
 do
-  sed -i '/'$addr'/d' $CHNWHITEIP_TMP
+  echo "delete $address"
+  sed -i '/'$address'/d' $CHNWHITEIP_TMP
 done
 cat $CHNWHITEIP_TMP $CHNWHITEIP_CONF | grep -v '^$' | sort -u >> $CHNWHITEIP_TEMP
 md5sum -c -s $CHNWHITEIP_MD5
 if [ "$?" == "0" ]; then
   logger -st "SmartDNS[$$]" "没有新的白名单地址"
-  echo "没有新的白名单地址"
 else
   rm -rf $CHNWHITEIP_CONF
   cp -rf $CHNWHITEIP_TEMP $CHNWHITEIP_CONF
   logger -st "SmartDNS[$$]" "白名单地址更新成功"
-  echo "白名单地址更新成功"
 fi
 }
 
@@ -404,7 +399,6 @@ address_update()
 {
 if [ "$sdns_address" = "1" ] || [ -e /tmp/smartdns_address.conf ]; then
   logger -st "SmartDNS[$$]" "更新域名地址"
-  echo "更新域名地址"
   cp -rf $ADDRESS_CONF $ADDRESS_TEMP
   md5sum $ADDRESS_TEMP >> $ADDRESS_MD5
   rm -rf $ADDRESS_TEMP
@@ -415,12 +409,10 @@ if [ "$sdns_address" = "1" ] || [ -e /tmp/smartdns_address.conf ]; then
   md5sum -c -s $ADDRESS_MD5
   if [ "$?" == "0" ]; then
     logger -st "SmartDNS[$$]" "没有新的域名地址"
-    echo "没有新的域名地址"
   else
     rm -rf $ADDRESS_CONF
     cp -rf $ADDRESS_TEMP $ADDRESS_CONF
     logger -st "SmartDNS[$$]" "域名地址更新成功"
-    echo "域名地址更新成功"
   fi
   upgfwblackip
   upchnwhiteip
@@ -542,6 +534,7 @@ update_restore()
 rm -rf /tmp/GFWblack.conf
 rm -rf /tmp/GFWblackip.conf
 rm -rf /tmp/smartdns_address.conf
+rm -rf /tmp/SmartDNSupdate
 }
 
 start_sdns()
@@ -575,15 +568,13 @@ restart)
   ;;
 update)
   sdns_check
+  echo "SmartDNSupdate" > /tmp/SmartDNSupdate
   [ "$sdns_enable" = "1" ] || mkdir -p /tmp/SmartDNS
-  [ "$sdns_enable" = "1" ] || upgfwblack
-  [ "$sdns_enable" = "1" ] || upgfwdnsmq
-  address_update
+  upgfwblack && upgfwdnsmq && address_update
   [ "$sdns_enable" = "0" ] || stop_sdns
   [ "$sdns_enable" = "0" ] || start_sdns
   [ "$sdns_enable" = "1" ] || rm -rf /tmp/SmartDNS
-  update_restore
-  mtd_storage.sh save &>/dev/null
+  update_restore && mtd_storage.sh save &>/dev/null
   ;;
 *)
   echo "Usage: $0 { start | stop | restart | update }"
