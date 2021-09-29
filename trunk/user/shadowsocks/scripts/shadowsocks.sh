@@ -8,6 +8,10 @@ use_link="/var/ss-redir"
 use_log_file="/tmp/ss-redir.log"
 use_json_file="/tmp/ss-redir.json"
 
+pidfile="/var/ss-watchcat.pid"
+statusfile="/tmp/ss-watchcat"
+CRON_CONF="/etc/storage/cron/crontabs/admin"
+
 ss_type=$(nvram get ss_type)
 ssp_type=${ss_type:0} # 0=ss 1=ssr 2=trojan
 
@@ -203,29 +207,29 @@ $(udp_ext) &>$use_log_file &
 
 stop_watchcat()
 {
-killall -q -9 ss-watchcat.sh
-sed -i '/ss-watchcat.sh/d' /etc/storage/cron/crontabs/admin
-rm -rf /var/ss-watchcat.pid
+killall -q -9 ss-watchcat.sh && rm -rf $pidfile && rm -rf $statusfile
+sed -i '/ss-watchcat.sh/d' $CRON_CONF && restart_crond
 }
 
 start_ssp()
 {
 ulimit -n 65536
 touch $use_log_file
+!(cat "$statusfile" | grep -q "restart_ssp") && stop_watchcat
 logger -st "SSP[$$]$bin_type" "开始启动" && \
 gen_dns_conf && gen_json_file && start_rules && start_redir
 pidof ss-watchcat.sh &>/dev/null || /usr/bin/ss-watchcat.sh
 [ "$?" = "0" ] && sleep 1 && pidof $use_bin &>/dev/null && \
 $(iptables-save -c | grep -q "SSP_") && $(ipset list -n | grep -q "gfwlist") && \
-logger -st "SSP[$(pidof $use_bin)]$bin_type" "成功启动"
-$(cat "/etc/storage/cron/crontabs/admin" | grep -q "ss-watchcat.sh") || \
-echo "*/5 * * * * /usr/bin/ss-watchcat.sh 2>/dev/null" >> /etc/storage/cron/crontabs/admin
+logger -st "SSP[$(pidof $use_bin)]$bin_type" "成功启动" && \
+!(cat "$CRON_CONF" | grep -q "ss-watchcat.sh") && \
+echo "*/5 * * * * /usr/bin/ss-watchcat.sh 2>/dev/null" >> $CRON_CONF && \
+restart_crond
 }
 
 stop_ssp()
 {
-pidof $use_bin &>/dev/null && \
-logger -st "SSP[$$]$bin_type" "关闭程序" && killall -q -9 $use_bin
+killall -q -9 $use_bin && logger -st "SSP[$$]$bin_type" "关闭程序"
 if $(iptables-save -c | grep -q "SSP_") || $(ipset list -n | grep -q "gfwlist"); then
   logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f
 fi
@@ -240,17 +244,16 @@ if [ "$(nvram get sdns_enable)" = "0" ]; then
 fi
 !(pidof $use_bin &>/dev/null) && \
 !(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q "gfwlist") && \
-logger -st "SSP[$$]$bin_type" "程序已经关闭"
+logger -st "SSP[$$]$bin_type" "程序已经关闭" && \
+!(cat "$statusfile" | grep -q "restart_ssp") && stop_watchcat
 }
 
 case "$1" in
 start)
-  stop_watchcat
   start_ssp
   ;;
 stop)
   stop_ssp
-  stop_watchcat
   ;;
 restart)
   stop_ssp

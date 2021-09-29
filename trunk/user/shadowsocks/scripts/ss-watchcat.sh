@@ -1,6 +1,7 @@
 #!/bin/sh
 
 pidfile="/var/ss-watchcat.pid"
+statusfile="/tmp/ss-watchcat"
 log_file="/tmp/ss-watchcat.log"
 use_log_file="/tmp/ss-redir.log"
 max_log_bytes="1000000"
@@ -9,6 +10,7 @@ gfw_domain="https://www.youtube.com/"
 
 goout(){
 	rm -rf $pidfile
+	rm -rf $statusfile
 	exit $1
 }
 
@@ -17,21 +19,25 @@ loger(){
 }
 
 detect_gfw(){
+	echo "detect_gfw" > $statusfile
 	loger "检测代理" && wget --spider --quiet --timeout=3 $gfw_domain &>/dev/null
 	return $?
 }
 
 detect_chn(){
+	echo "detect_chn" > $statusfile
 	loger "检测网络" && /bin/ping -c 3 $chn_domain -w 5 &>/dev/null
 	return $?
 }
 
 stop_ssp(){
+	echo "stop_ssp" > $statusfile
 	logger -st "SSP[$$]watchcat" "代理异常!关闭SSP代理" && loger "代理异常!关闭SSP代理" && \
 	nvram set ss_enable=0 && /usr/bin/shadowsocks.sh stop &>/dev/null && goout 1
 }
 
 restart_ssp(){
+	echo "restart_ssp" > $statusfile
 	[ -x /usr/bin/dns-forwarder.sh ] && [ "$(nvram get dns_forwarder_enable)" = "1" ] && \
 	loger "代理异常!重启DNS服务" && /usr/bin/dns-forwarder.sh restart &>/dev/null
 	[ "$(nvram get ss-tunnel_enable)" = "1" ] && loger "代理异常!重启DNS隧道" && \
@@ -41,7 +47,8 @@ restart_ssp(){
 }
 
 check(){
-	[ -e $pidfile ] && kill -9 $(cat $pidfile) &>/dev/null
+	[ -e $statusfile ] && exit 0
+	[ -e $pidfile ] && kill -q -9 $(cat $pidfile) &>/dev/null
 	echo "$$" > $pidfile
 	[ -e $log_file ] || echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_首次启动!创建日志" > $log_file
 	[ $(stat -c %s $log_file) -lt $max_log_bytes ] || \
