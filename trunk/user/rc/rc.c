@@ -867,8 +867,8 @@ init_router(void)
 
 	mount_rwfs_partition();
 
-	gen_ralink_config_2g(0);
 	gen_ralink_config_5g(0);
+	gen_ralink_config_2g(0);
 	load_wireless_modules();
 #if defined (USE_MMC_SUPPORT)
 	load_mmc_modules();
@@ -1059,6 +1059,24 @@ handle_notifications(void)
 			stop_handle = 1;
 			flash_firmware();
 		}
+		else if (strcmp(entry->d_name, RCN_RESTART_FIREWALL) == 0)
+		{
+			reload_nat_modules();
+			restart_firewall();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_DHCPD) == 0)
+		{
+			if (get_ap_mode())
+				update_hosts_ap();
+			restart_dhcpd();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_NETFILTER) == 0)
+		{
+			update_router_mode();
+			reload_nat_modules();
+			restart_firewall();
+			flush_conntrack_table(NULL);
+		}
 #if defined (USE_IPV6)
 		else if (!strcmp(entry->d_name, RCN_RESTART_IPV6))
 		{
@@ -1072,6 +1090,28 @@ handle_notifications(void)
 			restart_dhcpd();
 		}
 #endif
+		else if (strcmp(entry->d_name, RCN_RESTART_UPNP) == 0)
+		{
+			restart_upnp();
+		}
+		else if (!strcmp(entry->d_name, RCN_RESTART_IPTV))
+		{
+			int is_ap_mode = get_ap_mode();
+			restart_iptv(is_ap_mode);
+			if (!is_ap_mode)
+				restart_firewall();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_SWITCH_CFG) == 0)
+		{
+			config_bridge(get_ap_mode());
+			switch_config_base();
+			switch_config_storm();
+			switch_config_link();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_SWITCH_VLAN) == 0)
+		{
+			restart_switch_config_vlan();
+		}
 		else if (!strcmp(entry->d_name, RCN_RESTART_WAN))
 		{
 			full_restart_wan();
@@ -1083,13 +1123,6 @@ handle_notifications(void)
 		else if (!strcmp(entry->d_name, "stop_whole_wan"))
 		{
 			stop_wan();
-		}
-		else if (!strcmp(entry->d_name, RCN_RESTART_IPTV))
-		{
-			int is_ap_mode = get_ap_mode();
-			restart_iptv(is_ap_mode);
-			if (!is_ap_mode)
-				restart_firewall();
 		}
 		else if(!strcmp(entry->d_name, "deferred_wan_connect"))
 		{
@@ -1118,340 +1151,6 @@ handle_notifications(void)
 		else if(!strcmp(entry->d_name, "manual_ddns_hostname_check"))
 		{
 			manual_ddns_hostname_check();
-		}
-#if defined (USE_USB_SUPPORT)
-		else if (!strcmp(entry->d_name, RCN_RESTART_MODEM))
-		{
-			int wan_stopped = 0;
-			int modules_reloaded = 0;
-			int need_restart_wan = get_usb_modem_wan(0);
-			int modem_rule = nvram_get_int("modem_rule");
-			int modem_type = nvram_get_int("modem_type");
-			if (nvram_modem_rule != modem_rule)
-			{
-				nvram_modem_rule = modem_rule;
-				if (need_restart_wan) {
-					wan_stopped = 1;
-					stop_wan();
-				}
-				if (modem_rule > 0) {
-					modules_reloaded = 1;
-					reload_modem_modules(modem_type, 1);
-				} else {
-					unload_modem_modules();
-				}
-			}
-			if (nvram_modem_type != modem_type)
-			{
-				if (nvram_modem_type == 3 || modem_type == 3) {
-					if (modem_rule > 0 && !modules_reloaded) {
-						if (need_restart_wan && !wan_stopped)
-							stop_wan();
-						reload_modem_modules(modem_type, 1);
-					}
-				}
-				nvram_modem_type = modem_type;
-			}
-			if (need_restart_wan)
-				full_restart_wan();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_SPOOLER) == 0)
-		{
-			restart_usb_printer_spoolers();
-		}
-		else if (!strcmp(entry->d_name, "on_hotplug_usb_printer"))
-		{
-			// deferred run usb printer daemons
-			nvram_set_int_temp("usb_hotplug_lp", 1);
-			alarm(5);
-		}
-		else if (!strcmp(entry->d_name, "on_unplug_usb_printer"))
-		{
-			// deferred stop usb printer daemons
-			nvram_set_int_temp("usb_unplug_lp", 1);
-			alarm(5);
-		}
-		else if (!strcmp(entry->d_name, "on_hotplug_usb_modem"))
-		{
-			// deferred run usb modem to wan
-			nvram_set_int_temp("usb_hotplug_md", 1);
-			alarm(5);
-		}
-		else if (!strcmp(entry->d_name, "on_unplug_usb_modem"))
-		{
-			// deferred restart wan
-			nvram_set_int_temp("usb_unplug_md", 1);
-			alarm(5);
-		}
-#endif
-#if defined (USE_STORAGE)
-		else if (!strcmp(entry->d_name, "on_hotplug_mass_storage"))
-		{
-			// deferred run stor apps
-			nvram_set_int_temp("usb_hotplug_ms", 1);
-			alarm(5);
-		}
-		else if (!strcmp(entry->d_name, "on_unplug_mass_storage"))
-		{
-			umount_ejected();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_HDDTUNE) == 0)
-		{
-			system("/sbin/hddtune.sh");
-			set_pagecache_reclaim();
-		}
-#if defined(APP_FTPD)
-		else if (strcmp(entry->d_name, RCN_RESTART_FTPD) == 0)
-		{
-			restart_ftpd();
-		}
-#endif
-#if defined(APP_SMBD)
-		else if (strcmp(entry->d_name, RCN_RESTART_SMBD) == 0)
-		{
-			restart_smbd();
-		}
-#endif
-#if defined(APP_NFSD)
-		else if (strcmp(entry->d_name, RCN_RESTART_NFSD) == 0)
-		{
-			restart_nfsd();
-		}
-#endif
-#if defined(APP_MINIDLNA)
-		else if (strcmp(entry->d_name, "restart_dms_rescan") == 0)
-		{
-			restart_dms(1);
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_DMS) == 0)
-		{
-			restart_dms(0);
-		}
-#endif
-#if defined(APP_FIREFLY)
-		else if (strcmp(entry->d_name, RCN_RESTART_ITUNES) == 0)
-		{
-			restart_itunes();
-		}
-#endif
-#if defined(APP_TRMD)
-		else if (strcmp(entry->d_name, RCN_RESTART_TRMD) == 0)
-		{
-			restart_torrent();
-		}
-#endif
-#if defined(APP_ARIA)
-		else if (strcmp(entry->d_name, RCN_RESTART_ARIA) == 0)
-		{
-			restart_aria();
-		}
-#endif
-#endif
-		else if (strcmp(entry->d_name, RCN_RESTART_HTTPD) == 0)
-		{
-			restart_httpd();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_TELNETD) == 0)
-		{
-			stop_telnetd();
-			start_telnetd();
-		}
-#if defined(APP_SSHD)
-		else if (strcmp(entry->d_name, RCN_RESTART_SSHD) == 0)
-		{
-			restart_sshd();
-		}
-#endif
-#if defined(APP_SCUT)
-		else if (strcmp(entry->d_name, RCN_RESTART_SCUT) == 0)
-		{
-			restart_scutclient();
-		}
-		else if (strcmp(entry->d_name, "stop_scutclient") == 0)
-		{
-			stop_scutclient();
-		}
-#endif
-#if defined(APP_MENTOHUST)
-		else if (strcmp(entry->d_name, RCN_RESTART_MENTOHUST) == 0)
-		{
-			restart_mentohust();
-		}
-		else if (strcmp(entry->d_name, "stop_mentohust") == 0)
-		{
-			stop_mentohust();
-		}
-#endif
-#if defined(APP_TTYD)
-		else if (strcmp(entry->d_name, RCN_RESTART_TTYD) == 0)
-		{
-			restart_ttyd();
-		}
-#endif
-#if defined(APP_SHADOWSOCKS)
-		else if (strcmp(entry->d_name, RCN_RESTART_SHADOWSOCKS) == 0)
-		{
-			restart_ss();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_SS_TUNNEL) == 0)
-		{
-			restart_ss_tunnel();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_CHNROUTE_UPD) == 0)
-		{
-			update_chnroute();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_GFWLIST_UPD) == 0)
-		{
-			update_gfwlist();
-		}
-#endif
-#if defined(APP_VLMCSD)
-		else if (strcmp(entry->d_name, RCN_RESTART_VLMCSD) == 0)
-		{
-			restart_vlmcsd();
-		}
-#endif
-#if defined(APP_SMARTDNS)
-		else if (strcmp(entry->d_name, RCN_RESTART_SMARTDNS) == 0)
-		{
-			restart_smartdns();
-		}
-#endif
-#if defined(APP_DNSFORWARDER)
-		else if (strcmp(entry->d_name, RCN_RESTART_DNSFORWARDER) == 0)
-		{
-			restart_dnsforwarder();
-		}
-#endif
-#if defined(APP_SMBD) || defined(APP_NMBD)
-		else if (strcmp(entry->d_name, RCN_RESTART_NMBD) == 0)
-		{
-			restart_nmbd();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_WINS) == 0)
-		{
-			restart_nmbd();
-			restart_dhcpd();
-			reapply_vpn_server();
-		}
-#endif
-		else if (strcmp(entry->d_name, RCN_RESTART_LLTD) == 0)
-		{
-			restart_lltd();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_ADSC) == 0)
-		{
-			restart_infosvr();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_CROND) == 0)
-		{
-			restart_crond();
-		}
-		else if (strcmp(entry->d_name, RCN_REAPPLY_VPNSVR) == 0)
-		{
-			reapply_vpn_server();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_VPNSVR) == 0)
-		{
-			restart_vpn_server();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_VPNCLI) == 0)
-		{
-			restart_vpn_client();
-		}
-		else if (strcmp(entry->d_name, "start_vpn_client") == 0)
-		{
-			start_vpn_client();
-		}
-		else if (strcmp(entry->d_name, "stop_vpn_client") == 0)
-		{
-			stop_vpn_client();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_DDNS) == 0)
-		{
-			stop_ddns();
-			start_ddns(1);
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_DI) == 0)
-		{
-			if (get_ap_mode() || has_wan_ip4(0))
-				notify_run_detect_internet(2);
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_DHCPD) == 0)
-		{
-			if (get_ap_mode())
-				update_hosts_ap();
-			restart_dhcpd();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_UPNP) == 0)
-		{
-			restart_upnp();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_SWITCH_CFG) == 0)
-		{
-			config_bridge(get_ap_mode());
-			switch_config_base();
-			switch_config_storm();
-			switch_config_link();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_SWITCH_VLAN) == 0)
-		{
-			restart_switch_config_vlan();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_SYSLOG) == 0)
-		{
-			stop_logger();
-			start_logger(0);
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_WDG) == 0)
-		{
-			restart_watchdog_cpu();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_TWEAKS) == 0)
-		{
-			notify_leds_detect_link();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_NETFILTER) == 0)
-		{
-			update_router_mode();
-			reload_nat_modules();
-			restart_firewall();
-			flush_conntrack_table(NULL);
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_FIREWALL) == 0)
-		{
-			reload_nat_modules();
-			restart_firewall();
-		}
-		else if (strcmp(entry->d_name, "restart_firewall_wan") == 0)
-		{
-			restart_firewall();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_NTPC) == 0)
-		{
-			notify_watchdog_time();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_TIME) == 0)
-		{
-			stop_logger();
-			set_timezone();
-			notify_watchdog_time();
-			notify_rstats_time();
-			start_logger(0);
-			restart_crond();
-		}
-		else if (strcmp(entry->d_name, RCN_RESTART_SYSCTL) == 0)
-		{
-			int nf_nat_type = nvram_get_int("nf_nat_type");
-			
-			restart_all_sysctl();
-			
-			/* flush conntrack after NAT model changing */
-			if (nvram_nf_nat_type != nf_nat_type) {
-				nvram_nf_nat_type = nf_nat_type;
-				flush_conntrack_table(NULL);
-			}
 		}
 		else if (!strcmp(entry->d_name, RCN_RESTART_WIFI5))
 		{
@@ -1531,6 +1230,307 @@ handle_notifications(void)
 		{
 			gen_ralink_config_2g(0);
 		}
+		else if (strcmp(entry->d_name, RCN_RESTART_WDG) == 0)
+		{
+			restart_watchdog_cpu();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_TWEAKS) == 0)
+		{
+			notify_leds_detect_link();
+		}
+		else if (strcmp(entry->d_name, "restart_firewall_wan") == 0)
+		{
+			restart_firewall();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_NTPC) == 0)
+		{
+			notify_watchdog_time();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_TIME) == 0)
+		{
+			stop_logger();
+			set_timezone();
+			notify_watchdog_time();
+			notify_rstats_time();
+			start_logger(0);
+			restart_crond();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_SYSLOG) == 0)
+		{
+			stop_logger();
+			start_logger(0);
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_DDNS) == 0)
+		{
+			stop_ddns();
+			start_ddns(1);
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_HTTPD) == 0)
+		{
+			restart_httpd();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_CROND) == 0)
+		{
+			restart_crond();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_TELNETD) == 0)
+		{
+			stop_telnetd();
+			start_telnetd();
+		}
+#if defined(APP_SSHD)
+		else if (strcmp(entry->d_name, RCN_RESTART_SSHD) == 0)
+		{
+			restart_sshd();
+		}
+#endif
+#if defined(APP_TTYD)
+		else if (strcmp(entry->d_name, RCN_RESTART_TTYD) == 0)
+		{
+			restart_ttyd();
+		}
+#endif
+		else if (strcmp(entry->d_name, RCN_RESTART_LLTD) == 0)
+		{
+			restart_lltd();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_ADSC) == 0)
+		{
+			restart_infosvr();
+		}
+		else if (strcmp(entry->d_name, RCN_REAPPLY_VPNSVR) == 0)
+		{
+			reapply_vpn_server();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_VPNSVR) == 0)
+		{
+			restart_vpn_server();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_VPNCLI) == 0)
+		{
+			restart_vpn_client();
+		}
+		else if (strcmp(entry->d_name, "start_vpn_client") == 0)
+		{
+			start_vpn_client();
+		}
+		else if (strcmp(entry->d_name, "stop_vpn_client") == 0)
+		{
+			stop_vpn_client();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_SYSCTL) == 0)
+		{
+			int nf_nat_type = nvram_get_int("nf_nat_type");
+			
+			restart_all_sysctl();
+			
+			/* flush conntrack after NAT model changing */
+			if (nvram_nf_nat_type != nf_nat_type) {
+				nvram_nf_nat_type = nf_nat_type;
+				flush_conntrack_table(NULL);
+			}
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_DI) == 0)
+		{
+			if (get_ap_mode() || has_wan_ip4(0))
+				notify_run_detect_internet(2);
+		}
+#if defined (USE_USB_SUPPORT)
+		else if (!strcmp(entry->d_name, RCN_RESTART_MODEM))
+		{
+			int wan_stopped = 0;
+			int modules_reloaded = 0;
+			int need_restart_wan = get_usb_modem_wan(0);
+			int modem_rule = nvram_get_int("modem_rule");
+			int modem_type = nvram_get_int("modem_type");
+			if (nvram_modem_rule != modem_rule)
+			{
+				nvram_modem_rule = modem_rule;
+				if (need_restart_wan) {
+					wan_stopped = 1;
+					stop_wan();
+				}
+				if (modem_rule > 0) {
+					modules_reloaded = 1;
+					reload_modem_modules(modem_type, 1);
+				} else {
+					unload_modem_modules();
+				}
+			}
+			if (nvram_modem_type != modem_type)
+			{
+				if (nvram_modem_type == 3 || modem_type == 3) {
+					if (modem_rule > 0 && !modules_reloaded) {
+						if (need_restart_wan && !wan_stopped)
+							stop_wan();
+						reload_modem_modules(modem_type, 1);
+					}
+				}
+				nvram_modem_type = modem_type;
+			}
+			if (need_restart_wan)
+				full_restart_wan();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_SPOOLER) == 0)
+		{
+			restart_usb_printer_spoolers();
+		}
+		else if (!strcmp(entry->d_name, "on_hotplug_usb_printer"))
+		{
+			// deferred run usb printer daemons
+			nvram_set_int_temp("usb_hotplug_lp", 1);
+			alarm(5);
+		}
+		else if (!strcmp(entry->d_name, "on_unplug_usb_printer"))
+		{
+			// deferred stop usb printer daemons
+			nvram_set_int_temp("usb_unplug_lp", 1);
+			alarm(5);
+		}
+		else if (!strcmp(entry->d_name, "on_hotplug_usb_modem"))
+		{
+			// deferred run usb modem to wan
+			nvram_set_int_temp("usb_hotplug_md", 1);
+			alarm(5);
+		}
+		else if (!strcmp(entry->d_name, "on_unplug_usb_modem"))
+		{
+			// deferred restart wan
+			nvram_set_int_temp("usb_unplug_md", 1);
+			alarm(5);
+		}
+#endif
+#if defined(APP_SMBD) || defined(APP_NMBD)
+		else if (strcmp(entry->d_name, RCN_RESTART_WINS) == 0)
+		{
+			restart_nmbd();
+			restart_dhcpd();
+			reapply_vpn_server();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_NMBD) == 0)
+		{
+			restart_nmbd();
+		}
+#endif
+#if defined (USE_STORAGE)
+		else if (!strcmp(entry->d_name, "on_hotplug_mass_storage"))
+		{
+			// deferred run stor apps
+			nvram_set_int_temp("usb_hotplug_ms", 1);
+			alarm(5);
+		}
+		else if (!strcmp(entry->d_name, "on_unplug_mass_storage"))
+		{
+			umount_ejected();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_HDDTUNE) == 0)
+		{
+			system("/sbin/hddtune.sh");
+			set_pagecache_reclaim();
+		}
+#if defined(APP_SMBD)
+		else if (strcmp(entry->d_name, RCN_RESTART_SMBD) == 0)
+		{
+			restart_smbd();
+		}
+#endif
+#if defined(APP_FTPD)
+		else if (strcmp(entry->d_name, RCN_RESTART_FTPD) == 0)
+		{
+			restart_ftpd();
+		}
+#endif
+#if defined(APP_NFSD)
+		else if (strcmp(entry->d_name, RCN_RESTART_NFSD) == 0)
+		{
+			restart_nfsd();
+		}
+#endif
+#if defined(APP_MINIDLNA)
+		else if (strcmp(entry->d_name, "restart_dms_rescan") == 0)
+		{
+			restart_dms(1);
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_DMS) == 0)
+		{
+			restart_dms(0);
+		}
+#endif
+#if defined(APP_FIREFLY)
+		else if (strcmp(entry->d_name, RCN_RESTART_ITUNES) == 0)
+		{
+			restart_itunes();
+		}
+#endif
+#if defined(APP_ARIA)
+		else if (strcmp(entry->d_name, RCN_RESTART_ARIA) == 0)
+		{
+			restart_aria();
+		}
+#endif
+#if defined(APP_TRMD)
+		else if (strcmp(entry->d_name, RCN_RESTART_TRMD) == 0)
+		{
+			restart_torrent();
+		}
+#endif
+#endif
+#if defined(APP_SCUT)
+		else if (strcmp(entry->d_name, RCN_RESTART_SCUT) == 0)
+		{
+			restart_scutclient();
+		}
+		else if (strcmp(entry->d_name, "stop_scutclient") == 0)
+		{
+			stop_scutclient();
+		}
+#endif
+#if defined(APP_MENTOHUST)
+		else if (strcmp(entry->d_name, RCN_RESTART_MENTOHUST) == 0)
+		{
+			restart_mentohust();
+		}
+		else if (strcmp(entry->d_name, "stop_mentohust") == 0)
+		{
+			stop_mentohust();
+		}
+#endif
+#if defined(APP_VLMCSD)
+		else if (strcmp(entry->d_name, RCN_RESTART_VLMCSD) == 0)
+		{
+			restart_vlmcsd();
+		}
+#endif
+#if defined(APP_DNSFORWARDER)
+		else if (strcmp(entry->d_name, RCN_RESTART_DNSFORWARDER) == 0)
+		{
+			restart_dnsforwarder();
+		}
+#endif
+#if defined(APP_SMARTDNS)
+		else if (strcmp(entry->d_name, RCN_RESTART_SMARTDNS) == 0)
+		{
+			restart_smartdns();
+		}
+#endif
+#if defined(APP_SHADOWSOCKS)
+		else if (strcmp(entry->d_name, RCN_RESTART_SHADOWSOCKS) == 0)
+		{
+			restart_ss();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_SS_TUNNEL) == 0)
+		{
+			restart_ss_tunnel();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_CHNROUTE_UPD) == 0)
+		{
+			update_chnroute();
+		}
+		else if (strcmp(entry->d_name, RCN_RESTART_GFWLIST_UPD) == 0)
+		{
+			update_gfwlist();
+		}
+#endif
 		else
 		{
 			dbg("WARNING: rc notified of unrecognized event `%s'.\n", entry->d_name);
@@ -1800,6 +1800,15 @@ main(int argc, char **argv)
 	}
 	else if (!strcmp(base, "restart_firewall")) {
 		restart_firewall();
+	}
+	else if (!strcmp(base, "stop_crond")) {
+		stop_crond();
+	}
+	else if (!strcmp(base, "start_crond")) {
+		start_crond();
+	}
+	else if (!strcmp(base, "restart_crond")) {
+		restart_crond();
 	}
 	else if (!strcmp(base, "radio2_toggle")) {
 		manual_toggle_radio_rt(-1);

@@ -106,6 +106,9 @@ stop_crond(void)
 {
 	char* svcs[] = { "crond", NULL };
 	kill_services(svcs, 3, 1);
+	
+	if (pids("crond"))
+	doSystem("killall %s %s %s", "-q", "-9", "crond");
 }
 
 int
@@ -597,6 +600,9 @@ start_services_once(int is_ap_mode)
 #if defined(APP_SSHD)
 	start_sshd();
 #endif
+#if defined(APP_TTYD)
+	start_ttyd();
+#endif
 	start_vpn_server();
 	start_watchdog();
 	start_infosvr();
@@ -616,32 +622,29 @@ start_services_once(int is_ap_mode)
 #endif
 	}
 
-#if defined(APP_SCUT)
-	start_scutclient();
-#endif
-#if defined(APP_SMARTDNS)
-	start_smartdns();
-#endif
-#if defined(APP_DNSFORWARDER)
-	start_dnsforwarder();
-#endif
-#if defined(APP_SHADOWSOCKS)
-	start_ss();
-	start_ss_tunnel();
-#endif
-#if defined(APP_TTYD)
-	start_ttyd();
-#endif
-#if defined(APP_VLMCSD)
-	start_vlmcsd();
-#endif
 	start_lltd();
 	start_watchdog_cpu();
 	start_crond();
 	start_networkmap(1);
 	start_rstats();
+#if defined(APP_SCUT)
+	start_scutclient();
+#endif
 #if defined(APP_MENTOHUST)
 	start_mentohust();
+#endif
+#if defined(APP_VLMCSD)
+	start_vlmcsd();
+#endif
+#if defined(APP_DNSFORWARDER)
+	start_dnsforwarder();
+#endif
+#if defined(APP_SMARTDNS)
+	start_smartdns();
+#endif
+#if defined(APP_SHADOWSOCKS)
+	start_ss();
+	start_ss_tunnel();
 #endif
 	return 0;
 }
@@ -649,10 +652,32 @@ start_services_once(int is_ap_mode)
 void
 stop_services(int stopall)
 {
+#if defined(APP_SHADOWSOCKS)
+	stop_ss();
+	stop_ss_tunnel();
+#endif
+#if defined(APP_SMARTDNS)
+	stop_smartdns();
+#endif
+#if defined(APP_DNSFORWARDER)
+	stop_dnsforwarder();
+#endif
+#if defined(APP_VLMCSD)
+	stop_vlmcsd();
+#endif
+#if defined(APP_MENTOHUST)
+	stop_mentohust();
+#endif
+#if defined(APP_SCUT)
+	stop_scutclient();
+#endif
 	if (stopall) {
 		stop_telnetd();
 #if defined (APP_SSHD)
 		stop_sshd();
+#endif
+#if defined(APP_TTYD)
+		stop_ttyd();
 #endif
 		stop_httpd();
 		stop_vpn_server();
@@ -665,18 +690,6 @@ stop_services(int stopall)
 #if defined (SRV_U2EC)
 	stop_u2ec();
 #endif
-#endif
-#if defined(APP_SCUT)
-	stop_scutclient();
-#endif
-#if defined(APP_MENTOHUST)
-	stop_mentohust();
-#endif
-#if defined(APP_TTYD)
-	stop_ttyd();
-#endif
-#if defined(APP_SMARTDNS)
-	stop_smartdns();
 #endif
 	stop_networkmap();
 	stop_lltd();
