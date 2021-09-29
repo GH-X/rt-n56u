@@ -437,8 +437,8 @@ mkdir -p /tmp/SmartDNS
 touch $SMARTDNS_CONF
 echo "conf-file $CUSTOM_CONF" >> $SMARTDNS_CONF
 if [ "$sdns_address" = "1" ]; then
-  $(cat "$CRON_CONF" | grep -q "smartdns.sh") || \
-  echo "33 3 * * * /usr/bin/smartdns.sh update 2>/dev/null" >> $CRON_CONF
+  !(cat "$CRON_CONF" | grep -q "smartdns.sh") && \
+  echo "33 3 * * * /usr/bin/smartdns.sh update 2>/dev/null" >> $CRON_CONF && restart_crond
   echo "conf-file $ADDRESS_CONF" >> $SMARTDNS_CONF
 fi
 if [ "$sdns_ipv6_server" = "1" ]; then
@@ -526,7 +526,7 @@ rm -rf /tmp/SmartDNS
 rm -rf /tmp/smartdns.log
 rm -rf /tmp/smartdns.log*.gz
 rm -rf /tmp/smartdns_address.log*.gz
-sed -i '/smartdns.sh/d' $CRON_CONF
+sed -i '/smartdns.sh/d' $CRON_CONF && restart_crond
 }
 
 update_restore()
@@ -548,9 +548,9 @@ sleep 1 && logger -st "SmartDNS[$(pidof smartdns)]" "成功启动"
 
 stop_sdns()
 {
-logger -st "SmartDNS[$$]" "关闭程序" && killall -q -9 smartdns && \
-logger -st "SmartDNS[$$]" "清理配置" && sdns_restore && \
-!(pidof smartdns &>/dev/null) && logger -st "SmartDNS[$$]" "成功关闭"
+killall -q -9 smartdns && logger -st "SmartDNS[$$]" "关闭程序"
+[ -e $SMARTDNS_CONF ] && logger -st "SmartDNS[$$]" "清理配置" && sdns_restore
+!(pidof smartdns &>/dev/null) && logger -st "SmartDNS[$$]" "程序已经关闭"
 }
 
 case "$1" in
@@ -574,7 +574,7 @@ update)
   [ "$sdns_enable" = "0" ] || stop_sdns
   [ "$sdns_enable" = "0" ] || start_sdns
   [ "$sdns_enable" = "1" ] || rm -rf /tmp/SmartDNS
-  update_restore && mtd_storage.sh save &>/dev/null
+  mtd_storage.sh save &>/dev/null && update_restore
   ;;
 *)
   echo "Usage: $0 { start | stop | restart | update }"
