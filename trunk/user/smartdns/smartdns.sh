@@ -2,7 +2,7 @@
 # 
 # Copyright (C) 2018 Nick Peng (pymumu@gmail.com)
 # Copyright (C) 2019 chongshengB
-# Copyright (C) 2020-2021 GH-X
+# Copyright (C) 2020 GH-X
 
 CONF_DIR="/tmp/SmartDNS"
 CUSTOMCONF_DIR="/etc/storage"
@@ -161,7 +161,7 @@ EOF
 elif [ "$sdns_redirect" = "2" ]; then
   logger -st "SmartDNS[$$]" "添加DNS监听到$DNSS_W"
   sed -i '/^### SmartDNS/d' $DNSQ_CONF
-  sed -i '/^port=5353/d' $DNSQ_CONF
+  sed -i '/^port=/d' $DNSQ_CONF
   cat >> $DNSQ_CONF << EOF
 ### SmartDNS redirect occupied 53 port
 port=5353
@@ -171,7 +171,7 @@ elif [ "$sdns_redirect" = "0" ]; then
   sed -i '/^server=127.0.0.1/d' $DNSQ_CONF
   sed -i '/^server=::1/d' $DNSQ_CONF
   sed -i '/^### SmartDNS/d' $DNSQ_CONF
-  sed -i '/^port=5353/d' $DNSQ_CONF
+  sed -i '/^port=/d' $DNSQ_CONF
 fi
 }
 
@@ -265,20 +265,24 @@ CHN_R="/etc/storage/chinadns/chnroute.txt"
 rm -rf $BIPLIST_CONF
 rm -rf $WIPLIST_CONF
 touch $BIPLIST_CONF
-logger -st "SmartDNS[$$]" "配置白名单地址为黑名单限制地址"
-awk '{printf("blacklist-ip %s\n", $1, $1 )}' $CHNWHITEIP_CONF >> $BIPLIST_CONF
-if [ -f "$CHN_R" ]; then
+$(cat $CHNWHITEIP_CONF 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") && \
+logger -st "SmartDNS[$$]" "配置白名单地址为黑名单限制地址" && \
+grep -v '^#' $CHNWHITEIP_CONF | grep -v '^$' | awk '{printf("blacklist-ip %s\n", $1, $1 )}' >> $BIPLIST_CONF
+if [ -e "$CHN_R" ] && [ $(stat -c %s $CHN_R) -gt 1000 ]; then
   logger -st "SmartDNS[$$]" "配置国内路由表为黑名单限制地址"
-  awk '{printf("blacklist-ip %s\n", $1, $1 )}' $CHN_R >> $BIPLIST_CONF
+  grep -v '^#' $CHN_R | grep -v '^$' | awk '{printf("blacklist-ip %s\n", $1, $1 )}' >> $BIPLIST_CONF
 fi
+$(cat $BIPLIST_CONF 2>/dev/null | grep -q "blacklist-ip") && \
 echo "conf-file $BIPLIST_CONF" >> $SMARTDNS_CONF
 touch $WIPLIST_CONF
-logger -st "SmartDNS[$$]" "配置白名单地址为白名单允许地址"
-awk '{printf("whitelist-ip %s\n", $1, $1 )}' $CHNWHITEIP_CONF >> $WIPLIST_CONF
-if [ -f "$CHN_R" ]; then
+$(cat $CHNWHITEIP_CONF 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") && \
+logger -st "SmartDNS[$$]" "配置白名单地址为白名单允许地址" && \
+grep -v '^#' $CHNWHITEIP_CONF | grep -v '^$' | awk '{printf("whitelist-ip %s\n", $1, $1 )}' >> $WIPLIST_CONF
+if [ -e "$CHN_R" ] && [ $(stat -c %s $CHN_R) -gt 1000 ]; then
   logger -st "SmartDNS[$$]" "配置国内路由表为白名单允许地址"
-  awk '{printf("whitelist-ip %s\n", $1, $1 )}' $CHN_R >> $WIPLIST_CONF
+  grep -v '^#' $CHN_R | grep -v '^$'  | awk '{printf("whitelist-ip %s\n", $1, $1 )}' >> $WIPLIST_CONF
 fi
+$(cat $WIPLIST_CONF 2>/dev/null | grep -q "whitelist-ip") && \
 echo "conf-file $WIPLIST_CONF" >> $SMARTDNS_CONF
 }
 
@@ -518,7 +522,7 @@ sed -i '/^no-resolv/d' $DNSQ_CONF
 sed -i '/^server=127.0.0.1/d' $DNSQ_CONF
 sed -i '/^server=::1/d' $DNSQ_CONF
 sed -i '/^### SmartDNS/d' $DNSQ_CONF
-sed -i '/^port=5353/d' $DNSQ_CONF
+sed -i '/^port=/d' $DNSQ_CONF
 sed -i '/^servers-file/d' $DNSM_CONF
 echo "servers-file=/tmp/dnsmasq.servers" >> $DNSM_CONF
 dnsmasq
@@ -537,20 +541,21 @@ rm -rf /tmp/smartdns_address.conf
 rm -rf /tmp/SmartDNSupdate
 }
 
+stop_sdns()
+{
+killall -q -9 smartdns && logger -st "SmartDNS[$$]" "关闭程序"
+[ -e $SMARTDNS_CONF ] && logger -st "SmartDNS[$$]" "清理配置" && sdns_restore
+!(pidof smartdns &>/dev/null) && [ ! -e $SMARTDNS_CONF ] && logger -st "SmartDNS[$$]" "程序已经关闭"
+}
+
 start_sdns()
 {
 ulimit -n 65536
 logger -st "SmartDNS[$$]" "开始启动" && \
 killall dnsmasq && gensdnsconf && dnsmasq && \
-$(nohup $SMARTDNS_BIN -f -c $SMARTDNS_CONF &>/dev/null &) && \
-sleep 1 && logger -st "SmartDNS[$(pidof smartdns)]" "成功启动"
-}
-
-stop_sdns()
-{
-killall -q -9 smartdns && logger -st "SmartDNS[$$]" "关闭程序"
-[ -e $SMARTDNS_CONF ] && logger -st "SmartDNS[$$]" "清理配置" && sdns_restore
-!(pidof smartdns &>/dev/null) && logger -st "SmartDNS[$$]" "程序已经关闭"
+$(nohup $SMARTDNS_BIN -f -c $SMARTDNS_CONF &>/dev/null &) || stop_sdns
+[ "$?" = "0" ] && sleep 1 && pidof smartdns &>/dev/null && \
+logger -st "SmartDNS[$(pidof smartdns)]" "成功启动"
 }
 
 case "$1" in
