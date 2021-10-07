@@ -1,15 +1,14 @@
 #!/bin/sh
 
-pidfile="/var/ss-watchcat.pid"
 statusfile="/tmp/ss-watchcat"
 log_file="/tmp/ss-watchcat.log"
 use_log_file="/tmp/ss-redir.log"
 max_log_bytes="1000000"
-chn_domain="www.qq.com"
 gfw_domain="https://www.youtube.com/"
+chn_domain="https://www.taobao.com/"
+user_agent="Mozilla/5.0 (X11; Linux; rv:74.0) Gecko/20100101 Firefox/74.0"
 
 goout(){
-	rm -rf $pidfile
 	rm -rf $statusfile
 	exit $1
 }
@@ -19,77 +18,74 @@ loger(){
 }
 
 detect_gfw(){
-	echo "detect_gfw" > $statusfile
-	loger "检测代理" && wget --spider --quiet --timeout=3 $gfw_domain &>/dev/null
-	return $?
+	echo "detect_gfw" > $statusfile && loger "检测连接" && \
+	curl "$gfw_domain" -k -s --max-time 9 --connect-timeout 3 --retry 3 \
+	-A "$user_agent" -o $statusfile || return 1
 }
 
 detect_chn(){
-	echo "detect_chn" > $statusfile
-	loger "检测网络" && /bin/ping -c 3 $chn_domain -w 5 &>/dev/null
-	return $?
+	echo "detect_chn" > $statusfile && loger "检测网络" && \
+	curl "$chn_domain" -k -s --max-time 9 --connect-timeout 3 --retry 3 \
+	-A "$user_agent" -o $statusfile || return 1
 }
 
 stop_ssp(){
 	echo "stop_ssp" > $statusfile
-	logger -st "SSP[$$]watchcat" "代理异常!关闭SSP代理" && loger "代理异常!关闭SSP代理" && \
-	nvram set ss_enable=0 && /usr/bin/shadowsocks.sh stop &>/dev/null && goout 1
+	[ "$1" = "0" ] && STO_LOG="连接持续异常!关闭SSP代理"
+	[ "$1" = "1" ] && STO_LOG="没有启用代理!关闭SSP代理"
+	[ "$(nvram get ss_enable)" = "1" ] && nvram set ss_enable=0
+	logger -st "SSP[$$]watchcat" "$STO_LOG" && loger "$STO_LOG" && \
+	/usr/bin/shadowsocks.sh stop &>/dev/null && goout 1
 }
 
 restart_ssp(){
 	echo "restart_ssp" > $statusfile
+	[ "$1" = "0" ] && RES_LOG="连接异常"
+	[ "$1" = "1" ] && RES_LOG="代理程序未运行"
+	[ "$1" = "2" ] && RES_LOG="没有防火墙规则"
+	[ "$1" = "3" ] && RES_LOG="找不到地址集合"
 	[ -x /usr/bin/dns-forwarder.sh ] && [ "$(nvram get dns_forwarder_enable)" = "1" ] && \
-	loger "代理异常!重启DNS服务" && /usr/bin/dns-forwarder.sh restart &>/dev/null
-	[ "$(nvram get ss-tunnel_enable)" = "1" ] && loger "代理异常!重启DNS隧道" && \
+	loger "$RES_LOG!重启DNS服务" && /usr/bin/dns-forwarder.sh restart &>/dev/null
+	[ "$(nvram get ss-tunnel_enable)" = "1" ] && loger "$RES_LOG!重启DNS隧道" && \
 	/usr/bin/ss-tunnel.sh restart &>/dev/null
-	logger -st "SSP[$$]watchcat" "代理异常!重启SSP代理" && loger "代理异常!重启SSP代理" && \
+	logger -st "SSP[$$]watchcat" "$RES_LOG!重启SSP代理" && loger "$RES_LOG!重启SSP代理" && \
 	/usr/bin/shadowsocks.sh restart &>/dev/null
 }
 
 check(){
 	[ -e $statusfile ] && exit 0
-	[ -e $pidfile ] && kill -q -9 $(cat $pidfile) &>/dev/null
-	echo "$$" > $pidfile
+	echo "check" > $statusfile
 	[ -e $log_file ] || echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_首次启动!创建日志" > $log_file
 	[ $(stat -c %s $log_file) -lt $max_log_bytes ] || \
 	echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_日志文件过大!清空日志文件" > $log_file
-	[ "$(nvram get ss_enable)" = "1" ] || goout 0
-	!(pidof ss-redir &>/dev/null) && loger "代理程序未运行" && restart_ssp
-	!(iptables-save -c | grep -q "SSP_") && loger "没有防火墙规则" && restart_ssp
-	!(ipset list -n | grep -q "gfwlist") && loger "找不到地址集合" && restart_ssp
+	[ "$(nvram get ss_enable)" = "1" ] || stop_ssp 1
+	!(pidof ss-redir &>/dev/null) && restart_ssp 1
+	!(iptables-save -c | grep -q "SSP_") && restart_ssp 2
+	!(ipset list -n | grep -q "gfwlist") && restart_ssp 3
 	[ $(stat -c %s $use_log_file) -lt $max_log_bytes ] || \
 	echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_日志文件过大!清空日志文件" > $use_log_file
 	[ "$(nvram get ss_watchcat)" = "1" ] || goout 0
 }
 
 detect_ssp(){
-	tries=0
-	while [ $tries -le 4 ]; do
-		if [ $tries -eq 0 ]; then
-			waittime="sleep 15"
-		elif [ $tries -eq 1 ]; then
-			waittime="sleep 10"
+	tries=1
+	while [ $tries -le 3 ]; do
+		if [ $tries -eq 1 ]; then
+			loger "开始检测"
 		elif [ $tries -eq 2 ]; then
-			waittime="sleep 15"
-			restart_ssp
+			restart_ssp 0
 		elif [ $tries -eq 3 ]; then
-			waittime="sleep 10"
-		elif [ $tries -eq 4 ]; then
-			stop_ssp
+			stop_ssp 0
 		fi
-		$waittime && detect_gfw
-		if [ "$?" = "0" ]; then
-			loger "代理正常" && tries=$((tries+1))
-			[ $tries -eq 2 ] && goout 0
-			[ $tries -eq 4 ] && goout 0
+		[ "$?" = "0" ] && sleep 1 && detect_gfw
+		if [ "$?" = "0" ] || $(cat "$statusfile" 2>/dev/null | grep -q "^<!DOCTYPE"); then
+			loger "连接正常" && goout 0
 		else
-			detect_chn
-			if [ "$?" = "0" ]; then
-				tries=$((tries+1))
+			loger "连接异常" && detect_chn
+			if [ "$?" = "0" ] || $(cat "$statusfile" 2>/dev/null | grep -q "^<!DOCTYPE"); then
+				loger "网络正常" && tries=$((tries+1))
 			else
-				loger "网络异常" && tries=$((tries+1))
-				[ $tries -eq 2 ] && goout 1
-				[ $tries -eq 4 ] && goout 1
+				loger "网络异常" && goout 0
 			fi
 		fi
 	done

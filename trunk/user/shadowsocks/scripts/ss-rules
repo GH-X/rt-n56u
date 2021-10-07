@@ -32,6 +32,7 @@ gdns_address="1.0.0.1
 
 iptn="iptables -t nat"
 iptm="iptables -t mangle"
+iptf="iptables -t filter"
 
 flush_rules()
 {
@@ -43,8 +44,11 @@ $iptn -X SSP_PREROUTING
 $iptn -X SSP_OUTPUT
 $iptn -X SSP_RULES
 $iptn -X SSP_AGENT
-$iptn -D OUTPUT -p tcp -j SSP_OUTPUT
-$iptn -D PREROUTING -p tcp -j SSP_PREROUTING
+$iptn -D OUTPUT -j SSP_OUTPUT
+$iptn -D PREROUTING -j SSP_PREROUTING
+$iptf -F SSP_INPUT
+$iptf -X SSP_INPUT
+$iptf -D INPUT -j SSP_INPUT
 $iptm -F SSP_PREROUTING
 $iptm -F SSP_OUTPUT
 $iptm -F SSP_RULES
@@ -53,16 +57,17 @@ $iptm -X SSP_PREROUTING
 $iptm -X SSP_OUTPUT
 $iptm -X SSP_RULES
 $iptm -X SSP_AGENT
-$iptm -D OUTPUT -p udp -j SSP_OUTPUT
-$iptm -D PREROUTING -p udp -j SSP_PREROUTING
+$iptm -D OUTPUT -j SSP_OUTPUT
+$iptm -D PREROUTING -j SSP_PREROUTING
+$iptm -D PREROUTING -p udp -m mark --mark 0x64/0x64 -j TPROXY --on-port $local_port
 ip route del local 0.0.0.0/0 dev lo table 100
 ip rule del fwmark 0x64 lookup 100
 ip route flush cache
 iptables-save -c | grep -v "SSP_" | iptables-restore -c
 iptables-save -c | grep -v "TPROXY" | iptables-restore -c
 ipset destroy private
-ipset destroy chnlist
 ipset destroy gfwlist
+ipset destroy chnlist
 ipset destroy exclude
 return 0
 }
@@ -70,18 +75,21 @@ return 0
 gen_ipset()
 {
 ipset -! restore <<-EOF || return 1
-  create private hash:net hashsize 64
-  create chnlist hash:net hashsize 64
-  create gfwlist hash:net hashsize 64
-  create exclude hash:net hashsize 64
+  create private hash:net hashsize 64 maxelem 128
+  create gfwlist hash:net hashsize 1024 maxelem 65536
+  create chnlist hash:net hashsize 16384 maxelem 1000000
+  create exclude hash:net hashsize 16384 maxelem 1000000
   $(for privateaddr in $private_addr; do echo "add private $privateaddr"; done)
-  $(for cdnsaddress in $cdns_address; do echo "add chnlist $cdnsaddress"; done)
   $(for gdnsaddress in $gdns_address; do echo "add gfwlist $gdnsaddress"; done)
-  $(for whiteip in $white_ip; do echo "add chnlist $whiteip"; done)
+  $(for cdnsaddress in $cdns_address; do echo "add chnlist $cdnsaddress"; done)
   $(for blackip in $black_ip; do echo "add gfwlist $blackip"; done)
-  $(sed -e "s/^/add chnlist /" ${chn_list:=/dev/null} 2>/dev/null)
-  $(sed -e "s/^/add gfwlist /" ${gfw_list:=/dev/null} 2>/dev/null)
-  $(sed -e "s/^/add exclude /" ${exc_list:=/dev/null} 2>/dev/null)
+  $(for whiteip in $white_ip; do echo "add chnlist $whiteip"; done)
+  $(!(cat "$gfw_list" 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") || \
+  sed -e "s/^/add gfwlist /" ${gfw_list:=/dev/null} 2>/dev/null)
+  $(!(cat "$chn_list" 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") || \
+  sed -e "s/^/add chnlist /" ${chn_list:=/dev/null} 2>/dev/null)
+  $(!(cat "$exc_list" 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") || \
+  sed -e "s/^/add exclude /" ${exc_list:=/dev/null} 2>/dev/null)
 EOF
 return 0
 }
@@ -93,17 +101,26 @@ $iptn -N SSP_OUTPUT
 $iptn -N SSP_RULES
 $iptn -N SSP_AGENT
 $iptn -A SSP_PREROUTING -d $server_addr -j RETURN
-$iptn -A SSP_PREROUTING -j SSP_RULES
+$iptn -A SSP_PREROUTING -p tcp -j SSP_RULES
 $iptn -A SSP_OUTPUT -d $server_addr -j RETURN
-$iptn -A SSP_OUTPUT -j SSP_RULES
+$iptn -A SSP_OUTPUT -p tcp -j SSP_RULES
 $iptn -A SSP_RULES -m set --match-set private dst -j RETURN
-$iptn -A SSP_RULES -m set --match-set chnlist dst -j RETURN
 $iptn -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
+$iptn -A SSP_RULES -m set --match-set chnlist dst -j RETURN
 $iptn -A SSP_RULES -m set --match-set exclude dst -j RETURN
 $iptn -A SSP_RULES -j SSP_AGENT
 $iptn -A SSP_AGENT -p tcp -j REDIRECT --to-ports $local_port
-$iptn -I OUTPUT 1 -p tcp -j SSP_OUTPUT
-$iptn -I PREROUTING 1 -p tcp -j SSP_PREROUTING
+$iptn -I OUTPUT 1 -j SSP_OUTPUT
+$iptn -I PREROUTING 1 -j SSP_PREROUTING
+return 0
+}
+
+ipt_filter()
+{
+$iptf -N SSP_INPUT
+$iptf -A SSP_INPUT -s $server_addr -p tcp --tcp-flags RST RST -j DROP
+$iptf -A SSP_INPUT -s $server_addr -p tcp --tcp-flags FIN FIN -j DROP
+$iptf -I INPUT 1 -j SSP_INPUT
 return 0
 }
 
@@ -119,20 +136,20 @@ $iptm -N SSP_OUTPUT
 $iptm -N SSP_RULES
 $iptm -N SSP_AGENT
 $iptm -A SSP_PREROUTING -d $server_addr -j RETURN
-$iptm -A SSP_PREROUTING -j SSP_RULES
+$iptm -A SSP_PREROUTING -p udp -j SSP_RULES
 $iptm -A SSP_OUTPUT -d $server_addr -j RETURN
-$iptm -A SSP_OUTPUT -j SSP_RULES
+$iptm -A SSP_OUTPUT -p udp -j SSP_RULES
 $iptm -A SSP_RULES -m mark --mark 0x64/0x64 -j RETURN
 $iptm -A SSP_RULES -m set --match-set private dst -j RETURN
-$iptm -A SSP_RULES -m set --match-set chnlist dst -j RETURN
 $iptm -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
+$iptm -A SSP_RULES -m set --match-set chnlist dst -j RETURN
 $iptm -A SSP_RULES -m set --match-set exclude dst -j RETURN
 $iptm -A SSP_RULES -j SSP_AGENT
 $iptm -A SSP_AGENT -j CONNMARK --restore-mark
 $iptm -A SSP_AGENT -p udp -m conntrack --ctstate NEW -j CONNMARK --set-mark 0x64/0x64
 $iptm -A SSP_AGENT -j CONNMARK --save-mark
-$iptm -I OUTPUT 1 -p udp -j SSP_OUTPUT
-$iptm -I PREROUTING 1 -p udp -j SSP_PREROUTING
+$iptm -I OUTPUT 1 -j SSP_OUTPUT
+$iptm -I PREROUTING 1 -j SSP_PREROUTING
 $iptm -I PREROUTING 2 -p udp -m mark --mark 0x64/0x64 -j TPROXY --on-port $local_port
 return 0
 }
@@ -144,11 +161,11 @@ cat <<-EOF
   ss-rules [选项] [赋值]         [说明]
            -s     <server_addr>  服务器地址      支持域名
            -i     <local_port>   本地端口
-           -c     <chn_list>     白名单地址列表  IP/CIDR格式
            -g     <gfw_list>     黑名单地址列表  IP/CIDR格式
+           -c     <chn_list>     白名单地址列表  IP/CIDR格式
            -e     <exc_list>     排除地址列表    IP/CIDR格式
-           -w     <white_ip>     绕过地址        多个IP/CIDR使用[,]隔开
-           -b     <black_ip>     转发地址        多个IP/CIDR使用[,]隔开
+           -b     <black_ip>     黑名单地址      多个IP/CIDR使用[,]隔开
+           -w     <white_ip>     白名单地址      多个IP/CIDR使用[,]隔开
            -t                    透明代理模式    REDIRECT-TCP
            -m                    透明代理模式    REDIRECT-TCP TPROXY-UDP
            -f                    清除规则
@@ -158,8 +175,8 @@ EOF
 exit $1
 }
 
-while getopts ":s:i:c:g:e:w:b:tmfh" arg; do
-  [ "$arg" != "" ] && logger -st "SSP[$$]Rules" "任务开始"
+logger -st "SSP[$$]Rules" "任务开始" && \
+while getopts ":s:i:g:c:e:b:w:tmfh" arg; do
   case "$arg" in
     s)
       [ -z "$OPTARG" ] && usage 2
@@ -169,31 +186,31 @@ while getopts ":s:i:c:g:e:w:b:tmfh" arg; do
       [ -z "$OPTARG" ] && usage 2
       local_port="$OPTARG"
       ;;
-    c)
-      [ -z "$OPTARG" ] && usage 2
-      chn_list="$OPTARG"
-      ;;
     g)
       [ -z "$OPTARG" ] && usage 2
       gfw_list="$OPTARG"
+      ;;
+    c)
+      [ -z "$OPTARG" ] && usage 2
+      chn_list="$OPTARG"
       ;;
     e)
       [ -z "$OPTARG" ] && usage 2
       exc_list="$OPTARG"
       ;;
-    w)
-      [ -z "$OPTARG" ] && usage 2
-      white_ip=$(echo "$OPTARG" | sed 's/,/ /g')
-      ;;
     b)
       [ -z "$OPTARG" ] && usage 2
       black_ip=$(echo "$OPTARG" | sed 's/,/ /g')
       ;;
+    w)
+      [ -z "$OPTARG" ] && usage 2
+      white_ip=$(echo "$OPTARG" | sed 's/,/ /g')
+      ;;
     t)
-      gen_ipset && ipt_nat
+      gen_ipset && ipt_nat && ipt_filter
       ;;
     m)
-      gen_ipset && ipt_nat && ipt_mangle
+      gen_ipset && ipt_nat && ipt_filter && ipt_mangle
       ;;
     f)
       flush_rules 2>/dev/null

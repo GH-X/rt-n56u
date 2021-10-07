@@ -8,7 +8,6 @@ use_link="/var/ss-redir"
 use_log_file="/tmp/ss-redir.log"
 use_json_file="/tmp/ss-redir.json"
 
-pidfile="/var/ss-watchcat.pid"
 statusfile="/tmp/ss-watchcat"
 CRON_CONF="/etc/storage/cron/crontabs/admin"
 
@@ -50,6 +49,8 @@ if [ "$(nvram get sdns_enable)" = "0" ]; then
     DNS_APP="dnsForwarder" && DNS_PORT=$(nvram get dns_forwarder_port)
   elif [ "$(nvram get ss-tunnel_enable)" = "1" ]; then
     DNS_APP="ssTunnel" && DNS_PORT=$(nvram get ss-tunnel_local_port)
+  else
+    DNS_APP="dnsmasq" && DNS_PORT="53"
   fi
   ADDR_PORT="127.0.0.1#$DNS_PORT"
   cp -rf $GFWLIST_CONF $GFWLIST_TEMP
@@ -135,25 +136,25 @@ EOF
 fi
 }
 
-chn_list()
-{
-if [ "$ss_mode" = "0" ]; then # global
-  echo ""
-elif [ "$ss_mode" = "1" ]; then # chnroute
-  echo " -c /etc/storage/CHNwhiteip.conf"
-elif [ "$ss_mode" = "2" ]; then # gfwlist
-  echo " -c /etc/storage/CHNwhiteip.conf"
-fi
-}
-
 gfw_list()
 {
 if [ "$ss_mode" = "0" ]; then # global
   echo ""
 elif [ "$ss_mode" = "1" ]; then # chnroute
-  echo " -g /etc/storage/GFWblackip.conf"
+  echo ""
 elif [ "$ss_mode" = "2" ]; then # gfwlist
   echo " -g /etc/storage/GFWblackip.conf"
+fi
+}
+
+chn_list()
+{
+if [ "$ss_mode" = "0" ]; then # global
+  echo ""
+elif [ "$ss_mode" = "1" ]; then # chnroute
+  echo " -c /etc/storage/chinadns/chnroute.txt"
+elif [ "$ss_mode" = "2" ]; then # gfwlist
+  echo ""
 fi
 }
 
@@ -162,7 +163,7 @@ exc_list()
 if [ "$ss_mode" = "0" ]; then # global
   echo ""
 elif [ "$ss_mode" = "1" ]; then # chnroute
-  echo " -e /etc/storage/chinadns/chnroute.txt"
+  echo ""
 elif [ "$ss_mode" = "2" ]; then # gfwlist
   echo " -e /etc/storage/ssprules/allroute.txt"
 fi
@@ -183,8 +184,8 @@ logger -st "SSP[$$]$bin_type" "开启透明代理"
 ss-rules\
  -s "$ss_server"\
  -i "$ss_local_port"\
-$(chn_list)\
 $(gfw_list)\
+$(chn_list)\
 $(exc_list)\
 $(agent_mode)
 }
@@ -207,28 +208,13 @@ $(udp_ext) &>$use_log_file &
 
 stop_watchcat()
 {
-killall -q -9 ss-watchcat.sh && rm -rf $pidfile && rm -rf $statusfile
+killall -q -9 ss-watchcat.sh && rm -rf $statusfile
 sed -i '/ss-watchcat.sh/d' $CRON_CONF && restart_crond
-}
-
-start_ssp()
-{
-ulimit -n 65536
-touch $use_log_file
-!(cat "$statusfile" | grep -q "restart_ssp") && stop_watchcat
-logger -st "SSP[$$]$bin_type" "开始启动" && \
-gen_dns_conf && gen_json_file && start_rules && start_redir
-pidof ss-watchcat.sh &>/dev/null || /usr/bin/ss-watchcat.sh
-[ "$?" = "0" ] && sleep 1 && pidof $use_bin &>/dev/null && \
-$(iptables-save -c | grep -q "SSP_") && $(ipset list -n | grep -q "gfwlist") && \
-logger -st "SSP[$(pidof $use_bin)]$bin_type" "成功启动" && \
-!(cat "$CRON_CONF" | grep -q "ss-watchcat.sh") && \
-echo "*/5 * * * * /usr/bin/ss-watchcat.sh 2>/dev/null" >> $CRON_CONF && \
-restart_crond
 }
 
 stop_ssp()
 {
+!(cat "$statusfile" 2>/dev/null | grep -q "restart_ssp") && stop_watchcat
 killall -q -9 $use_bin && logger -st "SSP[$$]$bin_type" "关闭程序"
 if $(iptables-save -c | grep -q "SSP_") || $(ipset list -n | grep -q "gfwlist"); then
   logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f
@@ -244,8 +230,25 @@ if [ "$(nvram get sdns_enable)" = "0" ]; then
 fi
 !(pidof $use_bin &>/dev/null) && \
 !(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q "gfwlist") && \
-logger -st "SSP[$$]$bin_type" "程序已经关闭" && \
-!(cat "$statusfile" | grep -q "restart_ssp") && stop_watchcat
+logger -st "SSP[$$]$bin_type" "程序已经关闭"
+}
+
+start_ssp()
+{
+ulimit -n 65536
+!(cat "$statusfile" 2>/dev/null | grep -q "restart_ssp") && stop_watchcat
+[ $(stat -c %s /etc/storage/chinadns/chnroute.txt) -lt 1000 ] && [ ! -e /tmp/chnroute.txt ] && \
+rm -rf /etc/storage/chinadns/chnroute.txt && tar jxf /etc_ro/chnroute.bz2 -C /etc/storage/chinadns
+[ $(stat -c %s /etc/storage/ssprules/allroute.txt) -lt 1000 ] && [ ! -e /tmp/allroute.txt ] && \
+rm -rf /etc/storage/ssprules/allroute.txt && tar jxf /etc_ro/allroute.bz2 -C /etc/storage/ssprules
+logger -st "SSP[$$]$bin_type" "开始启动" && touch $use_log_file && \
+gen_dns_conf && gen_json_file && start_rules && start_redir || stop_ssp
+pidof ss-watchcat.sh &>/dev/null || /usr/bin/ss-watchcat.sh
+[ "$?" = "0" ] && sleep 1 && pidof $use_bin &>/dev/null && \
+$(iptables-save -c | grep -q "SSP_") && $(ipset list -n | grep -q "gfwlist") && \
+logger -st "SSP[$(pidof $use_bin)]$bin_type" "成功启动" && \
+!(cat "$CRON_CONF" 2>/dev/null | grep -q "ss-watchcat.sh") && \
+echo "*/5 * * * * /usr/bin/ss-watchcat.sh 2>/dev/null" >> $CRON_CONF && restart_crond
 }
 
 case "$1" in
