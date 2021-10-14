@@ -19,27 +19,32 @@ loger(){
 
 detect_gfw(){
 	echo "detect_gfw" > $statusfile && loger "检测连接" && \
-	curl "$gfw_domain" -k -s --max-time 9 --connect-timeout 3 --retry 3 \
-	-A "$user_agent" -o $statusfile || return 1
+	curl "$gfw_domain" -k -s --connect-timeout 2 --max-time 4 --retry 2 --retry-max-time 8 \
+	-A "$user_agent" | grep -q -s -i "^<!DOCTYPE" || return 1
 }
 
 detect_chn(){
 	echo "detect_chn" > $statusfile && loger "检测网络" && \
-	curl "$chn_domain" -k -s --max-time 9 --connect-timeout 3 --retry 3 \
-	-A "$user_agent" -o $statusfile || return 1
+	curl "$chn_domain" -k -s --connect-timeout 2 --max-time 4 --retry 2 --retry-max-time 8 \
+	-A "$user_agent" | grep -q -s -i "^<!DOCTYPE" || return 1
 }
 
-stop_ssp(){
-	echo "stop_ssp" > $statusfile
-	[ "$1" = "0" ] && STO_LOG="连接持续异常!关闭SSP代理"
-	[ "$1" = "1" ] && STO_LOG="没有启用代理!关闭SSP代理"
-	[ "$(nvram get ss_enable)" = "1" ] && nvram set ss_enable=0
+watchcat_stop_ssp(){
+	echo "watchcat_stop_ssp" > $statusfile
+	[ "$1" = "0" ] && STO_LOG="连接持续异常!暂时关闭SSP代理" && 
+	[ "$1" = "1" ] && STO_LOG="没有启用代理!关闭SSP代理" && echo "disable_ssp" > $statusfile
 	logger -st "SSP[$$]watchcat" "$STO_LOG" && loger "$STO_LOG" && \
-	/usr/bin/shadowsocks.sh stop &>/dev/null && goout 1
+	/usr/bin/shadowsocks.sh stop &>/dev/null
 }
 
-restart_ssp(){
-	echo "restart_ssp" > $statusfile
+watchcat_start_ssp(){
+	echo "watchcat_start_ssp" > $statusfile
+	[ "$1" = "0" ] && STA_LOG="开启SSP代理"
+	logger -st "SSP[$$]watchcat" "$STA_LOG" && loger "$STA_LOG" && /usr/bin/shadowsocks.sh start
+}
+
+watchcat_restart_ssp(){
+	echo "watchcat_restart_ssp" > $statusfile
 	[ "$1" = "0" ] && RES_LOG="连接异常"
 	[ "$1" = "1" ] && RES_LOG="代理程序未运行"
 	[ "$1" = "2" ] && RES_LOG="没有防火墙规则"
@@ -53,15 +58,19 @@ restart_ssp(){
 }
 
 check(){
-	[ -e $statusfile ] && exit 0
-	echo "check" > $statusfile
 	[ -e $log_file ] || echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_首次启动!创建日志" > $log_file
 	[ $(stat -c %s $log_file) -lt $max_log_bytes ] || \
 	echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_日志文件过大!清空日志文件" > $log_file
-	[ "$(nvram get ss_enable)" = "1" ] || stop_ssp 1
-	!(pidof ss-redir &>/dev/null) && restart_ssp 1
-	!(iptables-save -c | grep -q "SSP_") && restart_ssp 2
-	!(ipset list -n | grep -q "gfwlist") && restart_ssp 3
+	$(cat "$statusfile" 2>/dev/null | grep -q "watchcat_stop_ssp") && \
+	[ "$(nvram get ss_enable)" = "1" ] && !(pidof ss-redir &>/dev/null) && \
+	!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q "gfwlist") && \
+	watchcat_start_ssp 0
+	[ -e $statusfile ] && goout 0
+	echo "check" > $statusfile
+	[ "$(nvram get ss_enable)" = "1" ] || watchcat_stop_ssp 1
+	!(pidof ss-redir &>/dev/null) && watchcat_restart_ssp 1
+	!(iptables-save -c | grep -q "SSP_") && watchcat_restart_ssp 2
+	!(ipset list -n | grep -q "gfwlist") && watchcat_restart_ssp 3
 	[ $(stat -c %s $use_log_file) -lt $max_log_bytes ] || \
 	echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_日志文件过大!清空日志文件" > $use_log_file
 	[ "$(nvram get ss_watchcat)" = "1" ] || goout 0
@@ -73,16 +82,16 @@ detect_ssp(){
 		if [ $tries -eq 1 ]; then
 			loger "开始检测"
 		elif [ $tries -eq 2 ]; then
-			restart_ssp 0
+			watchcat_restart_ssp 0
 		elif [ $tries -eq 3 ]; then
-			stop_ssp 0
+			watchcat_stop_ssp 0
 		fi
 		[ "$?" = "0" ] && sleep 1 && detect_gfw
-		if [ "$?" = "0" ] || $(cat "$statusfile" 2>/dev/null | grep -q "^<!DOCTYPE"); then
+		if [ "$?" = "0" ]; then
 			loger "连接正常" && goout 0
 		else
 			loger "连接异常" && detect_chn
-			if [ "$?" = "0" ] || $(cat "$statusfile" 2>/dev/null | grep -q "^<!DOCTYPE"); then
+			if [ "$?" = "0" ]; then
 				loger "网络正常" && tries=$((tries+1))
 			else
 				loger "网络异常" && goout 0

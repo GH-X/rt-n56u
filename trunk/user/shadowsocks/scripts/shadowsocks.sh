@@ -208,13 +208,16 @@ $(udp_ext) &>$use_log_file &
 
 stop_watchcat()
 {
-killall -q -9 ss-watchcat.sh && rm -rf $statusfile
+killall -q -9 ss-watchcat.sh
+!(cat "$statusfile" 2>/dev/null | grep -q "watchcat_stop_ssp") && \
 sed -i '/ss-watchcat.sh/d' $CRON_CONF && restart_crond
+!(cat "$statusfile" 2>/dev/null | grep -q "watchcat_stop_ssp") && rm -rf $statusfile
 }
 
 stop_ssp()
 {
-!(cat "$statusfile" 2>/dev/null | grep -q "restart_ssp") && stop_watchcat
+[ "$(nvram get ss_enable)" = "0" ] && echo "stop_ssp" > $statusfile
+$(cat "$statusfile" 2>/dev/null | grep -q "watchcat_restart_ssp") || stop_watchcat
 killall -q -9 $use_bin && logger -st "SSP[$$]$bin_type" "关闭程序"
 if $(iptables-save -c | grep -q "SSP_") || $(ipset list -n | grep -q "gfwlist"); then
   logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f
@@ -236,10 +239,10 @@ logger -st "SSP[$$]$bin_type" "程序已经关闭"
 start_ssp()
 {
 ulimit -n 65536
-!(cat "$statusfile" 2>/dev/null | grep -q "restart_ssp") && stop_watchcat
-[ $(stat -c %s /etc/storage/chinadns/chnroute.txt) -lt 1000 ] && [ ! -e /tmp/chnroute.txt ] && \
+$(cat "$statusfile" 2>/dev/null | grep -q "watchcat_restart_ssp") || stop_watchcat
+[ -L /etc/storage/chinadns/chnroute.txt ] && [ ! -e /tmp/chnroute.txt ] && \
 rm -rf /etc/storage/chinadns/chnroute.txt && tar jxf /etc_ro/chnroute.bz2 -C /etc/storage/chinadns
-[ $(stat -c %s /etc/storage/ssprules/allroute.txt) -lt 1000 ] && [ ! -e /tmp/allroute.txt ] && \
+[ -L /etc/storage/ssprules/allroute.txt ] && [ ! -e /tmp/allroute.txt ] && \
 rm -rf /etc/storage/ssprules/allroute.txt && tar jxf /etc_ro/allroute.bz2 -C /etc/storage/ssprules
 logger -st "SSP[$$]$bin_type" "开始启动" && touch $use_log_file && \
 gen_dns_conf && gen_json_file && start_rules && start_redir || stop_ssp
@@ -249,6 +252,7 @@ $(iptables-save -c | grep -q "SSP_") && $(ipset list -n | grep -q "gfwlist") && 
 logger -st "SSP[$(pidof $use_bin)]$bin_type" "成功启动" && \
 !(cat "$CRON_CONF" 2>/dev/null | grep -q "ss-watchcat.sh") && \
 echo "*/5 * * * * /usr/bin/ss-watchcat.sh 2>/dev/null" >> $CRON_CONF && restart_crond
+return 0
 }
 
 case "$1" in
