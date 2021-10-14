@@ -200,11 +200,12 @@ cp -rf $GFWBLACK_CONF $GFWBLACK_TEMP
 md5sum $GFWBLACK_TEMP >> $GFWBLACK_MD5
 rm -rf $GFWBLACK_TEMP
 cat $GFWBLACK_UPD $BLACKLIST_CONF | grep -v '^#' | grep -v '^$' | awk '!a[$0]++' >> $GFWBLACK_TEMP
-for whitedomain in $(cat $WHITELIST_CONF | grep -v '^#' | grep -v '^$')
+(for whitedomain in $(cat $WHITELIST_CONF | grep -v '^#' | grep -v '^$')
 do
   echo "delete $whitedomain"
   sed -i '/'$whitedomain'/d' $GFWBLACK_TEMP
-done
+done)&
+wait
 md5sum -c -s $GFWBLACK_MD5
 if [ "$?" == "0" ]; then
   logger -st "SmartDNS[$$]" "没有新的黑名单域名"
@@ -268,20 +269,16 @@ touch $BIPLIST_CONF
 $(cat $CHNWHITEIP_CONF 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") && \
 logger -st "SmartDNS[$$]" "配置白名单地址为黑名单限制地址" && \
 grep -v '^#' $CHNWHITEIP_CONF | grep -v '^$' | awk '{printf("blacklist-ip %s\n", $1, $1 )}' >> $BIPLIST_CONF
-if [ -e "$CHN_R" ] && [ $(stat -c %s $CHN_R) -gt 1000 ]; then
-  logger -st "SmartDNS[$$]" "配置国内路由表为黑名单限制地址"
-  grep -v '^#' $CHN_R | grep -v '^$' | awk '{printf("blacklist-ip %s\n", $1, $1 )}' >> $BIPLIST_CONF
-fi
+[ -L "$CHN_R" ] || logger -st "SmartDNS[$$]" "配置国内路由表为黑名单限制地址" && \
+grep -v '^#' $CHN_R | grep -v '^$' | awk '{printf("blacklist-ip %s\n", $1, $1 )}' >> $BIPLIST_CONF
 $(cat $BIPLIST_CONF 2>/dev/null | grep -q "blacklist-ip") && \
 echo "conf-file $BIPLIST_CONF" >> $SMARTDNS_CONF
 touch $WIPLIST_CONF
 $(cat $CHNWHITEIP_CONF 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") && \
 logger -st "SmartDNS[$$]" "配置白名单地址为白名单允许地址" && \
 grep -v '^#' $CHNWHITEIP_CONF | grep -v '^$' | awk '{printf("whitelist-ip %s\n", $1, $1 )}' >> $WIPLIST_CONF
-if [ -e "$CHN_R" ] && [ $(stat -c %s $CHN_R) -gt 1000 ]; then
-  logger -st "SmartDNS[$$]" "配置国内路由表为白名单允许地址"
-  grep -v '^#' $CHN_R | grep -v '^$'  | awk '{printf("whitelist-ip %s\n", $1, $1 )}' >> $WIPLIST_CONF
-fi
+[ -L "$CHN_R" ] || logger -st "SmartDNS[$$]" "配置国内路由表为白名单允许地址" && \
+grep -v '^#' $CHN_R | grep -v '^$'  | awk '{printf("whitelist-ip %s\n", $1, $1 )}' >> $WIPLIST_CONF
 $(cat $WIPLIST_CONF 2>/dev/null | grep -q "whitelist-ip") && \
 echo "conf-file $WIPLIST_CONF" >> $SMARTDNS_CONF
 }
@@ -360,11 +357,12 @@ logger -st "SmartDNS[$$]" "更新黑名单地址"
 cp -rf $GFWBLACKIP_CONF $GFWBLACKIP_TEMP
 md5sum $GFWBLACKIP_TEMP >> $GFWBLACKIP_MD5
 rm -rf $GFWBLACKIP_TEMP
-for domain in $(cat $GFWBLACK_CONF)
+(for domain in $(cat $GFWBLACK_CONF)
 do
   echo "search $domain"
   cat $ADDRESS_TMP | grep "$domain" | awk -F/ '{print $3}' >> $GFWBLACKIP_TMP
-done
+done)&
+wait
 cat $GFWBLACKIP_TMP $GFWBLACKIP_UPD $GFWBLACKIP_CONF | grep -v '^$' | sort -u >> $GFWBLACKIP_TEMP
 md5sum -c -s $GFWBLACKIP_MD5
 if [ "$?" == "0" ]; then
@@ -383,11 +381,12 @@ cp -rf $CHNWHITEIP_CONF $CHNWHITEIP_TEMP
 md5sum $CHNWHITEIP_TEMP >> $CHNWHITEIP_MD5
 rm -rf $CHNWHITEIP_TEMP
 cat $ADDRESS_TMP | awk -F/ '{print $3}' | sort -u >> $CHNWHITEIP_TMP
-for address in $(cat $GFWBLACKIP_TEMP)
+(for address in $(cat $GFWBLACKIP_TEMP)
 do
   echo "delete $address"
   sed -i '/'$address'/d' $CHNWHITEIP_TMP
-done
+done)&
+wait
 cat $CHNWHITEIP_TMP $CHNWHITEIP_CONF | grep -v '^$' | sort -u >> $CHNWHITEIP_TEMP
 md5sum -c -s $CHNWHITEIP_MD5
 if [ "$?" == "0" ]; then
