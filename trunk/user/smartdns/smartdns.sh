@@ -68,6 +68,8 @@ sdns_check()
 {
 if [ "$sdns_redirect" = "2" ] && [ "$(nvram get sdns_port)" != "53" ]; then
   nvram set sdns_port=53
+elif [ "$sdns_redirect" != "2" ] && [ "$(nvram get sdns_port)" = "53" ]; then
+  nvram set sdns_port=5353
 fi
 sdns_port=$(nvram get sdns_port)
 if [ -e /tmp/GFWblack.conf ]; then
@@ -250,9 +252,9 @@ if [ "$sdnse_enable" = "1" ]; then
   grep -v '^#' $GFWBLACK_CONF | grep -v '^$' | awk '{printf("nameserver /%s/'$sdnse_group'\n", $1, $1 )}' >> $GFW_CONF
   echo "conf-file $GFW_CONF" >> $SMARTDNS_CONF
   grep -v '^#' $GFWBLACK_CONF | grep -v '^$' | awk '{printf("server=/%s/'$DNSS_B'\n", $1, $1 )}' >> $DNSS_CONF
-if [ "$sdnse_domain_gfw" = "1" ]; then
-  [ -e /tmp/SmartDNSupdate ] || upgfwdnsmq
-fi
+  if [ "$sdnse_domain_gfw" = "1" ]; then
+    [ -e /tmp/SmartDNSupdate ] || upgfwdnsmq
+  fi
 fi
 logger -st "SmartDNS[$$]" "配置白名单域名"
 grep -v '^#' $WHITELIST_CONF | grep -v '^$' | awk '{printf("nameserver /%s/'$sdns_group'\n", $1, $1 )}' >> $CHN_CONF
