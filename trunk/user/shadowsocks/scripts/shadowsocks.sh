@@ -34,23 +34,24 @@ GFWBLACK_CONF="/etc/storage/GFWblack.conf"
 GFWLIST_CONF="/etc/storage/gfwlist/dnsmasq_gfwlist.conf"
 GFWLIST_TEMP="/tmp/dnsmasq_gfwlist.conf"
 GFWLIST_MD5="/tmp/dnsmasq_gfwlist.md5"
+DNSM_CONF="/etc/dnsmasq.conf"
 DNSQ_CONF="/etc/storage/dnsmasq/dnsmasq.conf"
 
 [ "$ssp_type" = "0" ] && bin_type="SS" && ln -sf $ss_bin $use_link
 [ "$ssp_type" = "1" ] && bin_type="SSR" && ln -sf $ssr_bin $use_link
 [ "$ssp_type" = "2" ] && [ -x "$trojan_bin" ] && bin_type="Trojan" && ln -sf $trojan_bin $use_link
-[ "$bin_type" != "" ] || logger -st "SSP[$$]$bin_type" "找不到可执行文件!"
+[ "$bin_type" != "" ] || logger -st "SSP[$$]WARNING" "找不到代理进程可执行文件!"
 
 gen_dns_conf()
 {
-if [ "$(nvram get sdns_enable)" = "0" ]; then
-  logger -st "SSP[$$]$bin_type" "创建域名解析规则"
+if [ "$(nvram get sdns_enable)" = "0" ] || [ "$(nvram get sdnse_enable)" = "0" ] || [ "$(nvram get sdnse_domain_gfw)" = "0" ]; then
+  logger -st "SSP[$$]$bin_type" "创建解析规则"
   if [ -x /usr/bin/dns-forwarder.sh ] && [ "$(nvram get dns_forwarder_enable)" = "1" ]; then
     DNS_APP="dnsForwarder" && DNS_PORT=$(nvram get dns_forwarder_port)
-  elif [ "$(nvram get ss-tunnel_enable)" = "1" ]; then
-    DNS_APP="ssTunnel" && DNS_PORT=$(nvram get ss-tunnel_local_port)
+  elif [ "$(nvram get ss-tunnel_enable)" = "1" ] && [ "$ssp_type" -lt "2" ]; then
+    DNS_APP="Tunnel" && DNS_PORT=$(nvram get ss-tunnel_local_port)
   else
-    DNS_APP="dnsmasq" && DNS_PORT="53"
+    DNS_APP="dnsmasq" && DNS_PORT="53" && logger -st "SSP[$$]WARNING" "请正确设置DNS隧道和DNS服务!"
   fi
   ADDR_PORT="127.0.0.1#$DNS_PORT"
   cp -rf $GFWLIST_CONF $GFWLIST_TEMP
@@ -66,6 +67,7 @@ if [ "$(nvram get sdns_enable)" = "0" ]; then
   rm -rf $GFWLIST_MD5
   killall dnsmasq && \
   grep -v '^#' $GFWBLACK_CONF | grep -v '^$' | awk '{printf("server=/%s/'$ADDR_PORT'\n", $1, $1 )}' > /tmp/dnsmasq.servers && \
+  sed -i '/^servers-file/d' $DNSM_CONF && echo "servers-file=/tmp/dnsmasq.servers" >> $DNSM_CONF && \
   sed -i 's/### gfwlist related.*/### gfwlist related resolve by '$DNS_APP' '$ADDR_PORT'/g' $DNSQ_CONF && \
   sed -i 's/^#min-cache-ttl=/min-cache-ttl=/g' $DNSQ_CONF && \
   sed -i 's/^#conf-dir=/conf-dir=/g' $DNSQ_CONF && \
@@ -180,7 +182,7 @@ fi
 
 start_rules()
 {
-logger -st "SSP[$$]$bin_type" "开启透明代理"
+logger -st "SSP[$$]$bin_type" "开启透明代理" && \
 ss-rules\
  -s "$ss_server"\
  -i "$ss_local_port"\
@@ -201,58 +203,67 @@ fi
 
 start_redir()
 {
-logger -st "SSP[$$]$bin_type" "启动代理"
-nohup $use_bin -c $use_json_file\
-$(udp_ext) &>$use_log_file &
+logger -st "SSP[$$]$bin_type" "启动代理进程" && \
+nohup $use_bin -c $use_json_file $(udp_ext) &>$use_log_file &
+return 0
 }
 
 stop_watchcat()
 {
-killall -q -9 ss-watchcat.sh
-!(cat "$statusfile" 2>/dev/null | grep -q "watchcat_stop_ssp") && \
-sed -i '/ss-watchcat.sh/d' $CRON_CONF && restart_crond
-!(cat "$statusfile" 2>/dev/null | grep -q "watchcat_stop_ssp") && rm -rf $statusfile
+(!(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_stop_ssp') && \
+sed -i '/ss-watchcat.sh/d' $CRON_CONF && restart_crond)&
+(!(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_stop_ssp') && rm -rf $statusfile)&
+(killall -q -9 ss-watchcat.sh)&
+wait
+return 0
 }
 
 stop_ssp()
 {
-[ "$(nvram get ss_enable)" = "0" ] && echo "stop_ssp" > $statusfile
-$(cat "$statusfile" 2>/dev/null | grep -q "watchcat_restart_ssp") || stop_watchcat
-killall -q -9 $use_bin && logger -st "SSP[$$]$bin_type" "关闭程序"
-if $(iptables-save -c | grep -q "SSP_") || $(ipset list -n | grep -q "gfwlist"); then
-  logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f
-fi
-[ -e $use_json_file ] && logger -st "SSP[$$]$bin_type" "清除配置文件" && rm -rf $use_json_file
-if [ "$(nvram get sdns_enable)" = "0" ]; then
-  logger -st "SSP[$$]$bin_type" "清除域名解析规则"
-  killall dnsmasq && \
+([ "$(nvram get ss_enable)" = "0" ] && echo "stop_ssp" > $statusfile
+$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_restart_ssp') || stop_watchcat)&
+(killall -q -9 $use_bin && logger -st "SSP[$$]$bin_type" "关闭代理进程")&
+(killall -q -9 ss-rules
+logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f
+)&
+([ -e $use_json_file ] && logger -st "SSP[$$]$bin_type" "清除配置文件" && rm -rf $use_json_file)&
+(if [ "$(nvram get sdns_enable)" = "0" ]; then
+  logger -st "SSP[$$]$bin_type" "清除解析规则"
+  killall -q -9 dnsmasq && \
   echo "" > /tmp/dnsmasq.servers && \
   sed -i 's/^min-cache-ttl=/#min-cache-ttl=/g' $DNSQ_CONF && \
   sed -i 's/^conf-dir=/#conf-dir=/g' $DNSQ_CONF && \
   dnsmasq
-fi
+fi)&
+wait
 !(pidof $use_bin &>/dev/null) && \
-!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q "gfwlist") && \
-logger -st "SSP[$$]$bin_type" "程序已经关闭"
+!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q 'gfwlist') && \
+logger -st "SSP[$$]$bin_type" "程序已经关闭" || logger -st "SSP[$$]WARNING" "程序关闭失败!"
+[ "$(nvram get ss_enable)" = "0" ] && exit 0 || return 0
+}
+
+check_ssp()
+{
+[ "$?" = "0" ] && sleep 1 && pidof $use_bin &>/dev/null && \
+$(iptables-save -c | grep -q "SSP_") && $(ipset list -n | grep -q 'gfwlist') && \
+logger -st "SSP[$(pidof $use_bin)]$bin_type" "${STA_LOG:=成功启动}" && \
+!(cat "$CRON_CONF" 2>/dev/null | grep -q "ss-watchcat.sh") && \
+echo "*/5 * * * * /usr/bin/ss-watchcat.sh 2>/dev/null" >> $CRON_CONF && restart_crond
+return 0
 }
 
 start_ssp()
 {
 ulimit -n 65536
-$(cat "$statusfile" 2>/dev/null | grep -q "watchcat_restart_ssp") || stop_watchcat
+$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_restart_ssp') || stop_watchcat
 [ -L /etc/storage/chinadns/chnroute.txt ] && [ ! -e /tmp/chnroute.txt ] && \
 rm -rf /etc/storage/chinadns/chnroute.txt && tar jxf /etc_ro/chnroute.bz2 -C /etc/storage/chinadns
 [ -L /etc/storage/ssprules/allroute.txt ] && [ ! -e /tmp/allroute.txt ] && \
 rm -rf /etc/storage/ssprules/allroute.txt && tar jxf /etc_ro/allroute.bz2 -C /etc/storage/ssprules
 logger -st "SSP[$$]$bin_type" "开始启动" && touch $use_log_file && \
-gen_dns_conf && gen_json_file && start_rules && start_redir || stop_ssp
-pidof ss-watchcat.sh &>/dev/null || /usr/bin/ss-watchcat.sh
-[ "$?" = "0" ] && sleep 1 && pidof $use_bin &>/dev/null && \
-$(iptables-save -c | grep -q "SSP_") && $(ipset list -n | grep -q "gfwlist") && \
-logger -st "SSP[$(pidof $use_bin)]$bin_type" "成功启动" && \
-!(cat "$CRON_CONF" 2>/dev/null | grep -q "ss-watchcat.sh") && \
-echo "*/5 * * * * /usr/bin/ss-watchcat.sh 2>/dev/null" >> $CRON_CONF && restart_crond
-return 0
+gen_dns_conf && gen_json_file && start_rules && start_redir
+pidof ss-watchcat.sh &>/dev/null && STA_LOG="重启完成" || /usr/bin/ss-watchcat.sh
+check_ssp
 }
 
 case "$1" in

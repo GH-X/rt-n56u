@@ -30,30 +30,33 @@ detect_chn(){
 }
 
 watchcat_stop_ssp(){
-	echo "watchcat_stop_ssp" > $statusfile
-	[ "$1" = "0" ] && STO_LOG="连接持续异常!暂时关闭SSP代理" && 
-	[ "$1" = "1" ] && STO_LOG="没有启用代理!关闭SSP代理" && echo "disable_ssp" > $statusfile
-	logger -st "SSP[$$]watchcat" "$STO_LOG" && loger "$STO_LOG" && \
+	[ "$1" = "0" ] && STO_LOG="连接持续异常!暂时关闭" && echo "watchcat_stop_ssp" > $statusfile
+	[ "$1" = "1" ] && STO_LOG="没有启用代理!关闭代理" && echo "watchcat_disable_ssp" > $statusfile
+	loger "$STO_LOG" && logger -st "SSP[$$]WARNING" "$STO_LOG"
+	[ -x /usr/bin/dns-forwarder.sh ] && /usr/bin/dns-forwarder.sh stop &>/dev/null
+	/usr/bin/ss-tunnel.sh stop &>/dev/null
 	/usr/bin/shadowsocks.sh stop &>/dev/null
 }
 
 watchcat_start_ssp(){
 	echo "watchcat_start_ssp" > $statusfile
-	[ "$1" = "0" ] && STA_LOG="开启SSP代理"
-	logger -st "SSP[$$]watchcat" "$STA_LOG" && loger "$STA_LOG" && /usr/bin/shadowsocks.sh start
+	loger "开启代理" && logger -st "SSP[$$]watchcat" "开启代理"
+	[ -x /usr/bin/dns-forwarder.sh ] && \
+	[ "$(nvram get dns_forwarder_enable)" = "1" ] && /usr/bin/dns-forwarder.sh start &>/dev/null
+	[ "$(nvram get ss-tunnel_enable)" = "1" ] && /usr/bin/ss-tunnel.sh start &>/dev/null
+	/usr/bin/shadowsocks.sh start &>/dev/null
 }
 
 watchcat_restart_ssp(){
 	echo "watchcat_restart_ssp" > $statusfile
-	[ "$1" = "0" ] && RES_LOG="连接异常"
-	[ "$1" = "1" ] && RES_LOG="代理程序未运行"
-	[ "$1" = "2" ] && RES_LOG="没有防火墙规则"
-	[ "$1" = "3" ] && RES_LOG="找不到地址集合"
-	[ -x /usr/bin/dns-forwarder.sh ] && [ "$(nvram get dns_forwarder_enable)" = "1" ] && \
-	loger "$RES_LOG!重启DNS服务" && /usr/bin/dns-forwarder.sh restart &>/dev/null
-	[ "$(nvram get ss-tunnel_enable)" = "1" ] && loger "$RES_LOG!重启DNS隧道" && \
-	/usr/bin/ss-tunnel.sh restart &>/dev/null
-	logger -st "SSP[$$]watchcat" "$RES_LOG!重启SSP代理" && loger "$RES_LOG!重启SSP代理" && \
+	[ "$1" = "0" ] && RES_LOG="连接异常!开始重启"
+	[ "$1" = "1" ] && RES_LOG="代理程序未运行!开始重启"
+	[ "$1" = "2" ] && RES_LOG="没有防火墙规则!开始重启"
+	[ "$1" = "3" ] && RES_LOG="找不到地址集合!开始重启"
+	loger "$RES_LOG" && logger -st "SSP[$$]WARNING" "$RES_LOG"
+	[ -x /usr/bin/dns-forwarder.sh ] && \
+	[ "$(nvram get dns_forwarder_enable)" = "1" ] && /usr/bin/dns-forwarder.sh restart &>/dev/null
+	[ "$(nvram get ss-tunnel_enable)" = "1" ] && /usr/bin/ss-tunnel.sh restart &>/dev/null
 	/usr/bin/shadowsocks.sh restart &>/dev/null
 }
 
@@ -61,16 +64,19 @@ check(){
 	[ -e $log_file ] || echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_首次启动!创建日志" > $log_file
 	[ $(stat -c %s $log_file) -lt $max_log_bytes ] || \
 	echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_日志文件过大!清空日志文件" > $log_file
-	$(cat "$statusfile" 2>/dev/null | grep -q "watchcat_stop_ssp") && \
+	$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_stop_ssp') && \
 	[ "$(nvram get ss_enable)" = "1" ] && !(pidof ss-redir &>/dev/null) && \
-	!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q "gfwlist") && \
-	watchcat_start_ssp 0
+	!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q 'gfwlist') && \
+	watchcat_start_ssp
 	[ -e $statusfile ] && goout 0
 	echo "check" > $statusfile
 	[ "$(nvram get ss_enable)" = "1" ] || watchcat_stop_ssp 1
+	$(cat "$statusfile" 2>/dev/null | grep -q 'check') && \
 	!(pidof ss-redir &>/dev/null) && watchcat_restart_ssp 1
+	$(cat "$statusfile" 2>/dev/null | grep -q 'check') && \
 	!(iptables-save -c | grep -q "SSP_") && watchcat_restart_ssp 2
-	!(ipset list -n | grep -q "gfwlist") && watchcat_restart_ssp 3
+	$(cat "$statusfile" 2>/dev/null | grep -q 'check') && \
+	!(ipset list -n | grep -q 'gfwlist') && watchcat_restart_ssp 3
 	[ $(stat -c %s $use_log_file) -lt $max_log_bytes ] || \
 	echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_日志文件过大!清空日志文件" > $use_log_file
 	[ "$(nvram get ss_watchcat)" = "1" ] || goout 0
