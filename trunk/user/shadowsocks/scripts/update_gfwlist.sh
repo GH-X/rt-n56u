@@ -9,7 +9,7 @@ GFWLIST_URL="$(nvram get gfwlist_url)"
 
 (rm -rf /tmp/GFWblack.conf
 curl -k -s -o /tmp/GFWblack.conf --connect-timeout 5 --retry 3 \
-${GFWLIST_URL:-"https://raw.githubusercontent.com/GH-X/gfwlist-to-domain/release/GFWblack.conf"})&
+${GFWLIST_URL:-"https://raw.githubusercontent.com/GH-X/rt-n56u/GFWListDomainIP/GFWblack.conf"})&
 (rm -rf /tmp/GFWblackip.conf
 curl -k -s -o /tmp/GFWblackip.conf --connect-timeout 5 --retry 3 \
 https://raw.githubusercontent.com/GH-X/gfwlist-to-domain/release/GFWblackip.conf)&
