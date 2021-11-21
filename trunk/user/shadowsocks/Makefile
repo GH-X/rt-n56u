@@ -8,7 +8,7 @@ ARCHIVE_SSR_NAME=shadowsocksr-libev-master-e2373d7
 #https://github.com/shadowsocksr-backup/shadowsocksr-libev.git
 
 GFWLIST_NAME=dnsmasq_gfwlist.conf
-GFWLIST_URL=https://raw.githubusercontent.com/GH-X/gfwlist-to-domain/release/$(GFWLIST_NAME)
+GFWLIST_URL=https://raw.githubusercontent.com/GH-X/rt-n56u/GFWListDomainIP/$(GFWLIST_NAME)
 GFWLIST_DIR=gfwlist
 
 all: gfwlist_dl extract_test config_test
@@ -19,12 +19,12 @@ endif
 
 gfwlist_dl:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-	mkdir -p $(GFWLIST_DIR)
-	( if [ ! -f $(GFWLIST_DIR)/.finish ]; then \
-		cd $(GFWLIST_DIR) && rm -f * && \
+	( if [ ! -d $(GFWLIST_DIR) ]; then \
+		mkdir -p $(GFWLIST_DIR) && cd $(GFWLIST_DIR) && \
 		wget -q -t5 --timeout=20 --no-check-certificate $(GFWLIST_URL) && \
-		tar jcf gfwlist.bz2 $(GFWLIST_NAME) && \
-		touch .finish ; \
+		tar jcf gfwlist.bz2 $(GFWLIST_NAME); \
+	else \
+		cd $(GFWLIST_DIR) && tar jcf gfwlist.bz2 $(GFWLIST_NAME); \
 	fi )
 endif
 
