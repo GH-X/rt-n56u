@@ -105,8 +105,8 @@ $iptn -A SSP_PREROUTING -p tcp -j SSP_RULES
 $iptn -A SSP_OUTPUT -d $server_addr -j RETURN
 $iptn -A SSP_OUTPUT -p tcp -j SSP_RULES
 $iptn -A SSP_RULES -m set --match-set private dst -j RETURN
-$iptn -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
 $iptn -A SSP_RULES -m set --match-set chnlist dst -j RETURN
+$iptn -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
 $iptn -A SSP_RULES -m set --match-set exclude dst -j RETURN
 $iptn -A SSP_RULES -j SSP_AGENT
 $iptn -A SSP_AGENT -p tcp -j REDIRECT --to-ports $local_port
@@ -141,8 +141,8 @@ $iptm -A SSP_OUTPUT -d $server_addr -j RETURN
 $iptm -A SSP_OUTPUT -p udp -j SSP_RULES
 $iptm -A SSP_RULES -m mark --mark 0x64/0x64 -j RETURN
 $iptm -A SSP_RULES -m set --match-set private dst -j RETURN
-$iptm -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
 $iptm -A SSP_RULES -m set --match-set chnlist dst -j RETURN
+$iptm -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
 $iptm -A SSP_RULES -m set --match-set exclude dst -j RETURN
 $iptm -A SSP_RULES -j SSP_AGENT
 $iptm -A SSP_AGENT -j CONNMARK --restore-mark
