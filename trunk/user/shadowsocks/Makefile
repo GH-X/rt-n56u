@@ -8,7 +8,8 @@ ARCHIVE_SSR_NAME=shadowsocksr-libev-master-e2373d7
 #https://github.com/shadowsocksr-backup/shadowsocksr-libev.git
 
 GFWLIST_NAME=dnsmasq_gfwlist.conf
-GFWLIST_URL=https://raw.githubusercontent.com/GH-X/rt-n56u/GFWListDomainIP/$(GFWLIST_NAME)
+GFWALL_PURL=https://raw.githubusercontent.com/GH-X/rt-n56u/GFWListDomainIP
+GFWLIST_URL=$(GFWALL_PURL)/$(GFWLIST_NAME)
 GFWLIST_DIR=gfwlist
 
 all: gfwlist_dl extract_test config_test
