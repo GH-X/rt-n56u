@@ -1,6 +1,6 @@
 #!/bin/sh
 
-statusfile="/tmp/ss-watchcat"
+statusfile="/tmp/sspstatus.tmp"
 log_file="/tmp/ss-watchcat.log"
 use_log_file="/tmp/ss-redir.log"
 max_log_bytes="1000000"
@@ -18,20 +18,21 @@ loger(){
 }
 
 detect_gfw(){
-	echo "detect_gfw" > $statusfile && loger "检测连接" && \
+	echo "watchcat_detect_gfw" > $statusfile && loger "检测连接" && \
 	curl "$gfw_domain" -k -s --connect-timeout 2 --max-time 4 --retry 2 --retry-max-time 8 \
 	-A "$user_agent" | grep -q -s -i "^<!DOCTYPE" || return 1
 }
 
 detect_chn(){
-	echo "detect_chn" > $statusfile && loger "检测网络" && \
+	echo "watchcat_detect_chn" > $statusfile && loger "检测网络" && \
 	curl "$chn_domain" -k -s --connect-timeout 2 --max-time 4 --retry 2 --retry-max-time 8 \
 	-A "$user_agent" | grep -q -s -i "^<!DOCTYPE" || return 1
 }
 
 watchcat_stop_ssp(){
-	[ "$1" = "0" ] && STO_LOG="连接持续异常!暂时关闭" && echo "watchcat_stop_ssp" > $statusfile
-	[ "$1" = "1" ] && STO_LOG="没有启用代理!关闭代理" && echo "watchcat_disable_ssp" > $statusfile
+	[ "$1" = "0" ] && STO_LOG="网络异常!暂时关闭代理" && echo "watchcat_stop_ssp" > $statusfile
+	[ "$1" = "1" ] && STO_LOG="连接异常!暂时关闭代理" && echo "watchcat_stop_ssp" > $statusfile
+	[ "$1" = "2" ] && STO_LOG="没有启用代理!关闭代理" && echo "watchcat_disable_ssp" > $statusfile
 	loger "$STO_LOG" && logger -st "SSP[$$]WARNING" "$STO_LOG"
 	[ -x /usr/bin/dns-forwarder.sh ] && /usr/bin/dns-forwarder.sh stop &>/dev/null
 	/usr/bin/ss-tunnel.sh stop &>/dev/null
@@ -69,13 +70,13 @@ check(){
 	!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q 'gfwlist') && \
 	watchcat_start_ssp
 	[ -e $statusfile ] && goout 0
-	echo "check" > $statusfile
-	[ "$(nvram get ss_enable)" = "1" ] || watchcat_stop_ssp 1
-	$(cat "$statusfile" 2>/dev/null | grep -q 'check') && \
+	echo "watchcat_check" > $statusfile
+	[ "$(nvram get ss_enable)" = "1" ] || watchcat_stop_ssp 2
+	$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_check') && \
 	!(pidof ss-redir &>/dev/null) && watchcat_restart_ssp 1
-	$(cat "$statusfile" 2>/dev/null | grep -q 'check') && \
+	$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_check') && \
 	!(iptables-save -c | grep -q "SSP_") && watchcat_restart_ssp 2
-	$(cat "$statusfile" 2>/dev/null | grep -q 'check') && \
+	$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_check') && \
 	!(ipset list -n | grep -q 'gfwlist') && watchcat_restart_ssp 3
 	[ $(stat -c %s $use_log_file) -lt $max_log_bytes ] || \
 	echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_日志文件过大!清空日志文件" > $use_log_file
@@ -90,7 +91,7 @@ detect_ssp(){
 		elif [ $tries -eq 2 ]; then
 			watchcat_restart_ssp 0
 		elif [ $tries -eq 3 ]; then
-			watchcat_stop_ssp 0
+			watchcat_stop_ssp 1
 		fi
 		[ "$?" = "0" ] && sleep 1 && detect_gfw
 		if [ "$?" = "0" ]; then
@@ -100,7 +101,7 @@ detect_ssp(){
 			if [ "$?" = "0" ]; then
 				loger "网络正常" && tries=$((tries+1))
 			else
-				loger "网络异常" && goout 0
+				loger "网络异常" && watchcat_stop_ssp 0
 			fi
 		fi
 	done

@@ -8,8 +8,8 @@ use_link="/var/ss-redir"
 use_log_file="/tmp/ss-redir.log"
 use_json_file="/tmp/ss-redir.json"
 
-statusfile="/tmp/ss-watchcat"
-CRON_CONF="/etc/storage/cron/crontabs/admin"
+statusfile="/tmp/sspstatus.tmp"
+CRON_CONF="/etc/storage/cron/crontabs/$(nvram get http_username)"
 
 ss_type=$(nvram get ss_type)
 ssp_type=${ss_type:0} # 0=ss 1=ssr 2=trojan
@@ -65,7 +65,7 @@ if [ "$(nvram get sdns_enable)" = "0" ] || [ "$(nvram get sdnse_enable)" = "0" ]
   fi
   rm -rf $GFWLIST_TEMP
   rm -rf $GFWLIST_MD5
-  killall dnsmasq && \
+  killall -q -9 dnsmasq && \
   grep -v '^#' $GFWBLACK_CONF | grep -v '^$' | awk '{printf("server=/%s/'$ADDR_PORT'\n", $1, $1 )}' > /tmp/dnsmasq.servers && \
   sed -i '/^servers-file/d' $DNSM_CONF && echo "servers-file=/tmp/dnsmasq.servers" >> $DNSM_CONF && \
   sed -i 's/### gfwlist related.*/### gfwlist related resolve by '$DNS_APP' '$ADDR_PORT'/g' $DNSQ_CONF && \
@@ -224,8 +224,7 @@ stop_ssp()
 $(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_restart_ssp') || stop_watchcat)&
 (killall -q -9 $use_bin && logger -st "SSP[$$]$bin_type" "关闭代理进程")&
 (killall -q -9 ss-rules
-logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f
-)&
+logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f)&
 ([ -e $use_json_file ] && logger -st "SSP[$$]$bin_type" "清除配置文件" && rm -rf $use_json_file)&
 (if [ "$(nvram get sdns_enable)" = "0" ]; then
   logger -st "SSP[$$]$bin_type" "清除解析规则"
@@ -248,7 +247,7 @@ check_ssp()
 $(iptables-save -c | grep -q "SSP_") && $(ipset list -n | grep -q 'gfwlist') && \
 logger -st "SSP[$(pidof $use_bin)]$bin_type" "${STA_LOG:=成功启动}" && \
 !(cat "$CRON_CONF" 2>/dev/null | grep -q "ss-watchcat.sh") && \
-echo "*/5 * * * * /usr/bin/ss-watchcat.sh 2>/dev/null" >> $CRON_CONF && restart_crond
+echo "*/5 * * * * nohup /usr/bin/ss-watchcat.sh 2>/dev/null &" >> $CRON_CONF && restart_crond
 return 0
 }
 
