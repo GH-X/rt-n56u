@@ -37,7 +37,7 @@ CHNWHITEIP_CONF="$CUSTOMCONF_DIR/CHNwhiteip.conf"
 CHNWHITEIP_TEMP="$CONF_DIR/CHNwhiteip.conf"
 CHNWHITEIP_TMP="$CONF_DIR/CHNwhiteip.tmp"
 CHNWHITEIP_MD5="$CONF_DIR/CHNwhiteip.md5"
-CRON_CONF="$CUSTOMCONF_DIR/cron/crontabs/admin"
+CRON_CONF="$CUSTOMCONF_DIR/cron/crontabs/$(nvram get http_username)"
 sdnse_enable=$(nvram get sdnse_enable)
 sdnse_group=$(nvram get sdnse_group)
 sdnse_nra=$(nvram get sdnse_nra)
@@ -443,7 +443,7 @@ touch $SMARTDNS_CONF
 echo "conf-file $CUSTOM_CONF" >> $SMARTDNS_CONF
 if [ "$sdns_address" = "1" ]; then
   !(cat "$CRON_CONF" | grep -q "smartdns.sh") && \
-  echo "33 3 * * * /usr/bin/smartdns.sh update 2>/dev/null" >> $CRON_CONF && restart_crond
+  echo "33 3 * * * nohup /usr/bin/smartdns.sh update 2>/dev/null &" >> $CRON_CONF && restart_crond
   echo "conf-file $ADDRESS_CONF" >> $SMARTDNS_CONF
 fi
 if [ "$sdns_ipv6_server" = "1" ]; then
@@ -516,7 +516,7 @@ EOF
 
 sdns_restore()
 {
-killall dnsmasq
+killall -q -9 dnsmasq
 sed -i 's/^min-cache-ttl=/#min-cache-ttl=/g' $DNSQ_CONF
 sed -i 's/^conf-dir=/#conf-dir=/g' $DNSQ_CONF
 sed -i '/^no-resolv/d' $DNSQ_CONF
@@ -553,8 +553,8 @@ start_sdns()
 {
 ulimit -n 65536
 logger -st "SmartDNS[$$]" "开始启动" && \
-killall dnsmasq && gensdnsconf && dnsmasq && \
-$(nohup $SMARTDNS_BIN -f -c $SMARTDNS_CONF &>/dev/null &) || stop_sdns
+killall -q -9 dnsmasq && gensdnsconf && killall -q -9 dnsmasq
+dnsmasq && $(nohup $SMARTDNS_BIN -f -c $SMARTDNS_CONF &>/dev/null &) || stop_sdns
 [ "$?" = "0" ] && sleep 1 && pidof smartdns &>/dev/null && \
 logger -st "SmartDNS[$(pidof smartdns)]" "成功启动"
 }
