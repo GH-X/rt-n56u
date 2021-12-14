@@ -1,7 +1,7 @@
 #!/bin/sh
 # $1-5: crontab expr, eg: a/1 a a a a
 # $6: script name
-CRON_CONF="/etc/storage/cron/crontabs/admin"
+CRON_CONF="/etc/storage/cron/crontabs/$(nvram get http_username)"
 [ -z "$6" ] && exit 0
 cd /etc/storage/
 exp=$(echo "$1 $2 $3 $4 $5" | sed 's/a/\*/g')
