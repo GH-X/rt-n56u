@@ -61,6 +61,51 @@ watchcat_restart_ssp(){
 	/usr/bin/shadowsocks.sh restart &>/dev/null
 }
 
+amsgetnotset(){
+	$(cat "$statusfile" 2>/dev/null | grep -q 'main_stop_ssp') && return 2
+	currentminute=$(date +%M)
+	timenode=${currentminute:1}
+	[ $timenode -gt 5 ] && amsnodes=$(expr $timenode - 5) || amsnodes=$timenode
+	[ $amsnodes -eq 4 ] && return 2
+	while grep 'ipnotset'; do
+		cat /tmp/amsnotset.tmp | sed 's/ DST=/-/g' | sed 's/ LEN=/-/g' | awk -F- '!a[$2]++{print $2}'\
+		 >> /tmp/amsallexp.txt && return 0
+	done < /tmp/syslog.log > /tmp/amsnotset.tmp || return 1
+	return 1
+}
+
+automaticset(){
+	echo "watchcat_automaticset" > $statusfile
+	[ "$(nvram get ss_mode)" != "0" ] && loger "开启地址集合自动配置功能" && inams=0 || inams=240
+	while [ $inams -lt 240 ]; do
+		[ $inams -eq 0 ] && [ -e /tmp/amsallexp.txt ] || amsgetnotset
+		if [ "$?" = "0" ]; then
+			for ip in $(cat /tmp/amsallexp.txt 2>/dev/null); do
+				$(ping -c 1 -s 36 -W 1 -w 1 -q $ip | grep -q '1 packets received')
+				if [ "$?" = "0" ]; then
+					ipset add chnlist $ip &>/dev/null
+					ipset del gfwlist $ip &>/dev/null
+				else
+					ipset add gfwlist $ip &>/dev/null
+					ipset del chnlist $ip &>/dev/null
+				fi
+				echo $ip >> /tmp/amsallexp.set
+				sed -i '/'$ip'/d' /tmp/syslog.log
+			done
+			rm -rf /tmp/amsnotset.tmp
+			rm -rf /tmp/amsallexp.txt
+			inams=$((inams+1))
+		elif [ "$?" = "1" ]; then
+			rm -rf /tmp/amsnotset.tmp
+			sleep 1
+			inams=$((inams+1))
+		elif [ "$?" = "2" ]; then
+			inams=240
+		fi
+	done
+	loger "关闭地址集合自动配置功能"
+}
+
 check(){
 	[ -e $log_file ] || echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_首次启动!创建日志" > $log_file
 	[ $(stat -c %s $log_file) -lt $max_log_bytes ] || \
@@ -95,7 +140,7 @@ detect_ssp(){
 		fi
 		[ "$?" = "0" ] && sleep 1 && detect_gfw
 		if [ "$?" = "0" ]; then
-			loger "连接正常" && goout 0
+			loger "连接正常" && automaticset && goout 0
 		else
 			loger "连接异常" && detect_chn
 			if [ "$?" = "0" ]; then

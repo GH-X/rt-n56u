@@ -105,10 +105,13 @@ $iptn -A SSP_PREROUTING -p tcp -j SSP_RULES
 $iptn -A SSP_OUTPUT -d $server_addr -j RETURN
 $iptn -A SSP_OUTPUT -p tcp -j SSP_RULES
 $iptn -A SSP_RULES -m set --match-set private dst -j RETURN
+[ "$agent_mode" == "0" ] && $iptn -A SSP_RULES -j SSP_AGENT
 $iptn -A SSP_RULES -m set --match-set chnlist dst -j RETURN
 $iptn -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
 $iptn -A SSP_RULES -m set --match-set exclude dst -j RETURN
-$iptn -A SSP_RULES -j SSP_AGENT
+[ "$agent_mode" != "0" ] && $iptn -A SSP_RULES -j LOG --log-prefix "ipnotset "
+[ "$agent_mode" == "1" ] && $iptn -A SSP_RULES -j SSP_AGENT
+[ "$agent_mode" == "2" ] && $iptn -A SSP_RULES -j RETURN
 $iptn -A SSP_AGENT -p tcp -j REDIRECT --to-ports $local_port
 $iptn -I OUTPUT 1 -j SSP_OUTPUT
 $iptn -I PREROUTING 1 -j SSP_PREROUTING
@@ -141,10 +144,13 @@ $iptm -A SSP_OUTPUT -d $server_addr -j RETURN
 $iptm -A SSP_OUTPUT -p udp -j SSP_RULES
 $iptm -A SSP_RULES -m mark --mark 0x64/0x64 -j RETURN
 $iptm -A SSP_RULES -m set --match-set private dst -j RETURN
+[ "$agent_mode" == "0" ] && $iptm -A SSP_RULES -j SSP_AGENT
 $iptm -A SSP_RULES -m set --match-set chnlist dst -j RETURN
 $iptm -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
 $iptm -A SSP_RULES -m set --match-set exclude dst -j RETURN
-$iptm -A SSP_RULES -j SSP_AGENT
+[ "$agent_mode" != "0" ] && $iptm -A SSP_RULES -j LOG --log-prefix "ipnotset "
+[ "$agent_mode" == "1" ] && $iptm -A SSP_RULES -j SSP_AGENT
+[ "$agent_mode" == "2" ] && $iptm -A SSP_RULES -j RETURN
 $iptm -A SSP_AGENT -j CONNMARK --restore-mark
 $iptm -A SSP_AGENT -p udp -m conntrack --ctstate NEW -j CONNMARK --set-mark 0x64/0x64
 $iptm -A SSP_AGENT -j CONNMARK --save-mark
@@ -166,8 +172,9 @@ cat <<-EOF
            -e     <exc_list>     排除地址列表    IP/CIDR格式
            -b     <black_ip>     黑名单地址      多个IP/CIDR使用[,]隔开
            -w     <white_ip>     白名单地址      多个IP/CIDR使用[,]隔开
-           -t                    透明代理模式    REDIRECT-TCP
-           -m                    透明代理模式    REDIRECT-TCP TPROXY-UDP
+           -a     <agent_mode>   透明代理模式    全局代理[0] 国内路由表[1] 黑名单域名[2]
+           -t                    透明代理协议    TCP[REDIRECT]
+           -m                    透明代理协议    TCP[REDIRECT] UDP[TPROXY]
            -f                    清除规则
            -h                    显示帮助
 
@@ -176,7 +183,7 @@ exit $1
 }
 
 logger -st "SSP[$$]Rules" "任务开始" && \
-while getopts ":s:i:g:c:e:b:w:tmfh" arg; do
+while getopts ":s:i:g:c:e:b:w:a:tmfh" arg; do
   case "$arg" in
     s)
       [ -z "$OPTARG" ] && usage 2
@@ -205,6 +212,10 @@ while getopts ":s:i:g:c:e:b:w:tmfh" arg; do
     w)
       [ -z "$OPTARG" ] && usage 2
       white_ip=$(echo "$OPTARG" | sed 's/,/ /g')
+      ;;
+    a)
+      [ -z "$OPTARG" ] && usage 2
+      agent_mode="$OPTARG"
       ;;
     t)
       gen_ipset && ipt_nat && ipt_filter

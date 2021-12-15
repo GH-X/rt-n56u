@@ -173,6 +173,17 @@ fi
 
 agent_mode()
 {
+if [ "$ss_mode" = "0" ]; then # global
+  echo " -a 0"
+elif [ "$ss_mode" = "1" ]; then # chnroute
+  echo " -a 1"
+elif [ "$ss_mode" = "2" ]; then # gfwlist
+  echo " -a 2"
+fi
+}
+
+agent_pact()
+{
 if [ "$ss_udp" = "0" ]; then
   echo " -t"
 elif [ "$ss_udp" = "1" ]; then
@@ -189,7 +200,8 @@ ss-rules\
 $(gfw_list)\
 $(chn_list)\
 $(exc_list)\
-$(agent_mode)
+$(agent_mode)\
+$(agent_pact)
 }
 
 udp_ext()
@@ -220,7 +232,7 @@ return 0
 
 stop_ssp()
 {
-([ "$(nvram get ss_enable)" = "0" ] && echo "stop_ssp" > $statusfile
+([ "$(nvram get ss_enable)" = "0" ] && echo "main_stop_ssp" > $statusfile
 $(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_restart_ssp') || stop_watchcat)&
 (killall -q -9 $use_bin && logger -st "SSP[$$]$bin_type" "关闭代理进程")&
 (killall -q -9 ss-rules
@@ -234,6 +246,9 @@ logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f)&
   sed -i 's/^conf-dir=/#conf-dir=/g' $DNSQ_CONF && \
   dnsmasq
 fi)&
+(cat /tmp/amsallexp.set /tmp/amsallexp.txt 2>/dev/null | sort -u >> /tmp/amsallexp.tmp && \
+rm -rf /tmp/amsallexp.set && rm -rf /tmp/amsallexp.txt && \
+mv -f /tmp/amsallexp.tmp /tmp/amsallexp.txt)&
 wait
 !(pidof $use_bin &>/dev/null) && \
 !(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q 'gfwlist') && \
