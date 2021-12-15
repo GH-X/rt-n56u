@@ -271,7 +271,7 @@ touch $BIPLIST_CONF
 $(cat $CHNWHITEIP_CONF 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") && \
 logger -st "SmartDNS[$$]" "配置白名单地址为黑名单限制地址" && \
 grep -v '^#' $CHNWHITEIP_CONF | grep -v '^$' | awk '{printf("blacklist-ip %s\n", $1, $1 )}' >> $BIPLIST_CONF
-[ -L "$CHN_R" ] || logger -st "SmartDNS[$$]" "配置国内路由表为黑名单限制地址" && \
+[ ! -L "$CHN_R" ] && logger -st "SmartDNS[$$]" "配置国内路由表为黑名单限制地址" && \
 grep -v '^#' $CHN_R | grep -v '^$' | awk '{printf("blacklist-ip %s\n", $1, $1 )}' >> $BIPLIST_CONF
 $(cat $BIPLIST_CONF 2>/dev/null | grep -q "blacklist-ip") && \
 echo "conf-file $BIPLIST_CONF" >> $SMARTDNS_CONF
@@ -279,7 +279,7 @@ touch $WIPLIST_CONF
 $(cat $CHNWHITEIP_CONF 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") && \
 logger -st "SmartDNS[$$]" "配置白名单地址为白名单允许地址" && \
 grep -v '^#' $CHNWHITEIP_CONF | grep -v '^$' | awk '{printf("whitelist-ip %s\n", $1, $1 )}' >> $WIPLIST_CONF
-[ -L "$CHN_R" ] || logger -st "SmartDNS[$$]" "配置国内路由表为白名单允许地址" && \
+[ ! -L "$CHN_R" ] && logger -st "SmartDNS[$$]" "配置国内路由表为白名单允许地址" && \
 grep -v '^#' $CHN_R | grep -v '^$'  | awk '{printf("whitelist-ip %s\n", $1, $1 )}' >> $WIPLIST_CONF
 $(cat $WIPLIST_CONF 2>/dev/null | grep -q "whitelist-ip") && \
 echo "conf-file $WIPLIST_CONF" >> $SMARTDNS_CONF
