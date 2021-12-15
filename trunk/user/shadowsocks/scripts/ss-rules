@@ -68,7 +68,6 @@ iptables-save -c | grep -v "TPROXY" | iptables-restore -c
 ipset destroy private
 ipset destroy gfwlist
 ipset destroy chnlist
-ipset destroy exclude
 return 0
 }
 
@@ -78,7 +77,6 @@ ipset -! restore <<-EOF || return 1
   create private hash:net hashsize 64 maxelem 128
   create gfwlist hash:net hashsize 1024 maxelem 65536
   create chnlist hash:net hashsize 16384 maxelem 1000000
-  create exclude hash:net hashsize 16384 maxelem 1000000
   $(for privateaddr in $private_addr; do echo "add private $privateaddr"; done)
   $(for gdnsaddress in $gdns_address; do echo "add gfwlist $gdnsaddress"; done)
   $(for cdnsaddress in $cdns_address; do echo "add chnlist $cdnsaddress"; done)
@@ -88,8 +86,6 @@ ipset -! restore <<-EOF || return 1
   sed -e "s/^/add gfwlist /" ${gfw_list:=/dev/null} 2>/dev/null)
   $(!(cat "$chn_list" 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") || \
   sed -e "s/^/add chnlist /" ${chn_list:=/dev/null} 2>/dev/null)
-  $(!(cat "$exc_list" 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") || \
-  sed -e "s/^/add exclude /" ${exc_list:=/dev/null} 2>/dev/null)
 EOF
 return 0
 }
@@ -106,9 +102,9 @@ $iptn -A SSP_OUTPUT -d $server_addr -j RETURN
 $iptn -A SSP_OUTPUT -p tcp -j SSP_RULES
 $iptn -A SSP_RULES -m set --match-set private dst -j RETURN
 [ "$agent_mode" == "0" ] && $iptn -A SSP_RULES -j SSP_AGENT
-$iptn -A SSP_RULES -m set --match-set chnlist dst -j RETURN
-$iptn -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
-$iptn -A SSP_RULES -m set --match-set exclude dst -j RETURN
+[ "$agent_mode" == "1" ] && $iptn -A SSP_RULES -m set --match-set chnlist dst -j RETURN
+[ "$agent_mode" != "0" ] && $iptn -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
+[ "$agent_mode" == "2" ] && $iptn -A SSP_RULES -m set --match-set chnlist dst -j RETURN
 [ "$agent_mode" != "0" ] && $iptn -A SSP_RULES -j LOG --log-prefix "ipnotset "
 [ "$agent_mode" == "1" ] && $iptn -A SSP_RULES -j SSP_AGENT
 [ "$agent_mode" == "2" ] && $iptn -A SSP_RULES -j RETURN
@@ -145,9 +141,9 @@ $iptm -A SSP_OUTPUT -p udp -j SSP_RULES
 $iptm -A SSP_RULES -m mark --mark 0x64/0x64 -j RETURN
 $iptm -A SSP_RULES -m set --match-set private dst -j RETURN
 [ "$agent_mode" == "0" ] && $iptm -A SSP_RULES -j SSP_AGENT
-$iptm -A SSP_RULES -m set --match-set chnlist dst -j RETURN
-$iptm -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
-$iptm -A SSP_RULES -m set --match-set exclude dst -j RETURN
+[ "$agent_mode" == "1" ] && $iptm -A SSP_RULES -m set --match-set chnlist dst -j RETURN
+[ "$agent_mode" != "0" ] && $iptm -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
+[ "$agent_mode" == "2" ] && $iptm -A SSP_RULES -m set --match-set chnlist dst -j RETURN
 [ "$agent_mode" != "0" ] && $iptm -A SSP_RULES -j LOG --log-prefix "ipnotset "
 [ "$agent_mode" == "1" ] && $iptm -A SSP_RULES -j SSP_AGENT
 [ "$agent_mode" == "2" ] && $iptm -A SSP_RULES -j RETURN
@@ -169,7 +165,6 @@ cat <<-EOF
            -i     <local_port>   本地端口
            -g     <gfw_list>     黑名单地址列表  IP/CIDR格式
            -c     <chn_list>     白名单地址列表  IP/CIDR格式
-           -e     <exc_list>     排除地址列表    IP/CIDR格式
            -b     <black_ip>     黑名单地址      多个IP/CIDR使用[,]隔开
            -w     <white_ip>     白名单地址      多个IP/CIDR使用[,]隔开
            -a     <agent_mode>   透明代理模式    全局代理[0] 国内路由表[1] 黑名单域名[2]
@@ -183,7 +178,7 @@ exit $1
 }
 
 logger -st "SSP[$$]Rules" "任务开始" && \
-while getopts ":s:i:g:c:e:b:w:a:tmfh" arg; do
+while getopts ":s:i:g:c:b:w:a:tmfh" arg; do
   case "$arg" in
     s)
       [ -z "$OPTARG" ] && usage 2
@@ -200,10 +195,6 @@ while getopts ":s:i:g:c:e:b:w:a:tmfh" arg; do
     c)
       [ -z "$OPTARG" ] && usage 2
       chn_list="$OPTARG"
-      ;;
-    e)
-      [ -z "$OPTARG" ] && usage 2
-      exc_list="$OPTARG"
       ;;
     b)
       [ -z "$OPTARG" ] && usage 2

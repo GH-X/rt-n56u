@@ -143,7 +143,7 @@ gfw_list()
 if [ "$ss_mode" = "0" ]; then # global
   echo ""
 elif [ "$ss_mode" = "1" ]; then # chnroute
-  echo ""
+  echo " -g /etc/storage/GFWblackip.conf"
 elif [ "$ss_mode" = "2" ]; then # gfwlist
   echo " -g /etc/storage/GFWblackip.conf"
 fi
@@ -156,18 +156,7 @@ if [ "$ss_mode" = "0" ]; then # global
 elif [ "$ss_mode" = "1" ]; then # chnroute
   echo " -c /etc/storage/chinadns/chnroute.txt"
 elif [ "$ss_mode" = "2" ]; then # gfwlist
-  echo ""
-fi
-}
-
-exc_list()
-{
-if [ "$ss_mode" = "0" ]; then # global
-  echo ""
-elif [ "$ss_mode" = "1" ]; then # chnroute
-  echo ""
-elif [ "$ss_mode" = "2" ]; then # gfwlist
-  echo " -e /etc/storage/ssprules/allroute.txt"
+  echo " -c /etc/storage/chinadns/chnroute.txt"
 fi
 }
 
@@ -199,7 +188,6 @@ ss-rules\
  -i "$ss_local_port"\
 $(gfw_list)\
 $(chn_list)\
-$(exc_list)\
 $(agent_mode)\
 $(agent_pact)
 }
@@ -272,8 +260,6 @@ ulimit -n 65536
 $(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_restart_ssp') || stop_watchcat
 [ -L /etc/storage/chinadns/chnroute.txt ] && [ ! -e /tmp/chnroute.txt ] && \
 rm -rf /etc/storage/chinadns/chnroute.txt && tar jxf /etc_ro/chnroute.bz2 -C /etc/storage/chinadns
-[ -L /etc/storage/ssprules/allroute.txt ] && [ ! -e /tmp/allroute.txt ] && \
-rm -rf /etc/storage/ssprules/allroute.txt && tar jxf /etc_ro/allroute.bz2 -C /etc/storage/ssprules
 logger -st "SSP[$$]$bin_type" "开始启动" && touch $use_log_file && \
 gen_dns_conf && gen_json_file && start_rules && start_redir
 pidof ss-watchcat.sh &>/dev/null && STA_LOG="重启完成" || /usr/bin/ss-watchcat.sh
