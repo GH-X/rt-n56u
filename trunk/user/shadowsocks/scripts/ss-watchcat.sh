@@ -7,6 +7,7 @@ max_log_bytes="1000000"
 gfw_domain="https://www.youtube.com/"
 chn_domain="https://www.taobao.com/"
 user_agent="Mozilla/5.0 (X11; Linux; rv:74.0) Gecko/20100101 Firefox/74.0"
+CRON_CONF="/etc/storage/cron/crontabs/$(nvram get http_username)"
 
 goout(){
 	rm -rf $statusfile
@@ -76,8 +77,10 @@ amsgetnotset(){
 
 automaticset(){
 	echo "watchcat_automaticset" > $statusfile
-	[ "$(nvram get ss_mode)" != "0" ] && loger "开启地址集合自动配置功能" && inams=0 || inams=240
-	while [ $inams -lt 240 ]; do
+	$(cat "$CRON_CONF" 2>/dev/null | grep -q "ss-watchcat.sh") || bout="3"
+	[ "$(nvram get ss_mode)" != "0" ] && loger "开启地址集合自动配置功能" && \
+	inams=0 || inams=${bout:=240}
+	while [ $inams -lt ${bout:=240} ]; do
 		[ $inams -eq 0 ] && [ -e /tmp/amsallexp.txt ] || amsgetnotset
 		if [ "$?" = "0" ]; then
 			for ip in $(cat /tmp/amsallexp.txt 2>/dev/null); do
@@ -100,7 +103,7 @@ automaticset(){
 			sleep 1
 			inams=$((inams+1))
 		elif [ "$?" = "2" ]; then
-			inams=240
+			inams=${bout:=240}
 		fi
 	done
 	loger "关闭地址集合自动配置功能"
@@ -114,6 +117,9 @@ check(){
 	[ "$(nvram get ss_enable)" = "1" ] && !(pidof ss-redir &>/dev/null) && \
 	!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q 'gfwlist') && \
 	watchcat_start_ssp
+	$(cat "$CRON_CONF" 2>/dev/null | grep "ss-watchcat.sh" | grep -q "/1") && \
+	sed -i '/ss-watchcat.sh/d' $CRON_CONF && \
+	echo "*/5 * * * * nohup /usr/bin/ss-watchcat.sh 2>/dev/null &" >> $CRON_CONF && restart_crond
 	[ -e $statusfile ] && goout 0
 	echo "watchcat_check" > $statusfile
 	[ "$(nvram get ss_enable)" = "1" ] || watchcat_stop_ssp 2

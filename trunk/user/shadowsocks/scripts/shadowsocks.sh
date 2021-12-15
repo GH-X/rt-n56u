@@ -250,7 +250,7 @@ check_ssp()
 $(iptables-save -c | grep -q "SSP_") && $(ipset list -n | grep -q 'gfwlist') && \
 logger -st "SSP[$(pidof $use_bin)]$bin_type" "${STA_LOG:=成功启动}" && \
 !(cat "$CRON_CONF" 2>/dev/null | grep -q "ss-watchcat.sh") && \
-echo "*/5 * * * * nohup /usr/bin/ss-watchcat.sh 2>/dev/null &" >> $CRON_CONF && restart_crond
+echo "*/1 * * * * nohup /usr/bin/ss-watchcat.sh 2>/dev/null &" >> $CRON_CONF && restart_crond
 return 0
 }
 
