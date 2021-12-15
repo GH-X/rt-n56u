@@ -196,7 +196,6 @@ func_fill()
 	dir_crond="$dir_storage/cron/crontabs"
 	dir_wlan="$dir_storage/wlan"
 	dir_chnroute="$dir_storage/chinadns"
-	dir_allroute="$dir_storage/ssprules"
 	dir_gfwlist="$dir_storage/gfwlist"
 
 	script_start="$dir_storage/start_script.sh"
@@ -228,7 +227,6 @@ func_fill()
 	smartdns_w_conf="$dir_storage/smartdns_whitelist.conf"
 
 	chnroute_file="/etc_ro/chnroute.bz2"
-	allroute_file="/etc_ro/allroute.bz2"
 	gfwlist_conf_file="/etc_ro/gfwlist.bz2"
 
 	# create crond dir
@@ -271,13 +269,6 @@ func_fill()
 	if [ ! -d "$dir_chnroute" ] ; then
 		if [ -f "$chnroute_file" ]; then
 			mkdir -p "$dir_chnroute" && tar jxf "$chnroute_file" -C "$dir_chnroute"
-		fi
-	fi
-
-	# create allroute.txt
-	if [ ! -d "$dir_allroute" ] ; then
-		if [ -f "$allroute_file" ]; then
-			mkdir -p "$dir_allroute" && tar jxf "$allroute_file" -C "$dir_allroute"
 		fi
 	fi
 
