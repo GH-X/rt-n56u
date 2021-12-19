@@ -50,11 +50,10 @@ watchcat_start_ssp(){
 }
 
 watchcat_restart_ssp(){
-	echo "watchcat_restart_ssp" > $statusfile
-	[ "$1" = "0" ] && RES_LOG="连接异常!开始重启"
-	[ "$1" = "1" ] && RES_LOG="代理程序未运行!开始重启"
-	[ "$1" = "2" ] && RES_LOG="没有防火墙规则!开始重启"
-	[ "$1" = "3" ] && RES_LOG="找不到地址集合!开始重启"
+	[ "$1" = "0" ] && echo "watchcat_restart_ssp_link" > $statusfile && RES_LOG="连接异常!开始重启"
+	[ "$1" = "1" ] && echo "watchcat_restart_ssp_runn" > $statusfile && RES_LOG="代理程序未运行!开始重启"
+	[ "$1" = "2" ] && echo "watchcat_restart_ssp_rule" > $statusfile && RES_LOG="没有防火墙规则!开始重启"
+	[ "$1" = "3" ] && echo "watchcat_restart_ssp_rule" > $statusfile && RES_LOG="找不到地址集合!开始重启"
 	loger "$RES_LOG" && logger -st "SSP[$$]WARNING" "$RES_LOG"
 	[ -x /usr/bin/dns-forwarder.sh ] && \
 	[ "$(nvram get dns_forwarder_enable)" = "1" ] && /usr/bin/dns-forwarder.sh restart &>/dev/null

@@ -180,6 +180,12 @@ elif [ "$ss_udp" = "1" ]; then
 fi
 }
 
+stop_rules()
+{
+killall -q -9 ss-rules
+logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f
+}
+
 start_rules()
 {
 logger -st "SSP[$$]$bin_type" "开启透明代理" && \
@@ -203,7 +209,7 @@ fi
 
 start_redir()
 {
-logger -st "SSP[$$]$bin_type" "启动代理进程" && \
+logger -st "SSP[$$]$bin_type" "启动代理进程" && touch $use_log_file && \
 nohup $use_bin -c $use_json_file $(udp_ext) &>$use_log_file &
 return 0
 }
@@ -221,10 +227,9 @@ return 0
 stop_ssp()
 {
 ([ "$(nvram get ss_enable)" = "0" ] && echo "main_stop_ssp" > $statusfile
-$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_restart_ssp') || stop_watchcat)&
+$(cat "$statusfile" 2>/dev/null | grep -q "watchcat_restart_ssp_") || stop_watchcat)&
 (killall -q -9 $use_bin && logger -st "SSP[$$]$bin_type" "关闭代理进程")&
-(killall -q -9 ss-rules
-logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f)&
+($(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_restart_ssp_link') || stop_rules)&
 ([ -e $use_json_file ] && logger -st "SSP[$$]$bin_type" "清除配置文件" && rm -rf $use_json_file)&
 (if [ "$(nvram get sdns_enable)" = "0" ]; then
   logger -st "SSP[$$]$bin_type" "清除解析规则"
@@ -238,13 +243,14 @@ fi)&
 rm -rf /tmp/amsallexp.set && rm -rf /tmp/amsallexp.txt && \
 mv -f /tmp/amsallexp.tmp /tmp/amsallexp.txt)&
 wait
-!(pidof $use_bin &>/dev/null) && \
 !(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q 'gfwlist') && \
-logger -st "SSP[$$]$bin_type" "程序已经关闭" || logger -st "SSP[$$]WARNING" "程序关闭失败!"
+logger -st "SSP[$$]$bin_type" "透明代理已经关闭"
+!(pidof $use_bin &>/dev/null) && \
+logger -st "SSP[$$]$bin_type" "代理进程已经关闭" || logger -st "SSP[$$]WARNING" "代理进程关闭失败!"
 [ "$(nvram get ss_enable)" = "0" ] && exit 0 || return 0
 }
 
-check_ssp()
+check_start_ssp()
 {
 [ "$?" = "0" ] && sleep 1 && pidof $use_bin &>/dev/null && \
 $(iptables-save -c | grep -q "SSP_") && $(ipset list -n | grep -q 'gfwlist') && \
@@ -257,13 +263,14 @@ return 0
 start_ssp()
 {
 ulimit -n 65536
-$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_restart_ssp') || stop_watchcat
+logger -st "SSP[$$]$bin_type" "开始启动"
+$(cat "$statusfile" 2>/dev/null | grep -q "watchcat_restart_ssp_") || stop_watchcat
 [ -L /etc/storage/chinadns/chnroute.txt ] && [ ! -e /tmp/chnroute.txt ] && \
 rm -rf /etc/storage/chinadns/chnroute.txt && tar jxf /etc_ro/chnroute.bz2 -C /etc/storage/chinadns
-logger -st "SSP[$$]$bin_type" "开始启动" && touch $use_log_file && \
-gen_dns_conf && gen_json_file && start_rules && start_redir
+$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_restart_ssp_link') || start_rules || stop_ssp
+gen_dns_conf && gen_json_file && start_redir || stop_ssp
 pidof ss-watchcat.sh &>/dev/null && STA_LOG="重启完成" || /usr/bin/ss-watchcat.sh
-check_ssp
+check_start_ssp
 }
 
 case "$1" in
