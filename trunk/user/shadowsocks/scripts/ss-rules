@@ -117,8 +117,7 @@ return 0
 ipt_filter()
 {
 $iptf -N SSP_INPUT
-$iptf -A SSP_INPUT -s $server_addr -p tcp --tcp-flags RST RST -j DROP
-$iptf -A SSP_INPUT -s $server_addr -p tcp --tcp-flags FIN FIN -j DROP
+$iptf -A SSP_INPUT -p tcp --tcp-flags ACK,RST RST -j DROP
 $iptf -I INPUT 1 -j SSP_INPUT
 return 0
 }
