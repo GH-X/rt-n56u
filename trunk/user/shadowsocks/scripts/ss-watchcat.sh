@@ -62,7 +62,7 @@ watchcat_restart_ssp(){
 }
 
 amsgetnotset(){
-	$(cat "$statusfile" 2>/dev/null | grep -q 'main_stop_ssp') && return 2
+	$(cat "$statusfile" 2>/dev/null | grep -q 'main_stop_ssp') && goout 0
 	currentminute=$(date +%M)
 	timenode=${currentminute:1}
 	[ $timenode -gt 5 ] && amsnodes=$(expr $timenode - 5) || amsnodes=$timenode
@@ -76,7 +76,7 @@ amsgetnotset(){
 
 automaticset(){
 	echo "watchcat_automaticset" > $statusfile
-	$(cat "$CRON_CONF" 2>/dev/null | grep -q "ss-watchcat.sh") || bout="3"
+	!(cat "$CRON_CONF" 2>/dev/null | grep -q "ss-watchcat.sh") && bout="0"
 	[ "$(nvram get ss_mode)" != "0" ] && loger "开启地址集合自动配置功能" && \
 	inams=0 || inams=${bout:=240}
 	while [ $inams -lt ${bout:=240} ]; do
@@ -93,6 +93,7 @@ automaticset(){
 				fi
 				echo $ip >> /tmp/amsallexp.set
 				sed -i '/'$ip'/d' /tmp/syslog.log
+				$(cat "$statusfile" 2>/dev/null | grep -q 'main_stop_ssp') && goout 0
 			done
 			rm -rf /tmp/amsnotset.tmp
 			rm -rf /tmp/amsallexp.txt
