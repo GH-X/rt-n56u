@@ -82,12 +82,22 @@ if [ -e /tmp/GFWblackip.conf ]; then
 else
   GFWBLACKIP_UPD="/dev/null"
 fi
+if [ -e /tmp/GFWblackip.amsc ]; then
+  GFWBLACKIP_AMS="/tmp/GFWblackip.amsc"
+else
+  GFWBLACKIP_AMS="/dev/null"
+fi
+if [ -e /tmp/CHNwhiteip.conf ]; then
+  CHNWHITEIP_UPD="/tmp/CHNwhiteip.conf"
+else
+  CHNWHITEIP_UPD="/dev/null"
+fi
 if [ -e /tmp/smartdns_address.conf ]; then
   ADDRESS_UPD="/tmp/smartdns_address.conf"
 else
   ADDRESS_UPD="/dev/null"
 fi
-[ -e /tmp/SmartDNSupdate ] && logger -st "SmartDNS[$$]" "上次更新被错误终止" && rm -rf /tmp/SmartDNSupdate
+[ -e /tmp/SmartDNSupdate ] && logger -st "SmartDNS[$$]" "上次更新被中止" && rm -rf /tmp/SmartDNSupdate
 if [ "$sdns_port" == "$sdnse_port" ]; then
   logger -st "SmartDNS[$$]" "设置错误!服务器端口$sdns_port与第二服务器端口$sdnse_port相同"
   nvram set sdns_enable=0
@@ -204,7 +214,6 @@ rm -rf $GFWBLACK_TEMP
 cat $GFWBLACK_UPD $BLACKLIST_CONF | grep -v '^#' | grep -v '^$' | awk '!a[$0]++' >> $GFWBLACK_TEMP
 (for whitedomain in $(cat $WHITELIST_CONF | grep -v '^#' | grep -v '^$')
 do
-  echo "delete $whitedomain"
   sed -i '/'$whitedomain'/d' $GFWBLACK_TEMP
 done)&
 wait
@@ -361,11 +370,10 @@ md5sum $GFWBLACKIP_TEMP >> $GFWBLACKIP_MD5
 rm -rf $GFWBLACKIP_TEMP
 (for domain in $(cat $GFWBLACK_CONF)
 do
-  echo "search $domain"
   cat $ADDRESS_TMP | grep "$domain" | awk -F/ '{print $3}' >> $GFWBLACKIP_TMP
 done)&
 wait
-cat $GFWBLACKIP_TMP $GFWBLACKIP_UPD $GFWBLACKIP_CONF | grep -v '^$' | sort -u >> $GFWBLACKIP_TEMP
+cat $GFWBLACKIP_TMP $GFWBLACKIP_AMS $GFWBLACKIP_UPD $GFWBLACKIP_CONF | grep -v '^$' | sort -u >> $GFWBLACKIP_TEMP
 md5sum -c -s $GFWBLACKIP_MD5
 if [ "$?" == "0" ]; then
   logger -st "SmartDNS[$$]" "没有新的黑名单地址"
@@ -385,11 +393,10 @@ rm -rf $CHNWHITEIP_TEMP
 cat $ADDRESS_TMP | awk -F/ '{print $3}' | sort -u >> $CHNWHITEIP_TMP
 (for address in $(cat $GFWBLACKIP_TEMP)
 do
-  echo "delete $address"
   sed -i '/'$address'/d' $CHNWHITEIP_TMP
 done)&
 wait
-cat $CHNWHITEIP_TMP $CHNWHITEIP_CONF | grep -v '^$' | sort -u >> $CHNWHITEIP_TEMP
+cat $CHNWHITEIP_TMP $CHNWHITEIP_UPD $CHNWHITEIP_CONF | grep -v '^$' | sort -u >> $CHNWHITEIP_TEMP
 md5sum -c -s $CHNWHITEIP_MD5
 if [ "$?" == "0" ]; then
   logger -st "SmartDNS[$$]" "没有新的白名单地址"
@@ -402,7 +409,8 @@ fi
 
 address_update()
 {
-if [ "$sdns_address" = "1" ] || [ -e /tmp/smartdns_address.conf ]; then
+if [ "$sdns_address" = "1" ] || [ -e /tmp/smartdns_address.conf ] || \
+[ -e /tmp/GFWblackip.conf ] || [ -e /tmp/CHNwhiteip.conf ]; then
   logger -st "SmartDNS[$$]" "更新域名地址"
   cp -rf $ADDRESS_CONF $ADDRESS_TEMP
   md5sum $ADDRESS_TEMP >> $ADDRESS_MD5
@@ -441,10 +449,10 @@ rm -rf /tmp/SmartDNS
 mkdir -p /tmp/SmartDNS
 touch $SMARTDNS_CONF
 echo "conf-file $CUSTOM_CONF" >> $SMARTDNS_CONF
-if [ "$sdns_address" = "1" ]; then
+if [ "$sdns_address" = "1" ] || [ -x /usr/bin/shadowsocks.sh ]; then
   !(cat "$CRON_CONF" | grep -q "smartdns.sh") && \
   echo "33 3 * * * nohup /usr/bin/smartdns.sh update 2>/dev/null &" >> $CRON_CONF && restart_crond
-  echo "conf-file $ADDRESS_CONF" >> $SMARTDNS_CONF
+  [ "$sdns_address" = "1" ] && echo "conf-file $ADDRESS_CONF" >> $SMARTDNS_CONF
 fi
 if [ "$sdns_ipv6_server" = "1" ]; then
   echo "bind" "[::]:$sdns_port" >> $SMARTDNS_CONF
@@ -537,9 +545,13 @@ sed -i '/smartdns.sh/d' $CRON_CONF && restart_crond
 update_restore()
 {
 rm -rf /tmp/GFWblack.conf
+rm -rf /tmp/GFWblackip.amsc
 rm -rf /tmp/GFWblackip.conf
+rm -rf /tmp/CHNwhiteip.conf
 rm -rf /tmp/smartdns_address.conf
 rm -rf /tmp/SmartDNSupdate
+rm -rf /tmp/amsallexp.set
+rm -rf /tmp/amsallexp.txt
 }
 
 stop_sdns()
@@ -575,12 +587,14 @@ restart)
 update)
   sdns_check
   echo "SmartDNSupdate" > /tmp/SmartDNSupdate
+  [ "$(nvram get ss_enable)" = "0" ] || echo "stop_ams" > /tmp/sspstatus.tmp
   [ "$sdns_enable" = "1" ] || mkdir -p /tmp/SmartDNS
-  upgfwblack && upgfwdnsmq && address_update
+  upgfwblack && upgfwdnsmq && address_update && mtd_storage.sh save &>/dev/null
+  [ "$sdns_enable" = "1" ] || rm -rf /tmp/SmartDNS
   [ "$sdns_enable" = "0" ] || stop_sdns
   [ "$sdns_enable" = "0" ] || start_sdns
-  [ "$sdns_enable" = "1" ] || rm -rf /tmp/SmartDNS
-  mtd_storage.sh save &>/dev/null && update_restore
+  update_restore
+  [ "$(nvram get ss_enable)" = "0" ] || /usr/bin/shadowsocks.sh restart &>/dev/null
   ;;
 *)
   echo "Usage: $0 { start | stop | restart | update }"
