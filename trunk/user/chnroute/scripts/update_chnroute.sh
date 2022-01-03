@@ -7,8 +7,8 @@ CHNROUTE_URL="$(nvram get chnroute_url)"
 ROUTE_URL="http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest"
 user_agent="Mozilla/5.0 (X11; Linux; rv:74.0) Gecko/20100101 Firefox/74.0"
 
-([ -x /usr/bin/shadowsocks.sh ] && [ -x /usr/bin/smartdns.sh ] && \
-logger -st "SSP[$$]Update" "开始更新路由表...")&
+[ -x /usr/bin/shadowsocks.sh ] && [ -x /usr/bin/smartdns.sh ] && \
+echo "stop_ams" > /tmp/sspstatus.tmp && logger -st "SSP[$$]Update" "开始更新路由表..."
 
 (rm -f /tmp/chnroute.txt
 if [ -z "$CHNROUTE_URL" ]; then
@@ -28,7 +28,4 @@ fi)&
 
 wait
 
-mtd_storage.sh save &>/dev/null && logger -st "SSP[$$]Update" "路由表更新完成"
-
-[ "$(nvram get sdns_enable)" = "1" ] && /usr/bin/smartdns.sh restart &>/dev/null
-[ "$(nvram get ss_enable)" = "1" ] && /usr/bin/shadowsocks.sh restart &>/dev/null
+/usr/bin/smartdns.sh update &>/dev/null && logger -st "SSP[$$]Update" "路由表更新完成"
