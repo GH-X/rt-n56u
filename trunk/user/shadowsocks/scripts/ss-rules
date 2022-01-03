@@ -86,6 +86,8 @@ ipset -! restore <<-EOF || return 1
   sed -e "s/^/add gfwlist /" ${gfw_list:=/dev/null} 2>/dev/null)
   $(!(cat "$chn_list" 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") || \
   sed -e "s/^/add chnlist /" ${chn_list:=/dev/null} 2>/dev/null)
+  $(!(cat "$chnexp_list" 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") || \
+  sed -e "s/^/add chnlist /" ${chnexp_list:=/dev/null} 2>/dev/null)
 EOF
 return 0
 }
@@ -161,23 +163,24 @@ cat <<-EOF
 
   ss-rules [选项] [赋值]         [说明]
            -s     <server_addr>  服务器地址      支持域名
-           -i     <local_port>   本地端口
+           -i     <local_port>   本地端口        
            -g     <gfw_list>     黑名单地址列表  IP/CIDR格式
-           -c     <chn_list>     白名单地址列表  IP/CIDR格式
+           -c     <chn_list>     国内路由表      IP/CIDR格式
+           -e     <chnexp_list>  白名单地址列表  IP/CIDR格式
            -b     <black_ip>     黑名单地址      多个IP/CIDR使用[,]隔开
            -w     <white_ip>     白名单地址      多个IP/CIDR使用[,]隔开
            -a     <agent_mode>   透明代理模式    全局代理[0] 国内路由表[1] 黑名单域名[2]
            -t                    透明代理协议    TCP[REDIRECT]
            -m                    透明代理协议    TCP[REDIRECT] UDP[TPROXY]
-           -f                    清除规则
-           -h                    显示帮助
+           -f                    清除规则        
+           -h                    显示帮助        
 
 EOF
 exit $1
 }
 
 logger -st "SSP[$$]Rules" "任务开始" && \
-while getopts ":s:i:g:c:b:w:a:tmfh" arg; do
+while getopts ":s:i:g:c:e:b:w:a:tmfh" arg; do
   case "$arg" in
     s)
       [ -z "$OPTARG" ] && usage 2
@@ -194,6 +197,10 @@ while getopts ":s:i:g:c:b:w:a:tmfh" arg; do
     c)
       [ -z "$OPTARG" ] && usage 2
       chn_list="$OPTARG"
+      ;;
+    e)
+      [ -z "$OPTARG" ] && usage 2
+      chnexp_list="$OPTARG"
       ;;
     b)
       [ -z "$OPTARG" ] && usage 2

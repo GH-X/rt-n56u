@@ -160,6 +160,17 @@ elif [ "$ss_mode" = "2" ]; then # gfwlist
 fi
 }
 
+chnexp_list()
+{
+if [ "$ss_mode" = "0" ]; then # global
+  echo ""
+elif [ "$ss_mode" = "1" ]; then # chnroute
+  echo " -e /etc/storage/CHNwhiteip.conf"
+elif [ "$ss_mode" = "2" ]; then # gfwlist
+  echo " -e /etc/storage/CHNwhiteip.conf"
+fi
+}
+
 agent_mode()
 {
 if [ "$ss_mode" = "0" ]; then # global
@@ -183,7 +194,9 @@ fi
 stop_rules()
 {
 killall -q -9 ss-rules
-logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f
+logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f && sleep 1 && \
+!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q 'gfwlist') && \
+logger -st "SSP[$$]$bin_type" "透明代理已经关闭"
 }
 
 start_rules()
@@ -194,6 +207,7 @@ ss-rules\
  -i "$ss_local_port"\
 $(gfw_list)\
 $(chn_list)\
+$(chnexp_list)\
 $(agent_mode)\
 $(agent_pact)
 }
@@ -205,6 +219,13 @@ if [ "$ss_udp" = "1" ]; then
     echo " -u"
   fi
 fi
+}
+
+stop_redir()
+{
+killall -q -9 $use_bin && logger -st "SSP[$$]$bin_type" "关闭代理进程" && sleep 1 && \
+!(pidof $use_bin &>/dev/null) && logger -st "SSP[$$]$bin_type" "代理进程已经关闭"
+return 0
 }
 
 start_redir()
@@ -226,10 +247,10 @@ return 0
 
 stop_ssp()
 {
-([ "$(nvram get ss_enable)" = "0" ] && echo "main_stop_ssp" > $statusfile
-$(cat "$statusfile" 2>/dev/null | grep -q "watchcat_restart_ssp_") || stop_watchcat)&
-(killall -q -9 $use_bin && logger -st "SSP[$$]$bin_type" "关闭代理进程")&
-($(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_restart_ssp_link') || stop_rules)&
+[ "$(nvram get ss_enable)" = "0" ] && echo "stop_ams" > $statusfile
+$(cat "$statusfile" 2>/dev/null | grep -q "watchcat_restart_ssp_") || stop_watchcat
+$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_restart_ssp_link') || stop_rules
+stop_redir
 ([ -e $use_json_file ] && logger -st "SSP[$$]$bin_type" "清除配置文件" && rm -rf $use_json_file)&
 (if [ "$(nvram get sdns_enable)" = "0" ]; then
   logger -st "SSP[$$]$bin_type" "清除解析规则"
@@ -239,14 +260,12 @@ $(cat "$statusfile" 2>/dev/null | grep -q "watchcat_restart_ssp_") || stop_watch
   sed -i 's/^conf-dir=/#conf-dir=/g' $DNSQ_CONF && \
   dnsmasq
 fi)&
-(cat /tmp/amsallexp.set /tmp/amsallexp.txt 2>/dev/null | sort -u >> /tmp/amsallexp.tmp && \
+(if [ -e /tmp/amsallexp.set ] || [ -e /tmp/amsallexp.txt ]; then
+cat /tmp/amsallexp.set /tmp/amsallexp.txt 2>/dev/null | sort -u >> /tmp/amsallexp.tmp && \
 rm -rf /tmp/amsallexp.set && rm -rf /tmp/amsallexp.txt && \
-mv -f /tmp/amsallexp.tmp /tmp/amsallexp.txt)&
+mv -f /tmp/amsallexp.tmp /tmp/amsallexp.txt
+fi)&
 wait
-!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q 'gfwlist') && \
-logger -st "SSP[$$]$bin_type" "透明代理已经关闭"
-!(pidof $use_bin &>/dev/null) && \
-logger -st "SSP[$$]$bin_type" "代理进程已经关闭" || logger -st "SSP[$$]WARNING" "代理进程关闭失败!"
 [ "$(nvram get ss_enable)" = "0" ] && exit 0 || return 0
 }
 
