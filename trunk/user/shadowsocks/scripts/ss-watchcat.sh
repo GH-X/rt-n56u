@@ -9,9 +9,15 @@ chn_domain="https://www.taobao.com/"
 user_agent="Mozilla/5.0 (X11; Linux; rv:74.0) Gecko/20100101 Firefox/74.0"
 CRON_CONF="/etc/storage/cron/crontabs/$(nvram get http_username)"
 
-amstimenodes(){
-	currentminute=$(date +%M) && timenode=${currentminute:1}
-	[ $timenode -eq 9 ] && echo "stop_ams" > $statusfile
+goout(){
+	rm -rf $statusfile
+	exit $1
+}
+
+nodes(){
+	dateM=$(date +%M) && timenode=${dateM:1}
+	[ $(date +%S) -ge 58 ] && echo "stop_ams" > $statusfile
+	$(cat "$statusfile" 2>/dev/null | grep -q 'stop_ams') && loger "关闭地址集合自动配置" && goout 0
 	echo "$timenode"
 }
 
@@ -19,12 +25,6 @@ dcron(){
 	$(cat "$CRON_CONF" 2>/dev/null | grep "ss-watchcat.sh" | grep -v -q "/$1") && \
 	sed -i '/ss-watchcat.sh/d' $CRON_CONF && \
 	echo "*/$1 * * * * nohup /usr/bin/ss-watchcat.sh 2>/dev/null &" >> $CRON_CONF && restart_crond
-}
-
-goout(){
-	[ $(amstimenodes) -eq 9 ] && dcron 10
-	rm -rf $statusfile
-	exit $1
 }
 
 loger(){
@@ -45,10 +45,9 @@ detect_chn(){
 }
 
 watchcat_stop_ssp(){
-	[ "$1" = "0" ] && STO_LOG="网络异常!暂时停止代理" && echo "watchcat_stop_ssp" > $statusfile
-	[ "$1" = "1" ] && STO_LOG="连接异常!暂时停止代理" && echo "watchcat_stop_ssp" > $statusfile
+	[ "$1" = "0" ] && dcron 10 && STO_LOG="网络异常!暂时停止代理" && echo "watchcat_stop_ssp" > $statusfile
+	[ "$1" = "1" ] && dcron 10 && STO_LOG="连接异常!暂时停止代理" && echo "watchcat_stop_ssp" > $statusfile
 	[ "$1" = "2" ] && STO_LOG="没有启用代理!关闭代理" && echo "watchcat_disable_ssp" > $statusfile
-	[ "$1" != "2" ] && dcron 10
 	loger "$STO_LOG" && logger -st "SSP[$$]WARNING" "$STO_LOG"
 	[ -x /usr/bin/dns-forwarder.sh ] && /usr/bin/dns-forwarder.sh stop &>/dev/null
 	/usr/bin/ss-tunnel.sh stop &>/dev/null
@@ -78,9 +77,7 @@ watchcat_restart_ssp(){
 }
 
 amsgetnotset(){
-	amstimenodes
-	$(cat "$statusfile" 2>/dev/null | grep -q 'stop_ams') && \
-	loger "关闭地址集合自动配置" && goout 0
+	nodes
 	(while grep 'ipnotset'; do
 		cat /tmp/amsnotset.tmp | sed 's/ DST=/-/g' | sed 's/ LEN=/-/g' | awk -F- '!a[$2]++{print $2}'\
 		 >> /tmp/amsallexp.txt
@@ -92,10 +89,9 @@ amsgetnotset(){
 automaticset(){
 	!(cat "$statusfile" 2>/dev/null | grep -q 'stop_ams') && \
 	echo "watchcat_automaticset" > $statusfile || goout 0
-	!(cat "$CRON_CONF" 2>/dev/null | grep -q "ss-watchcat.sh") && bout="0"
-	[ "$(nvram get ss_mode)" != "0" ] && loger "开启地址集合自动配置" && \
-	inams=0 || inams=${bout:=540}
-	while [ $inams -lt ${bout:=540} ]; do
+	[ "$(nvram get ss_mode)" != "0" ] && loger "开启地址集合自动配置" && inams=0 || goout 0
+	dateS=$(date +%S) && bouts=$(expr 58 - $dateS)
+	while [ $inams -lt $bouts ]; do
 		amsgetnotset
 		if [ "$?" = "0" ]; then
 			for ip in $(cat /tmp/amsallexp.txt 2>/dev/null); do
@@ -116,9 +112,7 @@ automaticset(){
 				sed -i '/'$ip'/d' /tmp/amsallexp.set
 				echo $ip >> /tmp/amsallexp.set
 				sed -i '/'$ip'/d' /tmp/syslog.log
-				amstimenodes
-				$(cat "$statusfile" 2>/dev/null | grep -q 'stop_ams') && \
-				loger "关闭地址集合自动配置" && goout 0
+				nodes
 			done
 			rm -rf /tmp/amsnotset.tmp
 			rm -rf /tmp/amsallexp.txt
@@ -142,7 +136,9 @@ check(){
 	!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q 'gfwlist') && \
 	watchcat_start_ssp
 	sleep 1
-	[ -e $statusfile ] && goout 0
+	for watchcatPID in $(pidof ss-watchcat.sh); do
+		[ "$watchcatPID" != "$$" ] && kill -9 $watchcatPID
+	done
 	echo "watchcat_check" > $statusfile
 	[ "$(nvram get ss_enable)" = "1" ] || watchcat_stop_ssp 2
 	$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_check') && \
@@ -153,11 +149,12 @@ check(){
 	!(ipset list -n | grep -q 'gfwlist') && watchcat_restart_ssp 3
 	[ $(stat -c %s $use_log_file) -lt $max_log_bytes ] || \
 	echo "$(date "+%Y-%m-%d_%H:%M:%S")_watchcat_日志文件过大!清空日志文件" > $use_log_file
+	$(cat "$CRON_CONF" 2>/dev/null | grep -q "ss-watchcat.sh") || goout 0
 	[ "$(nvram get ss_watchcat)" = "1" ] || goout 0
 }
 
 detect_ssp(){
-	tries=1
+	[ $(nodes) -eq 0 ] && tries=1 || automaticset
 	while [ $tries -le 3 ]; do
 		if [ $tries -eq 1 ]; then
 			loger "开始检测"
@@ -166,15 +163,15 @@ detect_ssp(){
 		elif [ $tries -eq 3 ]; then
 			watchcat_stop_ssp 1
 		fi
-		[ "$?" = "0" ] && sleep 1 && detect_gfw
+		[ "$?" = "0" ] && detect_gfw
 		if [ "$?" = "0" ]; then
-			loger "连接正常" && automaticset && goout 0
+			loger "连接正常" && automaticset
 		else
 			loger "连接异常" && detect_chn
 			if [ "$?" = "0" ]; then
 				loger "网络正常" && tries=$((tries+1))
 			else
-				loger "网络异常" && watchcat_stop_ssp 0
+				watchcat_stop_ssp 0
 			fi
 		fi
 	done
