@@ -540,7 +540,9 @@ struct nvram_pair router_defaults[] = {
 	/* ttyd related */
 	{ "ttyd_enable", "0" },
 	{ "ttyd_port", "7681" },
+#endif
 
+#if defined(APP_NAPT66)
 	/* NAPT66 */
 	{ "napt66_enable", "0" },
 #endif
@@ -550,71 +552,27 @@ struct nvram_pair router_defaults[] = {
 	{ "vlmcsd_enable", "0" },
 #endif
 
-#if defined(APP_SMARTDNS)
-	/*SmartDNS*/
-	{ "sdnse_enable", "0" },
-	{ "sdnse_group", "GFW" },
-	{ "sdnse_nra", "0" },
-	{ "sdnse_nrn", "0" },
-	{ "sdnse_nri", "0" },
-	{ "sdnse_nsc", "0" },
-	{ "sdnse_nocache", "0" },
-	{ "sdnse_nrs", "0" },
-	{ "sdnse_nds", "0" },
-	{ "sdnse_tcp_server", "0" },
-	{ "sdnse_ipv6_server", "0" },
-	{ "sdnse_port", "60" },
-	{ "sdnse_domain_gfw", "0" },
-	{ "sdns_enable", "0" },
-	{ "sdns_tcp_server", "0" },
-	{ "sdns_ipv6_server", "0" },
-	{ "sdns_port", "5353" },
-	{ "sdns_group", "CHN" },
-	{ "sdns_redirect", "0" },
-	{ "sdns_scm", "0" },
-	{ "snds_dis", "0" },
-	{ "snds_cache", "0" },
-	{ "sdns_prefetch", "0" },
-	{ "sdns_expired", "0" },
-	{ "sdns_address", "0" },
-	{ "sdns_logl", "notice" },
-#endif
-
-#if defined(APP_DNSFORWARDER)
-	/* dns-forwarder */
-	{ "dns_forwarder_enable", "0" },
-	{ "dns_forwarder_port", "5353" },
-	{ "dns_forwarder_bind", "0.0.0.0" },
-	{ "dns_forwarder_server", "8.8.4.4:53" },
-#endif
-
 #if defined(APP_SHADOWSOCKS)
 	/* shadowsocks */
-	{ "ss_type", "1" }, //0=ss 1=ssr 2=trojan
 	{ "ss_enable", "0" },
-	{ "ss_mode", "2" }, 	//0=global 1=chnroute 2=gfwlist
-	{ "ss_server", "127.0.0.1" },
-	{ "ss_server_sni", "lan.com" },
-	{ "ss_server_port", "8989" },
-	{ "ss_key", "Secret" },
-	{ "ss_method", "rc4-md5" },
+	{ "ss_type", "9" }, //0=ss 1=ssr 2=trojan 9=auto
+	{ "ss_mode", "1" }, 	//0=global 1=chnroute 2=gfwlist
 	{ "ss_udp", "0" },
 	{ "ss_local_port", "1080" },
 	{ "ss_mtu", "1492" },
-	{ "ss_timeout", "60"},
-	{ "ss_protocol", "origin"},
-	{ "ss_proto_param", ""},
-	{ "ss_obfs", "plain"},
-	{ "ss_obfs_param", ""},
+	{ "ss_timeout", "60" },
 
-	{ "ss-tunnel_enable", "0" },
-	{ "ss-tunnel_local_port", "5301" },
-	{ "ss-tunnel_remote", "8.8.4.4:53" },
-	{ "ss-tunnel_mtu", "1492" },
-
-	{ "ss_watchcat", "1" },
+	{ "ss_watchcat_autorec", "0" },
 	{ "ss_update_chnroute", "0" },
 	{ "ss_update_gfwlist", "0" },
+
+	{ "ss_dns_local_port", "60" },
+	{ "ss_dns_remote_server", "8.8.4.4:53" },
+	{ "dns_forwarder_enable", "1" },
+	{ "ss-tunnel_enable", "0" },
+	{ "ss-tunnel_mtu", "1492" },
+	
+	{ "ss_server_num_x", "0" },
 #endif
 
 	/* DHCP server parameters */
@@ -960,12 +918,10 @@ struct nvram_pair tables_defaults[] = {
 	{ "wl_wdslist_x", "" },
 	{ "rt_wdslist_x", "" },
 
-	{ "sdnss_enable_x", "" },
-	{ "sdnss_name_x", "" },
-	{ "sdnss_ip_x", "" },
-	{ "sdnss_port_x", "" },
-	{ "sdnss_type_x", "" },
-	{ "sdnss_ipc_x", "" },
+	{ "ss_server_type_x", "" },
+	{ "ss_server_addr_x", "" },
+	{ "ss_server_port_x", "" },
+	{ "ss_server_key_x", "" },
 
 	{ 0, 0 }
 };
