@@ -1994,8 +1994,6 @@ static int shadowsocks_action_hook(int eid, webs_t wp, int argc, char **argv)
 	} else if (!strcmp(ss_action, "Update_chnroute")) {
 		notify_rc(RCN_RESTART_CHNROUTE_UPD);
 		needed_seconds = 1;
-	} else if (!strcmp(ss_action, "Reconnect_ss_tunnel")) {
-		notify_rc(RCN_RESTART_SS_TUNNEL);
 	} else if (!strcmp(ss_action, "Update_gfwlist")) {
 		notify_rc(RCN_RESTART_GFWLIST_UPD);
 	}
@@ -2009,6 +2007,8 @@ static int shadowsocks_status_hook(int eid, webs_t wp, int argc, char **argv)
 	websWrite(wp, "function shadowsocks_status() { return %d;}\n", ss_status_code);
 	int ss_tunnel_status_code = pids("ss-local");
 	websWrite(wp, "function shadowsocks_tunnel_status() { return %d;}\n", ss_tunnel_status_code);
+	int ss_forwarder_status_code = pids("dns-forwarder");
+	websWrite(wp, "function dnsforwarder_status() { return %d;}\n", ss_forwarder_status_code);
 	return 0;
 }
 
@@ -2029,7 +2029,7 @@ static int rules_count_hook(int eid, webs_t wp, int argc, char **argv)
 	websWrite(wp, "function chnroute_count() { return '%s';}\n", count);
 #if defined(APP_SHADOWSOCKS)
 	memset(count, 0, sizeof(count));
-	fstream = popen("cat /etc/storage/GFWblack.conf |wc -l","r");
+	fstream = popen("cat /etc/storage/gfwlist/gfwlist_domain.txt |wc -l","r");
 	if(fstream) {
 		fgets(count, sizeof(count), fstream);
 		pclose(fstream);
@@ -2043,24 +2043,6 @@ static int rules_count_hook(int eid, webs_t wp, int argc, char **argv)
 	return 0;
 }
 
-#endif
-
-#if defined (APP_SMARTDNS)
-static int smartdns_status_hook(int eid, webs_t wp, int argc, char **argv)
-{
-	int smartdns_status_code = pids("smartdns");
-	websWrite(wp, "function smartdns_status() { return %d;}\n", smartdns_status_code);
-	return 0;
-}
-#endif
-
-#if defined(APP_DNSFORWARDER)
-static int dnsforwarder_status_hook(int eid, webs_t wp, int argc, char **argv)
-{
-	int status_code = pids("dns-forwarder");
-	websWrite(wp, "function dnsforwarder_status() { return %d;}\n", status_code);
-	return 0;
-}
 #endif
 
 static int
@@ -2247,16 +2229,6 @@ ej_firmware_caps_hook(int eid, webs_t wp, int argc, char **argv)
 #else
 	int found_app_shadowsocks = 0;
 #endif
-#if defined(APP_SMARTDNS)
-	int found_app_smartdns = 1;
-#else
-	int found_app_smartdns = 0;
-#endif
-#if defined(APP_DNSFORWARDER)
-	int found_app_dnsforwarder = 1;
-#else
-	int found_app_dnsforwarder = 0;
-#endif
 #if defined(APP_XUPNPD)
 	int found_app_xupnpd = 1;
 #else
@@ -2427,8 +2399,6 @@ ej_firmware_caps_hook(int eid, webs_t wp, int argc, char **argv)
 		"function found_app_ttyd() { return %d;}\n"
 		"function found_app_vlmcsd() { return %d;}\n"
 		"function found_app_napt66() { return %d;}\n"
-		"function found_app_smartdns() { return %d;}\n"
-		"function found_app_dnsforwarder() { return %d;}\n"
 		"function found_app_shadowsocks() { return %d;}\n"
 		"function found_app_xupnpd() { return %d;}\n"
 		"function found_app_mentohust() { return %d;}\n",
@@ -2450,8 +2420,6 @@ ej_firmware_caps_hook(int eid, webs_t wp, int argc, char **argv)
 		found_app_ttyd,
 		found_app_vlmcsd,
 		found_app_napt66,
-		found_app_smartdns,
-		found_app_dnsforwarder,
 		found_app_shadowsocks,
 		found_app_xupnpd,
 		found_app_mentohust
@@ -4159,12 +4127,6 @@ struct ej_handler ej_handlers[] =
 	{ "shadowsocks_action", shadowsocks_action_hook},
 	{ "shadowsocks_status", shadowsocks_status_hook},
 	{ "rules_count", rules_count_hook},
-#endif
-#if defined (APP_SMARTDNS)
-	{ "smartdns_status", smartdns_status_hook},
-#endif
-#if defined (APP_DNSFORWARDER)
-	{ "dnsforwarder_status", dnsforwarder_status_hook},
 #endif
 	{ "openssl_util_hook", openssl_util_hook},
 	{ "openvpn_srv_cert_hook", openvpn_srv_cert_hook},

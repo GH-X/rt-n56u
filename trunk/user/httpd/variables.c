@@ -93,16 +93,17 @@
 			{0,0,0,0}
 		};
 
-	struct variable variables_SmartdnsConf_SdnsList[] = {
-			{"sdnss_enable_x", "24", NULL, FALSE},
-			{"sdnss_ip_x", "24", NULL, FALSE},
-			{"sdnss_port_x", "24", NULL, FALSE},
-			{"sdnss_type_x", "24", NULL, FALSE},
-			{"sdnss_group_x", "24", NULL, FALSE},
-			{"sdnss_edg_x", "24", NULL, FALSE},
-			{"sdnss_ipc_x", "24", NULL, FALSE},
-			{"sdnss_name_x", "24", NULL, FALSE},
-			{"sdnss_custom_x", "24", NULL, FALSE},
+	struct variable variables_ShadowsocksConf_SssList[] = {
+			{"ss_server_type_x", "48", NULL, FALSE},
+			{"ss_server_addr_x", "48", NULL, FALSE},
+			{"ss_server_port_x", "48", NULL, FALSE},
+			{"ss_server_key_x", "48", NULL, FALSE},
+			{"ss_server_sni_x", "48", NULL, FALSE},
+			{"ss_method_x", "48", NULL, FALSE},
+			{"ss_protocol_x", "48", NULL, FALSE},
+			{"ss_proto_param_x", "48", NULL, FALSE},
+			{"ss_obfs_x", "48", NULL, FALSE},
+			{"ss_obfs_param_x", "48", NULL, FALSE},
 			{0,0,0,0}
 		};
 
@@ -842,80 +843,25 @@
 	};
 #endif
 
-#if defined(APP_SMARTDNS)
-    struct variable variables_SmartdnsConf[] = {
-			{"sdnse_enable", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdnse_group", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdnse_nra", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdnse_nrn", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdnse_nri", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdnse_nsc", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdnse_nocache", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdnse_nrs", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdnse_nds", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdnse_tcp_server", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdnse_ipv6_server", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdnse_port", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdnse_domain_gfw", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdns_enable", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdns_tcp_server", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdns_ipv6_server", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdns_port", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdns_group", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdns_redirect", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdns_scm", "", NULL, EVM_RESTART_SMARTDNS},
-			{"snds_dis", "", NULL, EVM_RESTART_SMARTDNS},
-			{"snds_cache", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdns_prefetch", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdns_expired", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdns_address", "", NULL, EVM_RESTART_SMARTDNS},
-			{"sdns_logl", "", NULL, EVM_RESTART_SMARTDNS},
-			{"scripts.GFWblack.conf", "File", NULL, EVM_RESTART_SMARTDNS},
-			{"scripts.GFWblackip.conf", "File", NULL, EVM_RESTART_SMARTDNS},
-			{"scripts.CHNwhiteip.conf", "File", NULL, EVM_RESTART_SMARTDNS},
-			{"scripts.smartdns_address.conf", "File", NULL, EVM_RESTART_SMARTDNS},
-			{"scripts.smartdns_blacklist.conf", "File", NULL, EVM_RESTART_SMARTDNS},
-			{"scripts.smartdns_custom.conf", "File", NULL, EVM_RESTART_SMARTDNS},
-			{"scripts.smartdns_whitelist.conf", "File", NULL, EVM_RESTART_SMARTDNS},
-			{"SdnsList", "Group", ARGV((char*)variables_SmartdnsConf_SdnsList, "8", "55", "sdnss_staticnum_x"), EVM_RESTART_SMARTDNS},
-	};
-#endif
-
-#if defined(APP_DNSFORWARDER)
-	struct variable variables_dnsforwarderConf[] = {
-			{"dns_forwarder_enable", "", NULL, EVM_RESTART_DNSFORWARDER},
-			{"dns_forwarder_bind", "", NULL, EVM_RESTART_DNSFORWARDER},
-			{"dns_forwarder_port", "", NULL, EVM_RESTART_DNSFORWARDER},
-			{"dns_forwarder_server", "", NULL, EVM_RESTART_DNSFORWARDER},
-			{0,0,0,0}
-	};
-#endif
-
 #if defined(APP_SHADOWSOCKS)
 	struct variable variables_ShadowsocksConf[] = {
 			{"ss_enable","",NULL, EVM_RESTART_SHADOWSOCKS},
-			{"ss_type","",NULL, EVM_RESTART_SHADOWSOCKS|EVM_RESTART_SS_TUNNEL},
+			{"ss_type","",NULL, EVM_RESTART_SHADOWSOCKS},
 			{"ss_mode","",NULL, EVM_RESTART_SHADOWSOCKS},
-			{"ss_server","",NULL, EVM_RESTART_SHADOWSOCKS|EVM_RESTART_SS_TUNNEL},
-			{"ss_server_sni","",NULL, EVM_RESTART_SHADOWSOCKS},
-			{"ss_server_port","",NULL, EVM_RESTART_SHADOWSOCKS|EVM_RESTART_SS_TUNNEL},
-			{"ss_key","",NULL, EVM_RESTART_SHADOWSOCKS|EVM_RESTART_SS_TUNNEL},
-			{"ss_method","",NULL, EVM_RESTART_SHADOWSOCKS|EVM_RESTART_SS_TUNNEL},
 			{"ss_udp","",NULL, EVM_RESTART_SHADOWSOCKS},
 			{"ss_local_port","",NULL, EVM_RESTART_SHADOWSOCKS},
 			{"ss_mtu","",NULL, EVM_RESTART_SHADOWSOCKS},
-			{"ss_timeout","",NULL, EVM_RESTART_SHADOWSOCKS|EVM_RESTART_SS_TUNNEL},
-			{"ss_protocol","",NULL, EVM_RESTART_SHADOWSOCKS|EVM_RESTART_SS_TUNNEL},
-			{"ss_proto_param","",NULL, EVM_RESTART_SHADOWSOCKS|EVM_RESTART_SS_TUNNEL},
-			{"ss_obfs","",NULL, EVM_RESTART_SHADOWSOCKS|EVM_RESTART_SS_TUNNEL},
-			{"ss_obfs_param","",NULL, EVM_RESTART_SHADOWSOCKS|EVM_RESTART_SS_TUNNEL},
-			{"ss_watchcat","",NULL, FALSE},
+			{"ss_timeout","",NULL, EVM_RESTART_SHADOWSOCKS},
+			{"ss_watchcat_autorec","",NULL, FALSE},
 			{"ss_update_chnroute","",NULL, FALSE},
 			{"ss_update_gfwlist","",NULL, FALSE},
-			{"ss-tunnel_enable","",NULL, EVM_RESTART_SS_TUNNEL},
-			{"ss-tunnel_local_port","",NULL, EVM_RESTART_SS_TUNNEL},
-			{"ss-tunnel_remote","",NULL, EVM_RESTART_SS_TUNNEL},
-			{"ss-tunnel_mtu","",NULL, EVM_RESTART_SS_TUNNEL},
+			{"ss_dns_local_port","",NULL, EVM_RESTART_SHADOWSOCKS},
+			{"ss_dns_remote_server","",NULL, EVM_RESTART_SHADOWSOCKS},
+			{"dns_forwarder_enable", "", NULL, EVM_RESTART_SHADOWSOCKS},
+			{"ss-tunnel_enable","",NULL, EVM_RESTART_SHADOWSOCKS},
+			{"ss-tunnel_mtu","",NULL, EVM_RESTART_SHADOWSOCKS},
+			{"ss_server_num_x","",NULL, EVM_RESTART_SHADOWSOCKS},
+			{"SssList", "Group", ARGV((char*)variables_ShadowsocksConf_SssList, "8", "55", "ss_server_num_x"), EVM_RESTART_SHADOWSOCKS},
 			{0,0,0,0}
 	};
 #endif
@@ -1028,12 +974,6 @@
 		{"DeviceSecurity11b",		variables_DeviceSecurity11b},
 		{"WLANAuthentication11a",	variables_WLANAuthentication11a},
 		{"WLANAuthentication11b",	variables_WLANAuthentication11b},
-#if defined(APP_SMARTDNS)
-		{"SmartdnsConf",		variables_SmartdnsConf},
-#endif
-#if defined(APP_DNSFORWARDER)
-		{"dnsforwarderConf",		variables_dnsforwarderConf},
-#endif
 #if defined(APP_SCUT)
 		{"ScutclientConf",		variables_ScutclientConf},
 #endif
@@ -1119,15 +1059,8 @@
 #if defined(APP_VLMCSD)
 		{EVM_RESTART_VLMCSD,	EVT_RESTART_VLMCSD,		RCN_RESTART_VLMCSD,	0},
 #endif
-#if defined(APP_SMARTDNS)
-		{EVM_RESTART_SMARTDNS,		EVT_RESTART_SMARTDNS,		RCN_RESTART_SMARTDNS,	0},
-#endif
-#if defined(APP_DNSFORWARDER)
-		{EVM_RESTART_DNSFORWARDER,	EVT_RESTART_DNSFORWARDER,	RCN_RESTART_DNSFORWARDER, 0},
-#endif
 #if defined(APP_SHADOWSOCKS)
 		{EVM_RESTART_SHADOWSOCKS,	EVT_RESTART_SHADOWSOCKS,	RCN_RESTART_SHADOWSOCKS,  0},
-		{EVM_RESTART_SS_TUNNEL,		EVT_RESTART_SS_TUNNEL,		RCN_RESTART_SS_TUNNEL,	  0},
 #endif
 #if defined(APP_SMBD) || defined(APP_NMBD)
 		{EVM_RESTART_NMBD,		EVT_RESTART_NMBD,		RCN_RESTART_NMBD,	0},
