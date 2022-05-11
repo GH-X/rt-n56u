@@ -527,7 +527,7 @@ function done_validating(action){
                                                 <a class="help_tooltip" href="javascript:void(0);" onmouseover="openTooltip(this,17, 14);"><#samba_mxmit#></a>
                                             </th>
                                             <td>
-                                                <input type="text" name="samba_m_xmit" class="input" maxlength="5" size="5" placeholder="<#Config_0_Disable#>" value="<% nvram_get_x("", "samba_m_xmit"); %>"/>
+                                                <input type="text" name="samba_m_xmit" class="input" maxlength="5" size="5" placeholder="<#Config_Prudent#>" value="<% nvram_get_x("", "samba_m_xmit"); %>"/>
                                                 &nbsp;<span style="color:#888;">[0..65535]</span>
                                             </td>
                                         </tr>
@@ -536,7 +536,7 @@ function done_validating(action){
                                                 <a class="help_tooltip" href="javascript:void(0);" onmouseover="openTooltip(this,17, 15);"><#samba_rmembuf#></a>
                                             </th>
                                             <td>
-                                                <input type="text" name="samba_rmem_buf" class="input" maxlength="5" size="5" placeholder="<#Config_0_Disable#>" value="<% nvram_get_x("", "samba_rmem_buf"); %>"/>
+                                                <input type="text" name="samba_rmem_buf" class="input" maxlength="5" size="5" placeholder="<#Config_Prudent#>" value="<% nvram_get_x("", "samba_rmem_buf"); %>"/>
                                                 &nbsp;<span style="color:#888;">[0..65535]</span>
                                             </td>
                                         </tr>
@@ -545,7 +545,7 @@ function done_validating(action){
                                                 <a class="help_tooltip" href="javascript:void(0);" onmouseover="openTooltip(this,17, 16);"><#samba_wmembuf#></a>
                                             </th>
                                             <td>
-                                                <input type="text" name="samba_wmem_buf" class="input" maxlength="5" size="5" placeholder="<#Config_0_Disable#>" value="<% nvram_get_x("", "samba_wmem_buf"); %>"/>
+                                                <input type="text" name="samba_wmem_buf" class="input" maxlength="5" size="5" placeholder="<#Config_Prudent#>" value="<% nvram_get_x("", "samba_wmem_buf"); %>"/>
                                                 &nbsp;<span style="color:#888;">[0..65535]</span>
                                             </td>
                                         </tr>
