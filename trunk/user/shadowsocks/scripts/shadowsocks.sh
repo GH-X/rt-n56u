@@ -1,89 +1,108 @@
 #!/bin/sh
 
-ss_bin="/usr/bin/ss-orig-redir"
-ssr_bin="/usr/bin/ssr-redir"
-trojan_bin="/usr/bin/trojan"
-use_bin="ss-redir"
-use_link="/var/ss-redir"
-use_log_file="/tmp/ss-redir.log"
-use_json_file="/tmp/ss-redir.json"
+ss_redir_bin="/usr/bin/ss-orig-redir"
+ssr_redir_bin="/usr/bin/ssr-redir"
+redir_bin="ss-redir"
+redir_link="/var/ss-redir"
+#/usr/bin/ss-redir -> /var/ss-redir -> /usr/bin/ss-orig-redir or /usr/bin/ssr-redir
+ss_tunnel_bin="/usr/bin/ss-orig-tunnel"
+ssr_tunnel_bin="/usr/bin/ssr-local"
+tunnel_bin="ss-local"
+tunnel_link="/var/ss-tunnel"
+#/usr/bin/ss-local -> /var/ss-tunnel -> /usr/bin/ss-orig-tunnel or /usr/bin/ssr-local
 
-statusfile="/tmp/sspstatus.tmp"
+CONF_DIR="/tmp/SSP"
+redir_log_file="/tmp/ss-redir.log"
+issjfinfor="$CONF_DIR/issjfinfor"
+statusfile="$CONF_DIR/statusfile"
+countslink="$CONF_DIR/countslink"
+countsrest="$CONF_DIR/countsrest"
 CRON_CONF="/etc/storage/cron/crontabs/$(nvram get http_username)"
 
 ss_type=$(nvram get ss_type)
-ssp_type=${ss_type:0} # 0=ss 1=ssr 2=trojan
-
-ss_server=$(nvram get ss_server)
-ss_server_sni=$(nvram get ss_server_sni)
-ss_server_port=$(nvram get ss_server_port)
-ss_local_port=$(nvram get ss_local_port)
-ss_password=$(nvram get ss_key)
-ss_method=$(nvram get ss_method)
-ss_timeout=$(nvram get ss_timeout)
-ss_protocol=$(nvram get ss_protocol)
-ss_proto_param=$(nvram get ss_proto_param)
-ss_obfs=$(nvram get ss_obfs)
-ss_obfs_param=$(nvram get ss_obfs_param)
-ss_mtu=$(nvram get ss_mtu)
+ssp_type=${ss_type:0} # 0=ss 1=ssr 2=trojan 9=auto
 
 ss_mode=$(nvram get ss_mode) # 0=global 1=chnroute 2=gfwlist
 ss_udp=$(nvram get ss_udp)
 
-GFWBLACK_CONF="/etc/storage/GFWblack.conf"
-GFWLIST_CONF="/etc/storage/gfwlist/dnsmasq_gfwlist.conf"
-GFWLIST_TEMP="/tmp/dnsmasq_gfwlist.conf"
-GFWLIST_MD5="/tmp/dnsmasq_gfwlist.md5"
-DNSM_CONF="/etc/dnsmasq.conf"
-DNSQ_CONF="/etc/storage/dnsmasq/dnsmasq.conf"
+ss_local_port=$(nvram get ss_local_port)
+ss_mtu=$(nvram get ss_mtu)
+ss_tunnel_mtu=$(nvram get ss-tunnel_mtu)
+ss_timeout=$(nvram get ss_timeout)
 
-[ "$ssp_type" = "0" ] && bin_type="SS" && ln -sf $ss_bin $use_link
-[ "$ssp_type" = "1" ] && bin_type="SSR" && ln -sf $ssr_bin $use_link
-[ "$ssp_type" = "2" ] && [ -x "$trojan_bin" ] && bin_type="Trojan" && ln -sf $trojan_bin $use_link
-[ "$bin_type" != "" ] || logger -st "SSP[$$]WARNING" "找不到代理进程可执行文件!"
+ss_dns_p=$(nvram get ss_dns_local_port)
+ss_dns_s=$(nvram get ss_dns_remote_server)
 
-gen_dns_conf()
+nodesnum=$(nvram get ss_server_num_x)
+nodenewn=$(expr $nodesnum - 1)
+nodenewa=$(nvram get ss_server_addr_x$nodenewn)
+nodenewp=$(nvram get ss_server_port_x$nodenewn)
+
+GFWLIST_DOMAIN="/etc/storage/gfwlist/gfwlist_domain.txt"
+GFWLIST_DNSMASQ="$CONF_DIR/gfwlist/dnsmasq.conf"
+DNSMASQ_CONF="/etc/storage/dnsmasq/dnsmasq.conf"
+
+[ "$ssp_type" = "0" ] && bin_type="SS"
+[ "$ssp_type" = "1" ] && bin_type="SSR"
+[ "$ssp_type" = "2" ] && bin_type="Trojan"
+[ "$ssp_type" = "9" ] && bin_type="Auto"
+[ "$bin_type" = "Trojan" -o "$bin_type" = "Auto" ] && [ "$(nvram get ss-tunnel_enable)" = "1" ] && nvram set ss-tunnel_enable=0
+[ "$(nvram get dns_forwarder_enable)" = "1" ] && [ "$(nvram get ss-tunnel_enable)" = "1" ] && nvram set ss-tunnel_enable=0
+[ "$(nvram get dns_forwarder_enable)" = "1" ] || [ "$(nvram get ss-tunnel_enable)" = "1" ] || nvram set dns_forwarder_enable=1
+[ ! -d "$CONF_DIR/gfwlist" ] && mkdir -p "$CONF_DIR/gfwlist"
+[ -e /tmp/trojan ] && chmod +x /tmp/trojan && trojan_bin="/tmp/trojan" || trojan_bin="/usr/bin/trojan"
+[ -L /etc/storage/chinadns/chnroute.txt ] && [ ! -e /tmp/chnroute.txt ] && \
+rm -rf /etc/storage/chinadns/chnroute.txt && tar jxf /etc_ro/chnroute.bz2 -C /etc/storage/chinadns
+
+del_json_file()
 {
-if [ "$(nvram get sdns_enable)" = "0" ] || [ "$(nvram get sdnse_enable)" = "0" ] || [ "$(nvram get sdnse_domain_gfw)" = "0" ]; then
-  logger -st "SSP[$$]$bin_type" "创建解析规则"
-  if [ -x /usr/bin/dns-forwarder.sh ] && [ "$(nvram get dns_forwarder_enable)" = "1" ]; then
-    DNS_APP="dnsForwarder" && DNS_PORT=$(nvram get dns_forwarder_port)
-  elif [ "$(nvram get ss-tunnel_enable)" = "1" ] && [ "$ssp_type" -lt "2" ]; then
-    DNS_APP="Tunnel" && DNS_PORT=$(nvram get ss-tunnel_local_port)
-  else
-    DNS_APP="dnsmasq" && DNS_PORT="53" && logger -st "SSP[$$]WARNING" "请正确设置DNS隧道和DNS服务!"
-  fi
-  ADDR_PORT="127.0.0.1#$DNS_PORT"
-  cp -rf $GFWLIST_CONF $GFWLIST_TEMP
-  md5sum $GFWLIST_TEMP >> $GFWLIST_MD5
-  rm -rf $GFWLIST_TEMP
-  grep -v '^#' $GFWBLACK_CONF | grep -v '^$' | awk '{printf("ipset=/%s/gfwlist\n", $1, $1 )}' >> $GFWLIST_TEMP
-  md5sum -c -s $GFWLIST_MD5
-  if [ "$?" != "0" ]; then
-    rm -rf $GFWLIST_CONF
-    cp -rf $GFWLIST_TEMP $GFWLIST_CONF
-  fi
-  rm -rf $GFWLIST_TEMP
-  rm -rf $GFWLIST_MD5
-  killall -q -9 dnsmasq && \
-  grep -v '^#' $GFWBLACK_CONF | grep -v '^$' | awk '{printf("server=/%s/'$ADDR_PORT'\n", $1, $1 )}' > /tmp/dnsmasq.servers && \
-  sed -i '/^servers-file/d' $DNSM_CONF && echo "servers-file=/tmp/dnsmasq.servers" >> $DNSM_CONF && \
-  sed -i 's/### gfwlist related.*/### gfwlist related resolve by '$DNS_APP' '$ADDR_PORT'/g' $DNSQ_CONF && \
-  sed -i 's/^#min-cache-ttl=/min-cache-ttl=/g' $DNSQ_CONF && \
-  sed -i 's/^#conf-dir=/conf-dir=/g' $DNSQ_CONF && \
-  sleep 1 && dnsmasq
-fi
+logger -st "SSP[$$]$bin_type" "清除配置文件"
+rm -rf $CONF_DIR/*.json
+rm -rf $CONF_DIR/*-jsonlist
+return 0
+}
+
+turn_json_file()
+{
+[ "$bin_type" = "Auto" ] || \
+$(cat $CONF_DIR/$bin_type-jsonlist 2>/dev/null | grep -q "$bin_type-redir") || return 1
+[ "$(cat $CONF_DIR/Auto-jsonlist 2>/dev/null | wc -l)" = "$nodesnum" ] || return 1
+$(cat $CONF_DIR/Auto-jsonlist 2>/dev/null | grep -q "$nodenewa#$nodenewp#") || return 1
+[ "$(cat $CONF_DIR/$bin_type-jsonlist 2>/dev/null | wc -l)" != "1" ] || return 0
+!(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_restart_ssp_rule') || return 0
+logger -st "SSP[$$]$bin_type" "更换配置文件"
+turn_temp=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist)
+turn_json=${turn_temp:0}
+sed -i '/'$turn_json'/d' $CONF_DIR/$bin_type-jsonlist
+sed -i '1i\'$turn_json'' $CONF_DIR/$bin_type-jsonlist
+return 0
 }
 
 gen_json_file()
 {
-logger -st "SSP[$$]$bin_type" "创建配置文件"
-if [ "$ssp_type" = "0" ]; then
-	cat > "$use_json_file" << EOF
+turn_json_file || del_json_file
+if [ ! -e "$CONF_DIR/Auto-jsonlist" ]; then
+  logger -st "SSP[$$]$bin_type" "创建配置文件"
+  for i in $(seq 1 $nodesnum); do
+    j=$(expr $i - 1)
+    node_type=$(nvram get ss_server_type_x$j)
+    [ "$node_type" = "0" ] && server_type="SS"
+    [ "$node_type" = "1" ] && server_type="SSR"
+    [ "$node_type" = "2" ] && server_type="Trojan"
+    if [ "$server_type" = "SS" ]; then
+      server_addr=$(nvram get ss_server_addr_x$j)
+      server_port=$(nvram get ss_server_port_x$j)
+      server_key=$(nvram get ss_server_key_x$j)
+      ss_method=$(nvram get ss_method_x$j)
+      r_json_file="$i-$server_type-redir.json"
+      t_json_file="$i-$server_type-tunnel.json"
+      echo "$server_addr#$server_port#$r_json_file#$t_json_file" >> $CONF_DIR/SS-jsonlist
+      echo "$server_addr#$server_port#$r_json_file#$t_json_file" >> $CONF_DIR/Auto-jsonlist
+	    cat > "$CONF_DIR/$r_json_file" << EOF
 {
-    "server": "$ss_server",
-    "server_port": $ss_server_port,
-    "password": "$ss_password",
+    "server": "$server_addr",
+    "server_port": $server_port,
+    "password": "$server_key",
     "method": "$ss_method",
     "timeout": $ss_timeout,
     "local_address": "0.0.0.0",
@@ -92,12 +111,37 @@ if [ "$ssp_type" = "0" ]; then
 }
 
 EOF
-elif [ "$ssp_type" = "1" ]; then
-	cat > "$use_json_file" << EOF
+      cat > "$CONF_DIR/$t_json_file" << EOF
 {
-    "server": "$ss_server",
-    "server_port": $ss_server_port,
-    "password": "$ss_password",
+    "server": "$server_addr",
+    "server_port": $server_port,
+    "password": "$server_key",
+    "method": "$ss_method",
+    "timeout": $ss_timeout,
+    "local_address": "0.0.0.0",
+    "local_port": $ss_dns_p,
+    "mtu": $ss_tunnel_mtu
+}
+
+EOF
+    elif [ "$server_type" = "SSR" ]; then
+      server_addr=$(nvram get ss_server_addr_x$j)
+      server_port=$(nvram get ss_server_port_x$j)
+      server_key=$(nvram get ss_server_key_x$j)
+      ss_method=$(nvram get ss_method_x$j)
+      ss_protocol=$(nvram get ss_protocol_x$j)
+      ss_proto_param=$(nvram get ss_proto_param_x$j)
+      ss_obfs=$(nvram get ss_obfs_x$j)
+      ss_obfs_param=$(nvram get ss_obfs_param_x$j)
+      r_json_file="$i-$server_type-redir.json"
+      t_json_file="$i-$server_type-tunnel.json"
+      echo "$server_addr#$server_port#$r_json_file#$t_json_file" >> $CONF_DIR/SSR-jsonlist
+      echo "$server_addr#$server_port#$r_json_file#$t_json_file" >> $CONF_DIR/Auto-jsonlist
+	    cat > "$CONF_DIR/$r_json_file" << EOF
+{
+    "server": "$server_addr",
+    "server_port": $server_port,
+    "password": "$server_key",
     "method": "$ss_method",
     "timeout": $ss_timeout,
     "protocol": "$ss_protocol",
@@ -110,32 +154,100 @@ elif [ "$ssp_type" = "1" ]; then
 }
 
 EOF
-elif [ "$ssp_type" = "2" ]; then
-  if [ "$ss_server_sni" = "" ]; then
-    VHN="false"
-  else
-    VHN="true"
-  fi
-	cat > "$use_json_file" << EOF
+      cat > "$CONF_DIR/$t_json_file" <<EOF
+{
+    "server": "$server_addr",
+    "server_port": $server_port,
+    "password": "$server_key",
+    "method": "$ss_method",
+    "timeout": $ss_timeout,
+    "protocol": "$ss_protocol",
+    "protocol_param": "$ss_proto_param",
+    "obfs": "$ss_obfs",
+    "obfs_param": "$ss_obfs_param",
+    "local_address": "0.0.0.0",
+    "local_port": $ss_dns_p,
+    "mtu": $ss_tunnel_mtu
+}
+
+EOF
+    elif [ "$server_type" = "Trojan" ]; then
+      server_addr=$(nvram get ss_server_addr_x$j)
+      server_port=$(nvram get ss_server_port_x$j)
+      server_key=$(nvram get ss_server_key_x$j)
+      server_sni=$(nvram get ss_server_sni_x$j)
+      if [ "$server_sni" = "" ]; then
+        verifyhostname="false"
+      else
+        verifyhostname="true"
+      fi
+      r_json_file="$i-$server_type-redir.json"
+      echo "$server_addr#$server_port#$r_json_file#null" >> $CONF_DIR/Trojan-jsonlist
+      echo "$server_addr#$server_port#$r_json_file#null" >> $CONF_DIR/Auto-jsonlist
+      cat > "$CONF_DIR/$r_json_file" << EOF
 {
     "run_type": "nat",
     "local_addr": "0.0.0.0",
     "local_port": $ss_local_port,
-    "remote_addr": "$ss_server",
-    "remote_port": $ss_server_port,
+    "remote_addr": "$server_addr",
+    "remote_port": $server_port,
     "password": [
-        "$ss_password"
+        "$server_key"
     ],
     "log_level": 2,
     "ssl": {
         "verify": false,
-        "verify_hostname": $VHN,
-        "sni": "$ss_server_sni"
+        "verify_hostname": $verifyhostname,
+        "sni": "$server_sni"
     }
 }
 
 EOF
+    fi
+  done
 fi
+[ "$bin_type" = "Auto" ] || \
+$(cat $CONF_DIR/$bin_type-jsonlist 2>/dev/null | grep -q "$bin_type-redir") || return 1
+ssp_server_addr=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $1}')
+ssp_server_port=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $2}')
+redir_json_file=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $3}')
+tunnel_json_file=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $4}')
+ssp_server_type=$(echo "$redir_json_file" | awk -F- '{print $2}')
+[ "$ssp_server_type" = "SS" ] && ln -sf $ss_redir_bin $redir_link && ln -sf $ss_tunnel_bin $tunnel_link
+[ "$ssp_server_type" = "SSR" ] && ln -sf $ssr_redir_bin $redir_link && ln -sf $ssr_tunnel_bin $tunnel_link
+[ "$ssp_server_type" = "Trojan" ] && ln -sf $trojan_bin $redir_link
+return 0
+}
+
+del_dns_conf()
+{
+logger -st "SSP[$$]$bin_type" "清除解析规则"
+sed -i 's/^### gfwlist related.*/### gfwlist related resolve/g' $DNSMASQ_CONF
+sed -i 's/^min-cache-ttl=/#min-cache-ttl=/g' $DNSMASQ_CONF
+sed -i 's/^conf-dir=/#conf-dir=/g' $DNSMASQ_CONF
+rm -rf $GFWLIST_DNSMASQ
+killall -q -9 dns-forwarder
+killall -q -9 $tunnel_bin
+restart_dhcpd
+}
+
+gen_dns_conf()
+{
+logger -st "SSP[$$]$bin_type" "创建解析规则"
+[ "$(nvram get dns_forwarder_enable)" = "1" ] && DNS_APP="dnsForwarder"
+[ "$(nvram get ss-tunnel_enable)" = "1" ] && DNS_APP="Tunnel"
+DNS_PORT="$ss_dns_p" && ADDR_PORT="127.0.0.1#$DNS_PORT"
+grep -v '^#' $GFWLIST_DOMAIN | grep -v '^$' | awk '{printf("server=/%s/'$ADDR_PORT'\n", $1, $1 )}' >> $GFWLIST_DNSMASQ
+grep -v '^#' $GFWLIST_DOMAIN | grep -v '^$' | awk '{printf("ipset=/%s/gfwlist\n", $1, $1 )}' >> $GFWLIST_DNSMASQ
+sed -i 's/^### gfwlist related.*/### gfwlist related resolve by '$DNS_APP' '$ADDR_PORT'/g' $DNSMASQ_CONF
+sed -i 's/^#min-cache-ttl=/min-cache-ttl=/g' $DNSMASQ_CONF
+sed -i 's/^#conf-dir=/conf-dir=/g' $DNSMASQ_CONF
+if [ "$(nvram get dns_forwarder_enable)" = "1" ]; then
+  start-stop-daemon -S -b -x dns-forwarder -- -b "0.0.0.0" -p "$ss_dns_p" -s "$ss_dns_s"
+elif [ "$(nvram get ss-tunnel_enable)" = "1" ]; then
+  sh -c "$tunnel_bin -u -c $CONF_DIR/$tunnel_json_file -L $ss_dns_s &"
+fi
+restart_dhcpd
 }
 
 gfw_list()
@@ -143,9 +255,9 @@ gfw_list()
 if [ "$ss_mode" = "0" ]; then # global
   echo ""
 elif [ "$ss_mode" = "1" ]; then # chnroute
-  echo " -g /etc/storage/GFWblackip.conf"
+  echo " -g $CONF_DIR/GFWblackip.conf"
 elif [ "$ss_mode" = "2" ]; then # gfwlist
-  echo " -g /etc/storage/GFWblackip.conf"
+  echo " -g $CONF_DIR/GFWblackip.conf"
 fi
 }
 
@@ -165,10 +277,16 @@ chnexp_list()
 if [ "$ss_mode" = "0" ]; then # global
   echo ""
 elif [ "$ss_mode" = "1" ]; then # chnroute
-  echo " -e /etc/storage/CHNwhiteip.conf"
+  echo " -e $CONF_DIR/CHNwhiteip.conf"
 elif [ "$ss_mode" = "2" ]; then # gfwlist
-  echo " -e /etc/storage/CHNwhiteip.conf"
+  echo " -e $CONF_DIR/CHNwhiteip.conf"
 fi
+}
+
+black_ip()
+{
+dnsfsip=$(echo "$ss_dns_s" | awk -F: '{print $1}')
+echo " -b $dnsfsip"
 }
 
 agent_mode()
@@ -191,27 +309,6 @@ elif [ "$ss_udp" = "1" ]; then
 fi
 }
 
-stop_rules()
-{
-killall -q -9 ss-rules
-logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f && sleep 1 && \
-!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q 'gfwlist') && \
-logger -st "SSP[$$]$bin_type" "透明代理已经关闭"
-}
-
-start_rules()
-{
-logger -st "SSP[$$]$bin_type" "开启透明代理" && \
-ss-rules\
- -s "$ss_server"\
- -i "$ss_local_port"\
-$(gfw_list)\
-$(chn_list)\
-$(chnexp_list)\
-$(agent_mode)\
-$(agent_pact)
-}
-
 udp_ext()
 {
 if [ "$ss_udp" = "1" ]; then
@@ -221,90 +318,130 @@ if [ "$ss_udp" = "1" ]; then
 fi
 }
 
+stop_rules()
+{
+killall -q -9 ss-rules
+logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f && restart_firewall && \
+!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q 'gfwlist') && \
+logger -st "SSP[$$]$bin_type" "透明代理已经关闭"
+}
+
+start_rules()
+{
+logger -st "SSP[$$]$bin_type" "开启透明代理" && \
+ss-rules\
+ -s "$ssp_server_addr"\
+ -i "$ss_local_port"\
+$(gfw_list)\
+$(chn_list)\
+$(chnexp_list)\
+$(black_ip)\
+$(agent_mode)\
+$(agent_pact)
+}
+
 stop_redir()
 {
-killall -q -9 $use_bin && logger -st "SSP[$$]$bin_type" "关闭代理进程" && sleep 1 && \
-!(pidof $use_bin &>/dev/null) && logger -st "SSP[$$]$bin_type" "代理进程已经关闭"
+killall -q -9 $redir_bin && logger -st "SSP[$$]$bin_type" "关闭代理进程" && sleep 1 && \
+!(pidof $redir_bin &>/dev/null) && logger -st "SSP[$$]$bin_type" "代理进程已经关闭"
 return 0
 }
 
 start_redir()
 {
-logger -st "SSP[$$]$bin_type" "启动代理进程" && touch $use_log_file && \
-nohup $use_bin -c $use_json_file $(udp_ext) &>$use_log_file &
-return 0
+logger -st "SSP[$$]$bin_type" "启动代理进程" && \
+nohup $redir_bin -c $CONF_DIR/$redir_json_file $(udp_ext) &>$redir_log_file &
+$(sleep 1 && pidof $redir_bin &>/dev/null) || $(sleep 1 && pidof $redir_bin &>/dev/null)
+return $?
 }
 
 stop_watchcat()
 {
-(!(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_stop_ssp') && \
-sed -i '/ss-watchcat.sh/d' $CRON_CONF && restart_crond)&
-(!(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_stop_ssp') && rm -rf $statusfile)&
+(sed -i '/ss-watchcat.sh/d' $CRON_CONF && restart_crond)&
 (killall -q -9 ss-watchcat.sh)&
+(rm -rf $statusfile
+rm -rf $countslink
+rm -rf $countsrest
+rm -rf $issjfinfor)&
 wait
+return 0
+}
+
+ncron()
+{
+!(cat "$CRON_CONF" 2>/dev/null | grep -q "ss-watchcat.sh") && \
+echo "*/$1 * * * * nohup /usr/bin/ss-watchcat.sh 2>/dev/null &" >> $CRON_CONF || return 1
+}
+
+dcron()
+{
+$(cat "$CRON_CONF" 2>/dev/null | grep "ss-watchcat.sh" | grep -v -q "/$1") && \
+sed -i '/ss-watchcat.sh/d' $CRON_CONF && \
+echo "*/$1 * * * * nohup /usr/bin/ss-watchcat.sh 2>/dev/null &" >> $CRON_CONF || return 1
+}
+
+scron()
+{
+ncron $1 || dcron $1
+[ "$?" = "0" ] && restart_crond
 return 0
 }
 
 stop_ssp()
 {
-[ "$(nvram get ss_enable)" = "0" ] && echo "stop_ams" > $statusfile
+[ -n "$1" ] && logger -st "SSP[$$]WARNING" "$1" && nvram set ss_enable=0
+[ "$(nvram get ss_enable)" = "0" ] && echo "daten_stopwatchcat" > $statusfile && del_json_file
+$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_stop_ssp') || \
 $(cat "$statusfile" 2>/dev/null | grep -q "watchcat_restart_ssp_") || stop_watchcat
-$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_restart_ssp_link') || stop_rules
+del_dns_conf
+stop_rules
 stop_redir
-([ -e $use_json_file ] && logger -st "SSP[$$]$bin_type" "清除配置文件" && rm -rf $use_json_file)&
-(if [ "$(nvram get sdns_enable)" = "0" ]; then
-  logger -st "SSP[$$]$bin_type" "清除解析规则"
-  killall -q -9 dnsmasq && \
-  echo "" > /tmp/dnsmasq.servers && \
-  sed -i 's/^min-cache-ttl=/#min-cache-ttl=/g' $DNSQ_CONF && \
-  sed -i 's/^conf-dir=/#conf-dir=/g' $DNSQ_CONF && \
-  dnsmasq
-fi)&
-(if [ -e /tmp/amsallexp.set ] || [ -e /tmp/amsallexp.txt ]; then
-cat /tmp/amsallexp.set /tmp/amsallexp.txt 2>/dev/null | sort -u >> /tmp/amsallexp.tmp && \
-rm -rf /tmp/amsallexp.set && rm -rf /tmp/amsallexp.txt && \
-mv -f /tmp/amsallexp.tmp /tmp/amsallexp.txt
+(if [ -e "$CONF_DIR/amsallexp.set" ] || [ -e "$CONF_DIR/amsallexp.txt" ]; then
+  cat $CONF_DIR/amsallexp.set $CONF_DIR/amsallexp.txt 2>/dev/null | sort -u >> $CONF_DIR/amsallexp.tmp && \
+  rm -rf $CONF_DIR/amsallexp.set && rm -rf $CONF_DIR/amsallexp.txt && \
+  mv -f $CONF_DIR/amsallexp.tmp $CONF_DIR/amsallexp.txt
 fi)&
 wait
-[ "$(nvram get ss_enable)" = "0" ] && exit 0 || return 0
-}
-
-check_start_ssp()
-{
-[ "$?" = "0" ] && sleep 1 && pidof $use_bin &>/dev/null && \
-$(iptables-save -c | grep -q "SSP_") && $(ipset list -n | grep -q 'gfwlist') && \
-logger -st "SSP[$(pidof $use_bin)]$bin_type" "${STA_LOG:=成功启动}" && \
-!(cat "$CRON_CONF" 2>/dev/null | grep -q "ss-watchcat.sh") && \
-echo "*/1 * * * * nohup /usr/bin/ss-watchcat.sh 2>/dev/null &" >> $CRON_CONF && restart_crond
-return 0
+[ -n "$1" ] && logger -st "SSP[$$]WARNING" "启动失败" && exit 1 || return 0
 }
 
 start_ssp()
 {
 ulimit -n 65536
-logger -st "SSP[$$]$bin_type" "开始启动"
+[ $nodesnum -ge 1 ] || stop_ssp "请到[节点设置]添加服务器"
+logger -st "SSP[$$]$bin_type" "开始启动" && gen_json_file || stop_ssp "找不到[$bin_type]服务器"
+[ -n "$ssp_server_type" ] && [ -n "$ssp_server_addr" ] && [ -n "$ssp_server_port" ] && [ -n "$redir_json_file" ] || stop_ssp "配置文件发生错误"
+$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_start_ssp') || \
 $(cat "$statusfile" 2>/dev/null | grep -q "watchcat_restart_ssp_") || stop_watchcat
-[ -L /etc/storage/chinadns/chnroute.txt ] && [ ! -e /tmp/chnroute.txt ] && \
-rm -rf /etc/storage/chinadns/chnroute.txt && tar jxf /etc_ro/chnroute.bz2 -C /etc/storage/chinadns
-$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_restart_ssp_link') || start_rules || stop_ssp
-gen_dns_conf && gen_json_file && start_redir || stop_ssp
+start_redir || stop_ssp "代理进程发生错误"
+start_rules || stop_ssp "透明代理发生错误"
+gen_dns_conf || stop_ssp "解析规则发生错误"
+echo "$ssp_server_type──$ssp_server_addr:$ssp_server_port──[$redir_json_file]" > $issjfinfor
 pidof ss-watchcat.sh &>/dev/null && STA_LOG="重启完成" || /usr/bin/ss-watchcat.sh
-check_start_ssp
+logger -st "SSP[$(pidof $redir_bin)]$ssp_server_type" "$ssp_server_addr:$ssp_server_port [$redir_json_file] ${STA_LOG:=成功启动}" && scron 1
+return 0
 }
 
 case "$1" in
-start)
-  start_ssp
-  ;;
 stop)
   stop_ssp
+  ;;
+start)
+  start_ssp
   ;;
 restart)
   stop_ssp
   start_ssp
   ;;
+rednsconf)
+  del_dns_conf
+  gen_dns_conf
+  ;;
+cleandnsconf)
+  del_dns_conf
+  ;;
 *)
-  echo "Usage: $0 { start | stop | restart }"
+  echo "Usage: $0 { start | stop | restart | rednsconf | cleandnsconf }"
   exit 1
   ;;
 esac

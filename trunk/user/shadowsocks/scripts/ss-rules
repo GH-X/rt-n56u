@@ -21,14 +21,6 @@ private_addr="0.0.0.0/8
               224.0.0.0/4
               240.0.0.0/4
               255.255.255.255/32"
-cdns_address="223.5.5.5
-              223.6.6.6
-              162.14.21.56
-              162.14.21.178"
-gdns_address="1.0.0.1
-              1.1.1.1
-              8.8.4.4
-              8.8.8.8"
 
 iptn="iptables -t nat"
 iptm="iptables -t mangle"
@@ -78,8 +70,6 @@ ipset -! restore <<-EOF || return 1
   create gfwlist hash:net hashsize 1024 maxelem 65536
   create chnlist hash:net hashsize 16384 maxelem 1000000
   $(for privateaddr in $private_addr; do echo "add private $privateaddr"; done)
-  $(for gdnsaddress in $gdns_address; do echo "add gfwlist $gdnsaddress"; done)
-  $(for cdnsaddress in $cdns_address; do echo "add chnlist $cdnsaddress"; done)
   $(for blackip in $black_ip; do echo "add gfwlist $blackip"; done)
   $(for whiteip in $white_ip; do echo "add chnlist $whiteip"; done)
   $(!(cat "$gfw_list" 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") || \
