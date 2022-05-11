@@ -7,8 +7,8 @@ SRC_SSR_NAME=shadowsocksr-libev-master
 ARCHIVE_SSR_NAME=shadowsocksr-libev-master-e2373d7
 #https://github.com/shadowsocksr-backup/shadowsocksr-libev.git
 
-GFWLIST_NAME=dnsmasq_gfwlist.conf
-GFWALL_PURL=https://raw.githubusercontent.com/GH-X/rt-n56u/GFWListDomainIP
+GFWLIST_NAME=gfwlist_domain.txt
+GFWALL_PURL=https://cokebar.github.io/gfwlist2dnsmasq
 GFWLIST_URL=$(GFWALL_PURL)/$(GFWLIST_NAME)
 GFWLIST_DIR=gfwlist
 
@@ -108,7 +108,10 @@ clean_ss:
 romfs:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	chmod -R +x scripts/
-	$(ROMFSINST) $(THISDIR)/scripts/ /usr/bin/
+	$(ROMFSINST) $(THISDIR)/scripts/shadowsocks.sh /usr/bin/shadowsocks.sh
+	$(ROMFSINST) $(THISDIR)/scripts/ss-rules /usr/bin/ss-rules
+	$(ROMFSINST) $(THISDIR)/scripts/ss-watchcat.sh /usr/bin/ss-watchcat.sh
+	$(ROMFSINST) $(THISDIR)/scripts/update_gfwlist.sh /usr/bin/update_gfwlist.sh
 	$(ROMFSINST) $(THISDIR)/gfwlist/gfwlist.bz2 /etc_ro/gfwlist.bz2
 	$(ROMFSINST) -p +x $(THISDIR)/$(SRC_SSR_NAME)/src/ss-redir /usr/bin/ssr-redir
 	$(ROMFSINST) -p +x $(THISDIR)/$(SRC_SSR_NAME)/src/ss-local /usr/bin/ssr-local
