@@ -2283,15 +2283,16 @@ ej_firmware_caps_hook(int eid, webs_t wp, int argc, char **argv)
 	int has_ipv4_ppe = 0;
 	int has_ipv6_ppe = 0;
 #endif
-
-#if (BOARD_RAM_SIZE < 64)
-	int max_conn = 16384;
-#elif (BOARD_RAM_SIZE < 128)
-	int max_conn = 65536;
-#elif (BOARD_RAM_SIZE < 256)
-	int max_conn = 262144;
-#else
+#if (BOARD_RAM_SIZE > 256)
 	int max_conn = 327680;
+#elif (BOARD_RAM_SIZE > 128)
+	int max_conn = 262144;
+#elif (BOARD_RAM_SIZE > 64)
+	int max_conn = 65536;
+#elif (BOARD_RAM_SIZE > 32)
+	int max_conn = 16384;
+#else
+	int max_conn = 4096;
 #endif
 #if defined (USE_NAND_FLASH)
 	int has_mtd_rwfs = 1;
