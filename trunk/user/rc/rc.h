@@ -549,9 +549,6 @@ void restart_ttyd(void);
 void stop_ss(void);
 void start_ss(void);
 void restart_ss(void);
-void stop_ss_tunnel(void);
-void start_ss_tunnel(void);
-void restart_ss_tunnel(void);
 void update_chnroute(void);
 void update_gfwlist(void);
 #endif
@@ -562,16 +559,6 @@ void restart_vlmcsd(void);
 #endif
 #if defined(APP_NAPT66)
 void start_napt66(void);
-#endif
-#if defined(APP_SMARTDNS)
-void stop_smartdns(void);
-void start_smartdns(void);
-void restart_smartdns(void);
-#endif
-#if defined(APP_DNSFORWARDER)
-void stop_dnsforwarder(void);
-void start_dnsforwarder(void);
-void restart_dnsforwarder(void);
 #endif
 
 /* services_ex.c */

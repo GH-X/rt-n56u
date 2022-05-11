@@ -106,7 +106,9 @@ stop_crond(void)
 {
 	char* svcs[] = { "crond", NULL };
 	kill_services(svcs, 3, 1);
-	
+
+	sleep(1);
+
 	if (pids("crond"))
 	doSystem("killall %s %s %s", "-q", "-9", "crond");
 }
@@ -114,6 +116,9 @@ stop_crond(void)
 int
 start_crond(void)
 {
+	if (pids("crond"))
+	doSystem("killall %s %s %s", "-q", "-9", "crond");
+
 	char *crond_argv[] = {
 		"/usr/sbin/crond",
 		NULL,			/* -d8 */
@@ -325,21 +330,6 @@ void restart_ss(void){
 	start_ss();
 }
 
-void stop_ss_tunnel(void){
-	eval("/usr/bin/ss-tunnel.sh","stop");
-}
-
-void start_ss_tunnel(void){
-	int ss_tunnel_mode = nvram_get_int("ss-tunnel_enable");
-	if ( ss_tunnel_mode == 1)
-		eval("/usr/bin/ss-tunnel.sh","start");
-}
-
-void restart_ss_tunnel(void){
-	stop_ss_tunnel();
-	start_ss_tunnel();
-}
-
 void update_chnroute(void){
 	eval("/bin/sh","-c","/usr/bin/update_chnroute.sh force &");
 }
@@ -364,40 +354,6 @@ void start_vlmcsd(void){
 void restart_vlmcsd(void){
 	stop_vlmcsd();
 	start_vlmcsd();
-}
-#endif
-
-#if defined(APP_SMARTDNS)
-void stop_smartdns(void){
-	eval("/usr/bin/smartdns.sh","stop");
-}
-
-void start_smartdns(void){
-	int smartdns_mode = nvram_get_int("sdns_enable");
-	if ( smartdns_mode == 1)
-		eval("/usr/bin/smartdns.sh","start");
-}
-
-void restart_smartdns(void){
-	stop_smartdns();
-	start_smartdns();
-}
-#endif
-
-#if defined(APP_DNSFORWARDER)
-void stop_dnsforwarder(void){
-	eval("/usr/bin/dns-forwarder.sh","stop");
-}
-
-void start_dnsforwarder(void){
-	int dnsforwarder_mode = nvram_get_int("dns_forwarder_enable");
-	if (dnsforwarder_mode == 1)
-		eval("usr/bin/dns-forwarder.sh","start");
-}
-
-void restart_dnsforwarder(void){
-	stop_dnsforwarder();
-	start_dnsforwarder();
 }
 #endif
 
@@ -621,7 +577,6 @@ start_services_once(int is_ap_mode)
 		start_xupnpd(IFNAME_BR);
 #endif
 	}
-
 	start_lltd();
 	start_watchdog_cpu();
 	start_crond();
@@ -636,15 +591,8 @@ start_services_once(int is_ap_mode)
 #if defined(APP_VLMCSD)
 	start_vlmcsd();
 #endif
-#if defined(APP_DNSFORWARDER)
-	start_dnsforwarder();
-#endif
-#if defined(APP_SMARTDNS)
-	start_smartdns();
-#endif
 #if defined(APP_SHADOWSOCKS)
 	start_ss();
-	start_ss_tunnel();
 #endif
 	return 0;
 }
@@ -654,13 +602,6 @@ stop_services(int stopall)
 {
 #if defined(APP_SHADOWSOCKS)
 	stop_ss();
-	stop_ss_tunnel();
-#endif
-#if defined(APP_SMARTDNS)
-	stop_smartdns();
-#endif
-#if defined(APP_DNSFORWARDER)
-	stop_dnsforwarder();
 #endif
 #if defined(APP_VLMCSD)
 	stop_vlmcsd();
