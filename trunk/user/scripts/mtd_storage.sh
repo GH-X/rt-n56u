@@ -218,14 +218,6 @@ func_fill()
 	user_sswan_ipsec_conf="$dir_sswan/ipsec.conf"
 	user_sswan_secrets="$dir_sswan/ipsec.secrets"
 
-	smartdns_g_conf="$dir_storage/GFWblack.conf"
-	smartdns_gi_conf="$dir_storage/GFWblackip.conf"
-	smartdns_ci_conf="$dir_storage/CHNwhiteip.conf"
-	smartdns_a_conf="$dir_storage/smartdns_address.conf"
-	smartdns_b_conf="$dir_storage/smartdns_blacklist.conf"
-	smartdns_c_conf="$dir_storage/smartdns_custom.conf"
-	smartdns_w_conf="$dir_storage/smartdns_whitelist.conf"
-
 	chnroute_file="/etc_ro/chnroute.bz2"
 	gfwlist_conf_file="/etc_ro/gfwlist.bz2"
 
@@ -234,36 +226,6 @@ func_fill()
 
 	# create https dir
 	[ ! -d "$dir_httpssl" ] && mkdir -p -m 700 "$dir_httpssl"
-
-	# create smartdns conf
-	if [ ! -f "$smartdns_g_conf" ] ; then
-		cp -rf /etc_ro/GFWblack.conf "$dir_storage"
-		chmod 755 "$smartdns_g_conf"
-	fi
-	if [ ! -f "$smartdns_gi_conf" ] ; then
-		cp -rf /etc_ro/GFWblackip.conf "$dir_storage"
-		chmod 755 "$smartdns_gi_conf"
-	fi
-	if [ ! -f "$smartdns_ci_conf" ] ; then
-		cp -rf /etc_ro/CHNwhiteip.conf "$dir_storage"
-		chmod 755 "$smartdns_ci_conf"
-	fi
-	if [ ! -f "$smartdns_a_conf" ] ; then
-		cp -rf /etc_ro/smartdns_address.conf "$dir_storage"
-		chmod 755 "$smartdns_a_conf"
-	fi
-	if [ ! -f "$smartdns_b_conf" ] ; then
-		cp -rf /etc_ro/smartdns_blacklist.conf "$dir_storage"
-		chmod 755 "$smartdns_b_conf"
-	fi
-	if [ ! -f "$smartdns_c_conf" ] ; then
-		cp -rf /etc_ro/smartdns_custom.conf "$dir_storage"
-		chmod 755 "$smartdns_c_conf"
-	fi
-	if [ ! -f "$smartdns_w_conf" ] ; then
-		cp -rf /etc_ro/smartdns_whitelist.conf "$dir_storage"
-		chmod 755 "$smartdns_w_conf"
-	fi
 
 	# create chnroute.txt
 	if [ ! -d "$dir_chnroute" ] ; then
@@ -554,9 +516,9 @@ EOF
 
 	if [ -d $dir_gfwlist ]; then
 		cat >> "$user_dnsmasq_conf" <<EOF
-### gfwlist related (resolve by port 5353)
+### gfwlist related (resolve by port 60)
 #min-cache-ttl=3600
-#conf-dir=/etc/storage/gfwlist
+#conf-dir=/tmp/SSP/gfwlist
 
 EOF
 	fi

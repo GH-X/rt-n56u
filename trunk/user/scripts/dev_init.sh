@@ -118,6 +118,11 @@ echo 2048 4096 6144 > /proc/sys/net/ipv4/udp_mem
 # fill storage
 mtd_storage.sh fill
 
+# clean SSP gfwlist related
+if $(cat /etc/storage/dnsmasq/dnsmasq.conf | grep -q "^conf-dir=/tmp/SSP/gfwlist"); then
+	[ "$(nvram get ss_enable)" = "0" ] && sh -c "/usr/bin/shadowsocks.sh cleandnsconf"
+fi
+
 # prepare ssh authorized_keys
 if [ -f /etc/storage/authorized_keys ]; then
 	cp -f /etc/storage/authorized_keys /home/root/.ssh
