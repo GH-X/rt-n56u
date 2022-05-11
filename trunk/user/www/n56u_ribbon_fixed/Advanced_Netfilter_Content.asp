@@ -49,11 +49,11 @@ function initial(){
 		o.remove(6);
 	if (maxc < 262144)
 		o.remove(5);
-	if (maxc < 131072)
-		o.remove(4);
 	if (maxc < 65536)
+		o.remove(4);
+	if (maxc < 16384)
 		o.remove(3);
-	if (maxc < 32768)
+	if (maxc < 4096)
 		o.remove(2);
 
 	change_nat_enable();
