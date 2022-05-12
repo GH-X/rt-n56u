@@ -251,7 +251,7 @@ function show_banner(L3){
 		bc += '    <td style="text-align: right"><button type="button" id="clearlog_btn" class="btn btn-info" style="min-width: 170px;" onclick="clearlog();"><#CTL_clear#></button></td>\n';
 		bc += '  </tr>\n';
 		bc += '</table>\n';
-		bc += '<span><textarea rows="28" wrap="off" class="span12" readonly="readonly" id="log_area"></textarea></span>\n';
+		bc += '<span><textarea style="resize:none;" rows="28" wrap="off" class="span12" readonly="readonly" id="log_area"></textarea></span>\n';
 		bc += '</div>\n';
 	}
 
