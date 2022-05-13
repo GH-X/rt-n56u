@@ -30,17 +30,20 @@ ss_mtu=$(nvram get ss_mtu)
 ss_tunnel_mtu=$(nvram get ss-tunnel_mtu)
 ss_timeout=$(nvram get ss_timeout)
 
-ss_dns_p=$(nvram get ss_dns_local_port)
-ss_dns_s=$(nvram get ss_dns_remote_server)
-
 nodesnum=$(nvram get ss_server_num_x)
 nodenewn=$(expr $nodesnum - 1)
 nodenewa=$(nvram get ss_server_addr_x$nodenewn)
 nodenewp=$(nvram get ss_server_port_x$nodenewn)
 
-GFWLIST_DOMAIN="/etc/storage/gfwlist/gfwlist_domain.txt"
-GFWLIST_DNSMASQ="$CONF_DIR/gfwlist/dnsmasq.conf"
-DNSMASQ_CONF="/etc/storage/dnsmasq/dnsmasq.conf"
+ss_dns_p=$(nvram get ss_dns_local_port)
+ss_dns_s=$(nvram get ss_dns_remote_server)
+dnsfsmip=$(echo "$ss_dns_s" | awk -F: '{print $1}')
+dnstcpsp=$(echo "$ss_dns_s" | sed 's/:/~/g')
+
+dnsfslsp="127.0.0.1#$ss_dns_p"
+dnsgfwdt="/etc/storage/gfwlist/gfwlist_domain.txt"
+dnsgfwdc="$CONF_DIR/gfwlist/dnsmasq.conf"
+dnsmasqc="/etc/storage/dnsmasq/dnsmasq.conf"
 
 [ "$ssp_type" = "0" ] && bin_type="SS"
 [ "$ssp_type" = "1" ] && bin_type="SSR"
@@ -48,7 +51,6 @@ DNSMASQ_CONF="/etc/storage/dnsmasq/dnsmasq.conf"
 [ "$ssp_type" = "9" ] && bin_type="Auto"
 [ "$bin_type" = "Trojan" -o "$bin_type" = "Auto" ] && [ "$(nvram get ss-tunnel_enable)" = "1" ] && nvram set ss-tunnel_enable=0
 [ "$(nvram get dns_forwarder_enable)" = "1" ] && [ "$(nvram get ss-tunnel_enable)" = "1" ] && nvram set ss-tunnel_enable=0
-[ "$(nvram get dns_forwarder_enable)" = "1" ] || [ "$(nvram get ss-tunnel_enable)" = "1" ] || nvram set dns_forwarder_enable=1
 [ ! -d "$CONF_DIR/gfwlist" ] && mkdir -p "$CONF_DIR/gfwlist"
 [ -e /tmp/trojan ] && chmod +x /tmp/trojan && trojan_bin="/tmp/trojan" || trojan_bin="/usr/bin/trojan"
 [ -L /etc/storage/chinadns/chnroute.txt ] && [ ! -e /tmp/chnroute.txt ] && \
@@ -222,30 +224,38 @@ return 0
 del_dns_conf()
 {
 logger -st "SSP[$$]$bin_type" "清除解析规则"
-sed -i 's/^### gfwlist related.*/### gfwlist related resolve/g' $DNSMASQ_CONF
-sed -i 's/^min-cache-ttl=/#min-cache-ttl=/g' $DNSMASQ_CONF
-sed -i 's/^conf-dir=/#conf-dir=/g' $DNSMASQ_CONF
-rm -rf $GFWLIST_DNSMASQ
+sed -i 's/^### gfwlist related.*/### gfwlist related resolve/g' $dnsmasqc
+sed -i 's/^min-cache-ttl=/#min-cache-ttl=/g' $dnsmasqc
+sed -i 's/^conf-dir=/#conf-dir=/g' $dnsmasqc
+sed -i 's:^gfwlist='$dnsgfwdt':#gfwlist='$dnsgfwdt':g' $dnsmasqc
+rm -rf $dnsgfwdc
 killall -q -9 dns-forwarder
 killall -q -9 $tunnel_bin
 restart_dhcpd
 }
 
+get_dns_conf()
+{
+[ "$1" != "dnsmasq-tcp" ] && grep -v '^#' $dnsgfwdt | grep -v '^$' | awk '{printf("server=/%s/'$dnsfslsp'\n", $1, $1 )}' >> $dnsgfwdc
+[ "$1" != "dnsmasq-tcp" ] && grep -v '^#' $dnsgfwdt | grep -v '^$' | awk '{printf("ipset=/%s/gfwlist\n", $1, $1 )}' >> $dnsgfwdc
+sed -i 's/^### gfwlist related.*/### gfwlist related resolve by '$1' '$2'/g' $dnsmasqc
+[ "$1" != "dnsmasq-tcp" ] && sed -i 's/^#min-cache-ttl=/min-cache-ttl=/g' $dnsmasqc
+[ "$1" != "dnsmasq-tcp" ] && sed -i 's/^#conf-dir=/conf-dir=/g' $dnsmasqc
+[ "$1" == "dnsmasq-tcp" ] && sed -i 's:^#gfwlist='$dnsgfwdt'.*:gfwlist='$dnsgfwdt'@'$dnstcpsp':g' $dnsmasqc
+return 0
+}
+
 gen_dns_conf()
 {
 logger -st "SSP[$$]$bin_type" "创建解析规则"
-[ "$(nvram get dns_forwarder_enable)" = "1" ] && DNS_APP="dnsForwarder"
-[ "$(nvram get ss-tunnel_enable)" = "1" ] && DNS_APP="Tunnel"
-DNS_PORT="$ss_dns_p" && ADDR_PORT="127.0.0.1#$DNS_PORT"
-grep -v '^#' $GFWLIST_DOMAIN | grep -v '^$' | awk '{printf("server=/%s/'$ADDR_PORT'\n", $1, $1 )}' >> $GFWLIST_DNSMASQ
-grep -v '^#' $GFWLIST_DOMAIN | grep -v '^$' | awk '{printf("ipset=/%s/gfwlist\n", $1, $1 )}' >> $GFWLIST_DNSMASQ
-sed -i 's/^### gfwlist related.*/### gfwlist related resolve by '$DNS_APP' '$ADDR_PORT'/g' $DNSMASQ_CONF
-sed -i 's/^#min-cache-ttl=/min-cache-ttl=/g' $DNSMASQ_CONF
-sed -i 's/^#conf-dir=/conf-dir=/g' $DNSMASQ_CONF
 if [ "$(nvram get dns_forwarder_enable)" = "1" ]; then
+  get_dns_conf dns-forwarder "$dnsfslsp"
   start-stop-daemon -S -b -x dns-forwarder -- -b "0.0.0.0" -p "$ss_dns_p" -s "$ss_dns_s"
 elif [ "$(nvram get ss-tunnel_enable)" = "1" ]; then
+  get_dns_conf ss-tunnel "$dnsfslsp"
   sh -c "$tunnel_bin -u -c $CONF_DIR/$tunnel_json_file -L $ss_dns_s &"
+else
+  get_dns_conf dnsmasq-tcp "$dnstcpsp"
 fi
 restart_dhcpd
 }
@@ -285,8 +295,7 @@ fi
 
 black_ip()
 {
-dnsfsip=$(echo "$ss_dns_s" | awk -F: '{print $1}')
-echo " -b $dnsfsip"
+echo " -b $dnsfsmip"
 }
 
 agent_mode()
@@ -417,7 +426,7 @@ start_redir || stop_ssp "代理进程发生错误"
 start_rules || stop_ssp "透明代理发生错误"
 gen_dns_conf || stop_ssp "解析规则发生错误"
 echo "$ssp_server_type──$ssp_server_addr:$ssp_server_port──[$redir_json_file]" > $issjfinfor
-pidof ss-watchcat.sh &>/dev/null && STA_LOG="重启完成" || /usr/bin/ss-watchcat.sh
+sleep 1 && pidof ss-watchcat.sh &>/dev/null && STA_LOG="重启完成" || /usr/bin/ss-watchcat.sh
 logger -st "SSP[$(pidof $redir_bin)]$ssp_server_type" "$ssp_server_addr:$ssp_server_port [$redir_json_file] ${STA_LOG:=成功启动}" && scron 1
 return 0
 }
