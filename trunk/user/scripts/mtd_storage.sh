@@ -516,9 +516,10 @@ EOF
 
 	if [ -d $dir_gfwlist ]; then
 		cat >> "$user_dnsmasq_conf" <<EOF
-### gfwlist related (resolve by port 60)
+### gfwlist related resolve
 #min-cache-ttl=3600
 #conf-dir=/tmp/SSP/gfwlist
+#gfwlist=/etc/storage/gfwlist/gfwlist_domain.txt@8.8.4.4~53
 
 EOF
 	fi
