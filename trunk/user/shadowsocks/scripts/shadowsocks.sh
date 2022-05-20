@@ -1,30 +1,31 @@
 #!/bin/sh
 
+#/usr/bin/ss-redir -> /var/ss-redir -> /usr/bin/ss-orig-redir or /usr/bin/ssr-redir
 ss_redir_bin="/usr/bin/ss-orig-redir"
 ssr_redir_bin="/usr/bin/ssr-redir"
 redir_bin="ss-redir"
 redir_link="/var/ss-redir"
-#/usr/bin/ss-redir -> /var/ss-redir -> /usr/bin/ss-orig-redir or /usr/bin/ssr-redir
+#/usr/bin/ss-local -> /var/ss-tunnel -> /usr/bin/ss-orig-tunnel or /usr/bin/ssr-local
 ss_tunnel_bin="/usr/bin/ss-orig-tunnel"
 ssr_tunnel_bin="/usr/bin/ssr-local"
 tunnel_bin="ss-local"
 tunnel_link="/var/ss-tunnel"
-#/usr/bin/ss-local -> /var/ss-tunnel -> /usr/bin/ss-orig-tunnel or /usr/bin/ssr-local
+#/usr/bin/ss-redir -> /var/ss-redir -> /tmp/trojan or /usr/bin/trojan
+v2rp_bin="v2ray-plugin"
+v2rp_link="/var/v2ray-plugin"
+#/usr/bin/v2ray-plugin -> /var/v2ray-plugin -> /tmp/ss-v2ray-plugin or /usr/bin/ss-v2ray-plugin
 
 CONF_DIR="/tmp/SSP"
 redir_log_file="/tmp/ss-redir.log"
-issjfinfor="$CONF_DIR/issjfinfor"
 statusfile="$CONF_DIR/statusfile"
-countslink="$CONF_DIR/countslink"
-countsrest="$CONF_DIR/countsrest"
+netdpcount="$CONF_DIR/netdpcount"
+errorcount="$CONF_DIR/errorcount"
+issjfinfor="$CONF_DIR/issjfinfor"
 CRON_CONF="/etc/storage/cron/crontabs/$(nvram get http_username)"
 
 ss_type=$(nvram get ss_type)
 ssp_type=${ss_type:0} # 0=ss 1=ssr 2=trojan 9=auto
-
 ss_mode=$(nvram get ss_mode) # 0=global 1=chnroute 2=gfwlist
-ss_udp=$(nvram get ss_udp)
-
 ss_local_port=$(nvram get ss_local_port)
 ss_mtu=$(nvram get ss_mtu)
 ss_tunnel_mtu=$(nvram get ss-tunnel_mtu)
@@ -52,7 +53,8 @@ dnsmasqc="/etc/storage/dnsmasq/dnsmasq.conf"
 [ "$bin_type" = "Trojan" -o "$bin_type" = "Auto" ] && [ "$(nvram get ss-tunnel_enable)" = "1" ] && nvram set ss-tunnel_enable=0
 [ "$(nvram get dns_forwarder_enable)" = "1" ] && [ "$(nvram get ss-tunnel_enable)" = "1" ] && nvram set ss-tunnel_enable=0
 [ ! -d "$CONF_DIR/gfwlist" ] && mkdir -p "$CONF_DIR/gfwlist"
-[ -e /tmp/trojan ] && chmod +x /tmp/trojan && trojan_bin="/tmp/trojan" || trojan_bin="/usr/bin/trojan"
+[ -e /tmp/trojan ] && chmod +x /tmp/trojan && ssp_trojan="/tmp/trojan" || ssp_trojan="/usr/bin/trojan"
+[ -e /tmp/ss-v2ray-plugin ] && chmod +x /tmp/ss-v2ray-plugin && ssp_v2rp="/tmp/ss-v2ray-plugin" || ssp_v2rp="/usr/bin/ss-v2ray-plugin"
 [ -L /etc/storage/chinadns/chnroute.txt ] && [ ! -e /tmp/chnroute.txt ] && \
 rm -rf /etc/storage/chinadns/chnroute.txt && tar jxf /etc_ro/chnroute.bz2 -C /etc/storage/chinadns
 
@@ -83,6 +85,7 @@ return 0
 gen_json_file()
 {
 turn_json_file || del_json_file
+[ $nodesnum -ge 1 ] || stop_ssp "请到[节点设置]添加服务器"
 if [ ! -e "$CONF_DIR/Auto-jsonlist" ]; then
   logger -st "SSP[$$]$bin_type" "创建配置文件"
   for i in $(seq 1 $nodesnum); do
@@ -95,17 +98,32 @@ if [ ! -e "$CONF_DIR/Auto-jsonlist" ]; then
       server_addr=$(nvram get ss_server_addr_x$j)
       server_port=$(nvram get ss_server_port_x$j)
       server_key=$(nvram get ss_server_key_x$j)
+      server_sni=$(nvram get ss_server_sni_x$j)
       ss_method=$(nvram get ss_method_x$j)
+      ss_obfs=$(nvram get ss_obfs_x$j)
+      ss_obfs_param=$(nvram get ss_obfs_param_x$j)
+      if [ "$ss_obfs" = "v2ray_plugin_websocket" ] && [ "$server_sni" == "" ]; then
+        ss_pm="v2rp-HTTP" && ss_plugin="$v2rp_bin" && ss_plugin_opts=""
+      elif [ "$ss_obfs" = "v2ray_plugin_websocket" ] && [ "$server_sni" != "" ]; then
+        ss_pm="v2rp-TLS" && ss_plugin="$v2rp_bin" && ss_plugin_opts="tls;host=$server_sni"
+      elif [ "$ss_obfs" = "v2ray_plugin_quic" ] && [ "$server_sni" != "" ]; then
+        ss_pm="v2rp-QUIC" && ss_plugin="$v2rp_bin" && ss_plugin_opts="mode=quic;host=$server_sni"
+      else
+        ss_pm="null" && ss_plugin="" && ss_plugin_opts=""
+      fi
       r_json_file="$i-$server_type-redir.json"
-      t_json_file="$i-$server_type-tunnel.json"
-      echo "$server_addr#$server_port#$r_json_file#$t_json_file" >> $CONF_DIR/SS-jsonlist
-      echo "$server_addr#$server_port#$r_json_file#$t_json_file" >> $CONF_DIR/Auto-jsonlist
+      [ "$ss_pm" != "v2rp-QUIC" ] && t_json_file="$i-$server_type-tunnel.json" || t_json_file="null"
+      echo "$server_addr#$server_port#$r_json_file#$t_json_file#$ss_pm" >> $CONF_DIR/SS-jsonlist
+      echo "$server_addr#$server_port#$r_json_file#$t_json_file#$ss_pm" >> $CONF_DIR/Auto-jsonlist
 	    cat > "$CONF_DIR/$r_json_file" << EOF
 {
     "server": "$server_addr",
     "server_port": $server_port,
     "password": "$server_key",
     "method": "$ss_method",
+    "plugin": "$ss_plugin",
+    "plugin_opts": "$ss_plugin_opts",
+    "plugin_args": "$ss_obfs_param",
     "timeout": $ss_timeout,
     "local_address": "0.0.0.0",
     "local_port": $ss_local_port,
@@ -113,12 +131,15 @@ if [ ! -e "$CONF_DIR/Auto-jsonlist" ]; then
 }
 
 EOF
-      cat > "$CONF_DIR/$t_json_file" << EOF
+      [ "$ss_pm" != "v2rp-QUIC" ] && cat > "$CONF_DIR/$t_json_file" << EOF
 {
     "server": "$server_addr",
     "server_port": $server_port,
     "password": "$server_key",
     "method": "$ss_method",
+    "plugin": "$ss_plugin",
+    "plugin_opts": "$ss_plugin_opts",
+    "plugin_args": "$ss_obfs_param",
     "timeout": $ss_timeout,
     "local_address": "0.0.0.0",
     "local_port": $ss_dns_p,
@@ -137,8 +158,8 @@ EOF
       ss_obfs_param=$(nvram get ss_obfs_param_x$j)
       r_json_file="$i-$server_type-redir.json"
       t_json_file="$i-$server_type-tunnel.json"
-      echo "$server_addr#$server_port#$r_json_file#$t_json_file" >> $CONF_DIR/SSR-jsonlist
-      echo "$server_addr#$server_port#$r_json_file#$t_json_file" >> $CONF_DIR/Auto-jsonlist
+      echo "$server_addr#$server_port#$r_json_file#$t_json_file#null" >> $CONF_DIR/SSR-jsonlist
+      echo "$server_addr#$server_port#$r_json_file#$t_json_file#null" >> $CONF_DIR/Auto-jsonlist
 	    cat > "$CONF_DIR/$r_json_file" << EOF
 {
     "server": "$server_addr",
@@ -184,8 +205,8 @@ EOF
         verifyhostname="true"
       fi
       r_json_file="$i-$server_type-redir.json"
-      echo "$server_addr#$server_port#$r_json_file#null" >> $CONF_DIR/Trojan-jsonlist
-      echo "$server_addr#$server_port#$r_json_file#null" >> $CONF_DIR/Auto-jsonlist
+      echo "$server_addr#$server_port#$r_json_file#null#null" >> $CONF_DIR/Trojan-jsonlist
+      echo "$server_addr#$server_port#$r_json_file#null#null" >> $CONF_DIR/Auto-jsonlist
       cat > "$CONF_DIR/$r_json_file" << EOF
 {
     "run_type": "nat",
@@ -209,16 +230,32 @@ EOF
   done
 fi
 [ "$bin_type" = "Auto" ] || \
-$(cat $CONF_DIR/$bin_type-jsonlist 2>/dev/null | grep -q "$bin_type-redir") || return 1
+$(cat $CONF_DIR/$bin_type-jsonlist 2>/dev/null | grep -q "$bin_type-redir") || \
+stop_ssp "请到[节点设置]添加 $bin_type 服务器"
 ssp_server_addr=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $1}')
 ssp_server_port=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $2}')
 redir_json_file=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $3}')
 tunnel_json_file=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $4}')
+ssp_plugin_mode=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $5}')
 ssp_server_type=$(echo "$redir_json_file" | awk -F- '{print $2}')
-[ "$ssp_server_type" = "SS" ] && ln -sf $ss_redir_bin $redir_link && ln -sf $ss_tunnel_bin $tunnel_link
-[ "$ssp_server_type" = "SSR" ] && ln -sf $ssr_redir_bin $redir_link && ln -sf $ssr_tunnel_bin $tunnel_link
-[ "$ssp_server_type" = "Trojan" ] && ln -sf $trojan_bin $redir_link
-return 0
+if [ "$ssp_server_type" = "SS" ]; then
+  if [ "$ssp_plugin_mode" != "null" ]; then
+    [ -x "$ssp_v2rp" ] && ln -sf $ssp_v2rp $v2rp_link || stop_ssp "请上传 ss-v2ray-plugin 文件到 /tmp/"
+  fi
+  if [ "$ssp_plugin_mode" = "v2rp-QUIC" ]; then
+    [ "$(nvram get ss-tunnel_enable)" = "1" ] && nvram set ss-tunnel_enable=0
+    [ "$(nvram get ss_udp)" = "1" ] && nvram set ss_udp=0
+  else
+    ln -sf $ss_tunnel_bin $tunnel_link
+  fi
+  ln -sf $ss_redir_bin $redir_link
+elif [ "$ssp_server_type" = "SSR" ]; then
+  ln -sf $ssr_redir_bin $redir_link && ln -sf $ssr_tunnel_bin $tunnel_link
+elif [ "$ssp_server_type" = "Trojan" ]; then
+  [ -x "$ssp_trojan" ] && ln -sf $ssp_trojan $redir_link || stop_ssp "请上传 trojan 文件到 /tmp/"
+fi
+[ -n "$ssp_server_type" ] && [ -n "$ssp_server_addr" ] && [ -n "$ssp_server_port" ] && \
+[ -n "$redir_json_file" ] && return 0 || return 1
 }
 
 del_dns_conf()
@@ -311,17 +348,17 @@ fi
 
 agent_pact()
 {
-if [ "$ss_udp" = "0" ]; then
-  echo " -t"
-elif [ "$ss_udp" = "1" ]; then
+if [ "$(nvram get ss_udp)" = "1" ]; then
   echo " -m"
+else
+  echo " -t"
 fi
 }
 
 udp_ext()
 {
-if [ "$ss_udp" = "1" ]; then
-  if [ "$ssp_type" = "0" ] || [ "$ssp_type" = "1" ]; then
+if [ "$(nvram get ss_udp)" = "1" ]; then
+  if [ "$ssp_server_type" = "SS" ] || [ "$ssp_server_type" = "SSR" ]; then
     echo " -u"
   fi
 fi
@@ -351,8 +388,11 @@ $(agent_pact)
 
 stop_redir()
 {
-killall -q -9 $redir_bin && logger -st "SSP[$$]$bin_type" "关闭代理进程" && sleep 1 && \
-!(pidof $redir_bin &>/dev/null) && logger -st "SSP[$$]$bin_type" "代理进程已经关闭"
+(killall -q -9 $redir_bin && logger -st "SSP[$$]$bin_type" "关闭代理进程" && sleep 1 && \
+!(pidof $redir_bin &>/dev/null) && logger -st "SSP[$$]$bin_type" "代理进程已经关闭")&
+(killall -q -9 $v2rp_bin && logger -st "SSP[$$]$bin_type" "关闭插件进程" && sleep 1 && \
+!(pidof $v2rp_bin &>/dev/null) && logger -st "SSP[$$]$bin_type" "插件进程已经关闭")&
+wait
 return 0
 }
 
@@ -369,8 +409,8 @@ stop_watchcat()
 (sed -i '/ss-watchcat.sh/d' $CRON_CONF && restart_crond)&
 (killall -q -9 ss-watchcat.sh)&
 (rm -rf $statusfile
-rm -rf $countslink
-rm -rf $countsrest
+rm -rf $netdpcount
+rm -rf $errorcount
 rm -rf $issjfinfor)&
 wait
 return 0
@@ -417,9 +457,7 @@ wait
 start_ssp()
 {
 ulimit -n 65536
-[ $nodesnum -ge 1 ] || stop_ssp "请到[节点设置]添加服务器"
-logger -st "SSP[$$]$bin_type" "开始启动" && gen_json_file || stop_ssp "找不到[$bin_type]服务器"
-[ -n "$ssp_server_type" ] && [ -n "$ssp_server_addr" ] && [ -n "$ssp_server_port" ] && [ -n "$redir_json_file" ] || stop_ssp "配置文件发生错误"
+logger -st "SSP[$$]$bin_type" "开始启动" && gen_json_file || stop_ssp "配置文件发生错误"
 $(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_start_ssp') || \
 $(cat "$statusfile" 2>/dev/null | grep -q "watchcat_restart_ssp_") || stop_watchcat
 start_redir || stop_ssp "代理进程发生错误"
