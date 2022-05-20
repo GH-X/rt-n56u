@@ -223,7 +223,7 @@ function showMRULESList(){
                                             <td>
                                                 <input type="text" maxlength="64" class="input" size="64" name="ss_server_sni_x_0" style="width: 333px" placeholder="<#menu5_16_40#>" value="<% nvram_get_x("","ss_server_sni_x_0"); %>">
                                             </td>
-                                            <td width="22%">..Trojan</td>
+                                            <td width="22%">..SS..Trojan</td>
                                         </tr>
 
                                         <tr> <th width="22%"><#menu5_16_41#></th>
@@ -282,19 +282,21 @@ function showMRULESList(){
                                             <td>
                                                 <select name="ss_obfs_x_0" class="input" style="width: 342px">   
                                                     <option value="plain" <% nvram_match_x("","ss_obfs_x_0", "0","selected"); %>>plain</option>
-                                                    <option value="http_simple" <% nvram_match_x("","ss_obfs_x_0", "http_simple","selected"); %>>http_simple</option>
-                                                    <option value="http_post" <% nvram_match_x("","ss_obfs_x_0", "http_post","selected"); %>>http_post</option>
-                                                    <option value="tls1.2_ticket_auth" <% nvram_match_x("","ss_obfs_x_0", "tls1.2_ticket_auth","selected"); %>>tls1.2_ticket_auth</option>
+                                                    <option value="http_simple" <% nvram_match_x("","ss_obfs_x_0", "http_simple","selected"); %>>http_simple (ssr only)</option>
+                                                    <option value="http_post" <% nvram_match_x("","ss_obfs_x_0", "http_post","selected"); %>>http_post (ssr only)</option>
+                                                    <option value="tls1.2_ticket_auth" <% nvram_match_x("","ss_obfs_x_0", "tls1.2_ticket_auth","selected"); %>>tls1.2_ticket_auth (ssr only)</option>
+                                                    <option value="v2ray_plugin_websocket" <% nvram_match_x("","ss_obfs_x_0", "v2ray_plugin_websocket","selected"); %>>v2ray_plugin_websocket (ss only)</option>
+                                                    <option value="v2ray_plugin_quic" <% nvram_match_x("","ss_obfs_x_0", "v2ray_plugin_quic","selected"); %>>v2ray_plugin_quic (ss only)</option>
                                                 </select>
                                             </td>
-                                            <td width="22%">..SSR</td>
+                                            <td width="22%">..SS..SSR</td>
                                         </tr>
 
                                         <tr> <th width="22%"><#menu5_16_45#></th>
                                             <td>
                                                 <input type="text" maxlength="64" class="input" size="64" name="ss_obfs_param_x_0" style="width: 333px" value="<% nvram_get_x("","ss_obfs_param_x_0"); %>">
                                             </td>
-                                            <td width="22%">..SSR</td>
+                                            <td width="22%">..SS..SSR</td>
                                         </tr>
 
                                         <tr>
