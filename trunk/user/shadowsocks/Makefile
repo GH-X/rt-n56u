@@ -120,7 +120,11 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	$(ROMFSINST) -p +x $(THISDIR)/$(SRC_SS_NAME)/src/ss-local /usr/bin/ss-orig-local
 	ln -sf /var/ss-redir $(ROMFSDIR)/usr/bin/ss-redir
 	ln -sf /var/ss-tunnel $(ROMFSDIR)/usr/bin/ss-local
+	ln -sf /var/v2ray-plugin $(ROMFSDIR)/usr/bin/v2ray-plugin
 endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSSERVER),y)
 	$(ROMFSINST) -p +x $(THISDIR)/$(SRC_SS_NAME)/src/ss-server /usr/bin/ss-server
+endif
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSV2RP),y)
+	$(ROMFSINST) -p +x $(THISDIR)/ss-v2ray-plugin /usr/bin/ss-v2ray-plugin
 endif
