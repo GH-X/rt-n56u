@@ -8,9 +8,26 @@ GFWLIST_URL="$(nvram get gfwlist_url)"
 logger -st "SSP[$$]Update" "开始更新黑名单..."
 
 rm -f /tmp/gfwlist_domain.txt
-curl -k -s --connect-timeout 5 --retry 3 -o /tmp/gfwlist_domain.txt \
-${GFWLIST_URL:-"https://cokebar.github.io/gfwlist2dnsmasq/gfwlist_domain.txt"} && \
-sed -i '/^#/d' /tmp/gfwlist_domain.txt && sed -i '/^$/d' /tmp/gfwlist_domain.txt
+curl -k -s --connect-timeout 5 --retry 3 \
+${GFWLIST_URL:-"https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt"} | \
+base64 -d | \
+sed -n '{
+s/^||\?//g;
+s/https\?:\/\///g;
+s/^\.//g;
+s/\*.*//g;
+s/\/.*//g;
+s/%.*//g;
+/^!.*/d;
+/^@.*/d;
+/^\[.*/d;
+/\.$/d;
+/^[^\.]*$/d;
+/^[0-9\.]*$/d;
+/^$/d;
+/^#.*/d;
+p
+}' | sort -u >> /tmp/gfwlist_domain.txt
 
 [ ! -d /etc/storage/gfwlist/ ] && mkdir /etc/storage/gfwlist/
 mv -f /tmp/gfwlist_domain.txt /etc/storage/gfwlist/gfwlist_domain.txt
