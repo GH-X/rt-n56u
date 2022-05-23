@@ -109,7 +109,11 @@ return 0
 ipt_filter()
 {
 $iptf -N SSP_INPUT
-$iptf -A SSP_INPUT -p tcp --tcp-flags ACK,RST RST -j DROP
+$iptf -A SSP_INPUT -s $server_addr -p tcp -m tcp --tcp-flags RST RST -m limit --limit 1/hour --limit-burst 1 -j RETURN
+$iptf -A SSP_INPUT -s $server_addr -p tcp -m tcp --tcp-flags RST RST -j DROP
+$iptf -A SSP_INPUT -m set --match-set private src -j RETURN
+$iptf -A SSP_INPUT -p tcp -m tcp --tcp-flags RST RST -m state --state RELATED,ESTABLISHED -m limit --limit 1/min --limit-burst 1 -j RETURN
+$iptf -A SSP_INPUT -p tcp -m tcp --tcp-flags RST RST -j DROP
 $iptf -I INPUT 1 -j SSP_INPUT
 return 0
 }
