@@ -49,7 +49,7 @@ start_syslogd(void)
 		log_rot,			/* max size before rotation */
 		"-b0",				/* purge on rotate */
 		"-S",				/* smaller output */
-		"-D",				/* drop duplicates */
+		//"-D",				/* drop duplicates */
 		"-O", "/tmp/syslog.log",	/* syslog file */
 		NULL,				/* -L */
 		NULL, NULL,			/* -R host:port */
