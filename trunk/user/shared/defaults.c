@@ -564,7 +564,11 @@ struct nvram_pair router_defaults[] = {
 
 	{ "ss_watchcat_autorec", "0" },
 	{ "ss_update_chnroute", "0" },
+	{ "chnroute_url", "" },
+	{ "ss_custom_chnroute", "" },
 	{ "ss_update_gfwlist", "0" },
+	{ "gfwlist_url", "" },
+	{ "ss_custom_gfwlist", "" },
 
 	{ "ss_dns_local_port", "60" },
 	{ "ss_dns_remote_server", "8.8.4.4:53" },
