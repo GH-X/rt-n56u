@@ -18,7 +18,7 @@ else
 	sed -i '/^#/d' /tmp/chnroute.txt && sed -i '/^$/d' /tmp/chnroute.txt
 fi
 [ ! -d /etc/storage/chinadns/ ] && mkdir /etc/storage/chinadns/
-if [ $(stat -c %s /tmp/chnroute.txt) -lt 1000000 ]; then
+if [ $(cat /tmp/chnroute.txt | wc -l) -le 65536 ]; then
 	mv -f /tmp/chnroute.txt /etc/storage/chinadns/chnroute.txt
 	mtd_storage.sh save >/dev/null 2>&1
 else
