@@ -274,12 +274,15 @@ sync && echo 3 > /proc/sys/vm/drop_caches
 # Mount SATA disk
 #mdev -s
 
+EOF
+	if [ -f /usr/bin/wing ]; then
+		cat >> "$script_started" <<EOF
 #wing <HOST:443> <PASS>
 #wing 192.168.1.9:1080
 #ipset add gfwlist 8.8.4.4
 
-
 EOF
+	fi
 		chmod 755 "$script_started"
 	fi
 
@@ -305,9 +308,13 @@ EOF
 ### Custom user script
 ### Called after internal iptables reconfig (firewall update)
 
+EOF
+	if [ -f /usr/bin/wing ]; then
+		cat >> "$script_postf" <<EOF
 #wing resume
 
 EOF
+	fi
 		chmod 755 "$script_postf"
 	fi
 
@@ -461,6 +468,11 @@ EOF
 	for i in dnsmasq.conf hosts ; do
 		[ -f "$dir_storage/$i" ] && mv -n "$dir_storage/$i" "$dir_dnsmasq"
 	done
+	if $(cat "$user_dnsmasq_conf" | grep -q "^conf-dir=/tmp/SSP/gfwlist") || \
+	$(cat "$user_dnsmasq_conf" | grep -q "^gfwlist=/etc/storage/gfwlist") || \
+	$(cat "$user_dnsmasq_conf" | grep -q "^min-cache-ttl=") ; then
+		rm -f "$user_dnsmasq_conf"
+	fi
 	if [ ! -f "$user_dnsmasq_conf" ] ; then
 		cat > "$user_dnsmasq_conf" <<EOF
 # Custom user conf file for dnsmasq
