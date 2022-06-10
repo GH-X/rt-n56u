@@ -37,7 +37,11 @@ $j(document).ready(function(){
 	init_itoggle('ss_timeout');
 	init_itoggle('ss_watchcat_autorec');
 	init_itoggle('ss_update_chnroute');
+	init_itoggle('chnroute_url');
+	init_itoggle('ss_custom_chnroute');
 	init_itoggle('ss_update_gfwlist');
+	init_itoggle('gfwlist_url');
+	init_itoggle('ss_custom_gfwlist');
 	init_itoggle('ss_dns_local_port');
 	init_itoggle('ss_dns_remote_server');
 	init_itoggle('dns_forwarder_enable');
@@ -52,8 +56,8 @@ function initial(){
 	fill_ss_status(shadowsocks_status());
 	fill_ss_tunnel_status(shadowsocks_tunnel_status());
 	fill_ss_forwarder_status(dnsforwarder_status());
-	$("chnroute_count").innerHTML = '<#menu5_16_4#>' + chnroute_count() ;
-	$("gfwlist_count").innerHTML = '<#menu5_16_4#>' + gfwlist_count() ;
+	$("chnroute_count").innerHTML = '<#menu5_16_4#>&nbsp;&nbsp;' + chnroute_count() ;
+	$("gfwlist_count").innerHTML = '<#menu5_16_4#>&nbsp;&nbsp;' + gfwlist_count() ;
 	switch_ss_type();
 }
 
@@ -272,7 +276,7 @@ function fill_ss_forwarder_status(status_code){
 
                                         <tr> <th colspan="2" style="background-color: #E3E3E3;"><#menu5_16_16#></th> </tr>
 
-                                        <tr> <th width="50%"><#menu5_16_17#></th>
+                                        <tr> <th width="50%"><a href="javascript:spoiler_toggle('spoiler_chnroute_url')"><#menu5_16_17#></a></th>
                                             <td>
                                                 <div class="main_itoggle">
                                                     <div id="ss_update_chnroute_on_of">
@@ -287,13 +291,29 @@ function fill_ss_forwarder_status(status_code){
                                         </tr>
 
                                         <tr>
-                                            <th width="50%" style="border-top: 0 none;"><#menu5_16_10#>&nbsp;&nbsp;&nbsp;&nbsp;<span class="label label-info" style="padding: 5px 5px 5px 5px;" id="chnroute_count"></span></th>
+                                            <td colspan="2" style="text-align: center; border-top: 0 none;">
+                                                <div id="spoiler_chnroute_url" style="display:none;">
+                                                    <input type="text" maxlength="90" class="input" size="90" name="chnroute_url" style="width: 654px" placeholder="<#menu5_16_17A#>" value="<% nvram_get_x("","chnroute_url"); %>">
+                                                </div>
+                                            </td>
+                                        </tr>
+
+                                        <tr>
+                                            <th width="50%" style="border-top: 0 none;"><a href="javascript:spoiler_toggle('spoiler_custom_chnroute')"><#menu5_16_10#></a>&nbsp;&nbsp;&nbsp;&nbsp;<span class="label label-info" style="padding: 5px 5px 5px 5px;" id="chnroute_count"></span></th>
                                             <td style="border-top: 0 none;">
                                                 <input type="button" id="btn_connect_2" class="btn btn-info" value="<#menu5_16_18#>" onclick="submitInternet('Update_chnroute');">
                                             </td>
                                         </tr>
 
-                                        <tr> <th width="50%"><#menu5_16_17#></th>
+                                        <tr>
+                                            <td colspan="2" style="text-align: center; border-top: 0 none;">
+                                                <div id="spoiler_custom_chnroute" style="display:none;">
+                                                    <input type="text" maxlength="90" class="input" size="90" name="ss_custom_chnroute" style="width: 654px" placeholder="<#menu5_16_10A#>" value="<% nvram_get_x("","ss_custom_chnroute"); %>">
+                                                </div>
+                                            </td>
+                                        </tr>
+
+                                        <tr> <th width="50%"><a href="javascript:spoiler_toggle('spoiler_gfwlist_url')"><#menu5_16_17#></a></th>
                                             <td>
                                                 <div class="main_itoggle">
                                                     <div id="ss_update_gfwlist_on_of">
@@ -308,9 +328,25 @@ function fill_ss_forwarder_status(status_code){
                                         </tr>
 
                                         <tr>
-                                            <th width="50%" style="border-top: 0 none;"><#menu5_16_11#>&nbsp;&nbsp;&nbsp;&nbsp;<span class="label label-info" style="padding: 5px 5px 5px 5px;" id="gfwlist_count"></span></th>
+                                            <td colspan="2" style="text-align: center; border-top: 0 none;">
+                                                <div id="spoiler_gfwlist_url" style="display:none;">
+                                                    <input type="text" maxlength="90" class="input" size="90" name="gfwlist_url" style="width: 654px" placeholder="<#menu5_16_17B#>" value="<% nvram_get_x("","gfwlist_url"); %>">
+                                                </div>
+                                            </td>
+                                        </tr>
+
+                                        <tr>
+                                            <th width="50%" style="border-top: 0 none;"><a href="javascript:spoiler_toggle('spoiler_custom_gfwlist')"><#menu5_16_11#></a>&nbsp;&nbsp;&nbsp;&nbsp;<span class="label label-info" style="padding: 5px 5px 5px 5px;" id="gfwlist_count"></span></th>
                                             <td style="border-top: 0 none;">
                                                 <input type="button" id="btn_connect_3" class="btn btn-info" value="<#menu5_16_18#>" onclick="submitInternet('Update_gfwlist');">
+                                            </td>
+                                        </tr>
+
+                                        <tr>
+                                            <td colspan="2" style="text-align: center; border-top: 0 none;">
+                                                <div id="spoiler_custom_gfwlist" style="display:none;">
+                                                    <input type="text" maxlength="90" class="input" size="90" name="ss_custom_gfwlist" style="width: 654px" placeholder="<#menu5_16_11A#>" value="<% nvram_get_x("","ss_custom_gfwlist"); %>">
+                                                </div>
                                             </td>
                                         </tr>
 
