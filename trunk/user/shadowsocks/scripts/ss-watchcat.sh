@@ -44,7 +44,12 @@ count(){
 	fi
 }
 
-wcram(){
+godet(){
+	if !(iptables-save -c | grep -q "SSP_") || !(ipset list -n | grep -q 'private') || \
+	!(ipset list -n | grep -q 'gfwlist') || !(ipset list -n | grep -q 'chnlist'); then
+		count $errorcount ++ 1
+	fi
+	!(pidof ss-redir &>/dev/null) && count $errorcount ++ 1
 	for sspredirPID in $(pidof ss-redir); do
 		sspredirRSS=$(cat /proc/$sspredirPID/status | grep 'VmRSS' | \
 		sed 's/[[:space:]]//g' | sed 's/kB//g' | awk -F: '{print $2}')
@@ -54,7 +59,7 @@ wcram(){
 }
 
 goout(){
-	!(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_stop_ssp') && wcram && rm -rf $statusfile
+	!(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_stop_ssp') && godet && rm -rf $statusfile
 	loger "┌──$(infor)"
 	exit 0
 }
@@ -78,10 +83,9 @@ scout(){
 
 watchcat_stop_ssp(){
 	!(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_stop_ssp') || return 1
-	[ $(count $errorcount) -ge 1 ] || return 1
+	[ $(count $errorcount) -ge 1 ] && count $errorcount -- 1 || return 1
 	STO_LOG="发现异常!!!暂时停止代理" && loger "├──$STO_LOG" && logger -st "SSP[$$]WARNING" "$STO_LOG"
-	count $netdpcount +- 0 && echo "watchcat_stop_ssp" > $statusfile
-	/usr/bin/shadowsocks.sh stop &>/dev/null && goout
+	echo "watchcat_stop_ssp" > $statusfile && /usr/bin/shadowsocks.sh stop &>/dev/null && goout
 }
 
 watchcat_start_ssp(){
@@ -89,35 +93,38 @@ watchcat_start_ssp(){
 	count $errorcount -- 1 && [ $(count $errorcount) -le 0 ] || goout
 	scout "$chn_domain" || scout "$chn_domain" || goout
 	[ "$(nvram get ss_enable)" = "1" ] && !(pidof ss-redir &>/dev/null) || return 1
-	!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q 'gfwlist') || return 1
+	!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q 'private') && \
+	!(ipset list -n | grep -q 'gfwlist') && !(ipset list -n | grep -q 'chnlist') || return 1
 	STA_LOG="恢复正常!!!重新启动代理" && loger "├──$STA_LOG" && logger -st "SSP[$$]watchcat" "$STA_LOG"
-	count $netdpcount +- 0 && echo "watchcat_start_ssp" > $statusfile
+	count $netdpcount +- 0 && count $errorcount +- 0 && echo "watchcat_start_ssp" > $statusfile
 	/usr/bin/shadowsocks.sh start &>/dev/null && return 0 || goout
 }
 
-watchcat_restart_ssp(){
-	$(cat "$statusfile" 2>/dev/null | grep -q 'check_restart_ssp') || return 1
-	[ "$1" = "1" ] && echo "watchcat_restart_ssp_runn" > $statusfile && \
-	RES_LOG="代理进程未运行!开始重启"
-	[ "$1" = "2" ] && echo "watchcat_restart_ssp_rule" > $statusfile && \
-	RES_LOG="没有防火墙规则!开始重启"
-	[ "$1" = "3" ] && echo "watchcat_restart_ssp_rule" > $statusfile && \
-	RES_LOG="找不到地址集合!开始重启"
-	loger "├──$RES_LOG" && logger -st "SSP[$$]WARNING" "$RES_LOG"
-	count $netdpcount +- 0 && /usr/bin/shadowsocks.sh restart &>/dev/null && return 0 || goout
-}
-
 amsgetnotset(){
-	daten
+	$(tail -n +1 /tmp/syslog.log | grep -q 'ipnotset') || return 1
 	tail -n +1 /tmp/syslog.log | grep 'ipnotset' >> $CONF_DIR/amsnotset.tmp
 	cat $CONF_DIR/amsnotset.tmp | sed 's/ DST=/-/g' | sed 's/ LEN=/-/g' | \
-	awk -F- '!a[$2]++{print $2}' >> $CONF_DIR/amsallexp.tmp && rm -rf $CONF_DIR/amsnotset.tmp
+	awk -F- '{print $2}' >> $CONF_DIR/amsallexp.tmp && rm -rf $CONF_DIR/amsnotset.tmp
+	for addr in $(cat $CONF_DIR/amsallexp.tmp); do
+		if [ $(grep -o "$addr" $CONF_DIR/amsallexp.tmp | wc -l) -ge 2 ]; then
+			ipset add gfwlist $addr &>/dev/null
+			$(ipset list chnlist | grep -q "$addr") && ipset del chnlist $addr &>/dev/null
+			sed -i '/'$addr'/d' $CONF_DIR/CHNwhiteip.conf
+			sed -i '/'$addr'/d' $CONF_DIR/GFWblackip.conf
+			echo $addr >> $CONF_DIR/GFWblackip.conf
+			sed -i '/'$addr'/d' $CONF_DIR/amsallexp.tmp
+			sed -i '/'$addr'/d' $CONF_DIR/amsallexp.set
+			sed -i '/'$addr'/d' $CONF_DIR/amsallexp.txt
+			sed -i '/ DST='$addr'/d' /tmp/syslog.log || goout
+		fi
+	done
 	cat $CONF_DIR/amsallexp.txt >> $CONF_DIR/amsallexp.tmp && rm -rf $CONF_DIR/amsallexp.txt
 	mv -f $CONF_DIR/amsallexp.tmp $CONF_DIR/amsallexp.txt && rm -rf $CONF_DIR/amsallexp.tmp
+	daten && [ $(cat $CONF_DIR/amsallexp.txt 2>/dev/null | wc -l) -ge 1 ] && return 0 || return 1
 }
 
 reconnection(){
-	[ $(daten -l) -ge 17 ] && echo "watchcat_reconnection" > $statusfile || goout
+	echo "watchcat_reconnection" > $statusfile && [ $(daten -l) -ge 17 ] || goout
 	scout "$gfw_domain" || scout "$gfw_domain"
 	if [ "$?" = "0" ]; then
 		loger "├──连接正常" && count $netdpcount +- 0 && goout || goout
@@ -145,43 +152,43 @@ automaticset(){
 		bouts=50
 	fi
 	while [ $inams -lt $bouts ]; do
-		amsgetnotset
-		for ip in $(cat $CONF_DIR/amsallexp.txt); do
+		amsgetnotset && for ip in $(cat $CONF_DIR/amsallexp.txt 2>/dev/null); do
 			$(ping -c 1 -s 36 -W 1 -w 1 -q $ip | grep -q '1 packets received')
 			if [ "$?" = "0" ]; then
 				ipset add chnlist $ip &>/dev/null
-				ipset del gfwlist $ip &>/dev/null
+				$(ipset list gfwlist | grep -q "$addr") && ipset del gfwlist $ip &>/dev/null
 				sed -i '/'$ip'/d' $CONF_DIR/GFWblackip.conf
 				sed -i '/'$ip'/d' $CONF_DIR/CHNwhiteip.conf
 				echo $ip >> $CONF_DIR/CHNwhiteip.conf
+				sed -i '/'$ip'/d' $CONF_DIR/amsallexp.set
+				echo $ip >> $CONF_DIR/amsallexp.set
 			else
 				ipset add gfwlist $ip &>/dev/null
-				ipset del chnlist $ip &>/dev/null
+				$(ipset list chnlist | grep -q "$addr") && ipset del chnlist $ip &>/dev/null
 				sed -i '/'$ip'/d' $CONF_DIR/CHNwhiteip.conf
 				sed -i '/'$ip'/d' $CONF_DIR/GFWblackip.conf
 				echo $ip >> $CONF_DIR/GFWblackip.conf
+				sed -i '/'$ip'/d' $CONF_DIR/amsallexp.set
 			fi
-			sed -i '/'$ip'/d' $CONF_DIR/amsallexp.set
-			echo $ip >> $CONF_DIR/amsallexp.set
 			sed -i '/'$ip'/d' $CONF_DIR/amsallexp.txt
 			sed -i '/ DST='$ip'/d' /tmp/syslog.log || goout
-			daten
+			inams=$((inams+1)) && daten
 		done
-		rm -rf $CONF_DIR/amsallexp.txt
-		sleep 1
-		inams=$((inams+1))
+		inams=$((inams+1)) && sleep 1 && rm -rf $CONF_DIR/amsallexp.txt
 	done
 }
 
-check_log_file(){
+check_cat_file(){
 	$(cat "$CRON_CONF" 2>/dev/null | grep -q "ss-watchcat.sh") && cronboot="1" || cronboot="0"
 	[ "$cronboot" = "1" ] || rm -rf $ssp_log_file
 	[ -e $ssp_log_file ] && loger "└──$(infor)" || \
 	echo "$(date "+%Y-%m-%d_%H:%M:%S")_$logmark└──$(infor)" > $ssp_log_file
+	$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_automaticset') && \
+	echo "daten_stopwatchcat" > $statusfile && sleep 1 && loger "├──关闭自动配置"
 	[ $(stat -c %s $ssp_log_file) -lt $max_log_bytes ] || \
 	sed -i '/'$(tail -n 1 $ssp_log_file | awk -F: '{print $1}')'/d' $ssp_log_file
-	[ $(stat -c %s $redir_log_file) -lt $max_log_bytes ] || \
-	echo "$(date "+%Y-%m-%d_%H:%M:%S")_$logmark├──日志文件过大!清空日志文件" > $redir_log_file
+	touch $redir_log_file && [ $(stat -c %s $redir_log_file) -lt $max_log_bytes ] || \
+	echo "$(date "+%Y-%m-%d_%H:%M:%S")_$logmark───日志文件过大!清空日志文件" > $redir_log_file
 	[ "$cronboot" = "1" ] || goout
 	return 0
 }
@@ -193,21 +200,11 @@ check_cat_sole(){
 	return 0
 }
 
-check_restart_ssp(){
-	echo "check_restart_ssp" > $statusfile
-	!(ipset list -n | grep -q 'gfwlist') && watchcat_restart_ssp 3
-	!(iptables-save -c | grep -q "SSP_") && watchcat_restart_ssp 2
-	!(pidof ss-redir &>/dev/null) && watchcat_restart_ssp 1
-	return 0
-}
-
 check(){
-	$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_automaticset') && \
-	echo "daten_stopwatchcat" > $statusfile
-	check_log_file
+	ulimit -t 60
+	check_cat_file
 	check_cat_sole
-	ulimit -n 65536
-	watchcat_stop_ssp || watchcat_start_ssp || check_restart_ssp
+	watchcat_stop_ssp || watchcat_start_ssp || return 0
 }
 
 check && automaticset && reconnection || goout

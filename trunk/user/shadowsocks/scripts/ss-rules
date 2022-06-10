@@ -72,12 +72,9 @@ ipset -! restore <<-EOF || return 1
   $(for privateaddr in $private_addr; do echo "add private $privateaddr"; done)
   $(for blackip in $black_ip; do echo "add gfwlist $blackip"; done)
   $(for whiteip in $white_ip; do echo "add chnlist $whiteip"; done)
-  $(!(cat "$gfw_list" 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") || \
-  sed -e "s/^/add gfwlist /" ${gfw_list:=/dev/null} 2>/dev/null)
-  $(!(cat "$chn_list" 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") || \
-  sed -e "s/^/add chnlist /" ${chn_list:=/dev/null} 2>/dev/null)
-  $(!(cat "$chnexp_list" 2>/dev/null | grep -q -E "^([0-9]{1,3}\.){3}[0-9]{1,3}") || \
-  sed -e "s/^/add chnlist /" ${chnexp_list:=/dev/null} 2>/dev/null)
+  $(cat ${gfw_list:=/dev/null} 2>/dev/null | grep -E "^([0-9]{1,3}\.){3}[0-9]{1,3}" | sed -e "s/^/add gfwlist /")
+  $(cat ${chn_list:=/dev/null} 2>/dev/null | grep -E "^([0-9]{1,3}\.){3}[0-9]{1,3}" | sed -e "s/^/add chnlist /")
+  $(cat ${chnexp_list:=/dev/null} 2>/dev/null | grep -E "^([0-9]{1,3}\.){3}[0-9]{1,3}" | sed -e "s/^/add chnlist /")
 EOF
 return 0
 }
@@ -97,7 +94,7 @@ $iptn -A SSP_RULES -m set --match-set private dst -j RETURN
 [ "$agent_mode" == "1" ] && $iptn -A SSP_RULES -m set --match-set chnlist dst -j RETURN
 [ "$agent_mode" != "0" ] && $iptn -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
 [ "$agent_mode" == "2" ] && $iptn -A SSP_RULES -m set --match-set chnlist dst -j RETURN
-[ "$agent_mode" != "0" ] && $iptn -A SSP_RULES -j LOG --log-prefix "ipnotset "
+[ "$agent_mode" == "2" ] && $iptn -A SSP_RULES -j LOG --log-prefix "ipnotset "
 [ "$agent_mode" == "1" ] && $iptn -A SSP_RULES -j SSP_AGENT
 [ "$agent_mode" == "2" ] && $iptn -A SSP_RULES -j RETURN
 $iptn -A SSP_AGENT -p tcp -j REDIRECT --to-ports $local_port
@@ -109,11 +106,11 @@ return 0
 ipt_filter()
 {
 $iptf -N SSP_INPUT
-$iptf -A SSP_INPUT -s $server_addr -p tcp -m tcp --tcp-flags RST RST -m limit --limit 1/hour --limit-burst 1 -j RETURN
-$iptf -A SSP_INPUT -s $server_addr -p tcp -m tcp --tcp-flags RST RST -j DROP
 $iptf -A SSP_INPUT -m set --match-set private src -j RETURN
-$iptf -A SSP_INPUT -p tcp -m tcp --tcp-flags RST RST -m state --state RELATED,ESTABLISHED -m limit --limit 1/min --limit-burst 1 -j RETURN
-$iptf -A SSP_INPUT -p tcp -m tcp --tcp-flags RST RST -j DROP
+$iptf -A SSP_INPUT -s $server_addr -p tcp -m tcp --tcp-flags RST RST -m state --state RELATED,ESTABLISHED -m limit --limit 1/min --limit-burst 1 -j RETURN
+$iptf -A SSP_INPUT -s $server_addr -p tcp -m tcp --tcp-flags RST RST -j DROP
+$iptf -A SSP_INPUT -p tcp -m tcp --tcp-flags RST RST -m state --state INVALID,NEW -j DROP
+$iptf -A SSP_INPUT -j RETURN
 $iptf -I INPUT 1 -j SSP_INPUT
 return 0
 }
@@ -139,7 +136,7 @@ $iptm -A SSP_RULES -m set --match-set private dst -j RETURN
 [ "$agent_mode" == "1" ] && $iptm -A SSP_RULES -m set --match-set chnlist dst -j RETURN
 [ "$agent_mode" != "0" ] && $iptm -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
 [ "$agent_mode" == "2" ] && $iptm -A SSP_RULES -m set --match-set chnlist dst -j RETURN
-[ "$agent_mode" != "0" ] && $iptm -A SSP_RULES -j LOG --log-prefix "ipnotset "
+[ "$agent_mode" == "2" ] && $iptm -A SSP_RULES -j LOG --log-prefix "ipnotset "
 [ "$agent_mode" == "1" ] && $iptm -A SSP_RULES -j SSP_AGENT
 [ "$agent_mode" == "2" ] && $iptm -A SSP_RULES -j RETURN
 $iptm -A SSP_AGENT -j CONNMARK --restore-mark
@@ -209,10 +206,10 @@ while getopts ":s:i:g:c:e:b:w:a:tmfh" arg; do
       agent_mode="$OPTARG"
       ;;
     t)
-      gen_ipset && ipt_nat && ipt_filter
+      flush_rules 2>/dev/null && gen_ipset && ipt_nat && ipt_filter
       ;;
     m)
-      gen_ipset && ipt_nat && ipt_filter && ipt_mangle
+      flush_rules 2>/dev/null && gen_ipset && ipt_nat && ipt_filter && ipt_mangle
       ;;
     f)
       flush_rules 2>/dev/null

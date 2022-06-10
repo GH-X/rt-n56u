@@ -43,6 +43,8 @@ dnstcpsp=$(echo "$ss_dns_s" | sed 's/:/~/g')
 
 dnsfslsp="127.0.0.1#$ss_dns_p"
 dnsgfwdt="/etc/storage/gfwlist/gfwlist_domain.txt"
+dnsgfwdp="$CONF_DIR/gfwlist_domain.txt"
+dnsgfwdm="$CONF_DIR/gfwlist_domain.md5"
 dnsgfwdc="$CONF_DIR/gfwlist/dnsmasq.conf"
 dnsmasqc="/etc/storage/dnsmasq/dnsmasq.conf"
 
@@ -52,7 +54,7 @@ dnsmasqc="/etc/storage/dnsmasq/dnsmasq.conf"
 [ "$ssp_type" = "9" ] && bin_type="Auto"
 [ "$bin_type" = "Trojan" -o "$bin_type" = "Auto" ] && [ "$(nvram get ss-tunnel_enable)" = "1" ] && nvram set ss-tunnel_enable=0
 [ "$(nvram get dns_forwarder_enable)" = "1" ] && [ "$(nvram get ss-tunnel_enable)" = "1" ] && nvram set ss-tunnel_enable=0
-[ ! -d "$CONF_DIR/gfwlist" ] && mkdir -p "$CONF_DIR/gfwlist"
+[ ! -d "$CONF_DIR/gfwlist" ] && mkdir -p "$CONF_DIR/gfwlist" && echo "1" > $errorcount
 [ -e /tmp/trojan ] && chmod +x /tmp/trojan && ssp_trojan="/tmp/trojan" || ssp_trojan="/usr/bin/trojan"
 [ -e /tmp/ss-v2ray-plugin ] && chmod +x /tmp/ss-v2ray-plugin && ssp_v2rp="/tmp/ss-v2ray-plugin" || ssp_v2rp="/usr/bin/ss-v2ray-plugin"
 [ -L /etc/storage/chinadns/chnroute.txt ] && [ ! -e /tmp/chnroute.txt ] && \
@@ -73,7 +75,6 @@ $(cat $CONF_DIR/$bin_type-jsonlist 2>/dev/null | grep -q "$bin_type-redir") || r
 [ "$(cat $CONF_DIR/Auto-jsonlist 2>/dev/null | wc -l)" = "$nodesnum" ] || return 1
 $(cat $CONF_DIR/Auto-jsonlist 2>/dev/null | grep -q "$nodenewa#$nodenewp#") || return 1
 [ "$(cat $CONF_DIR/$bin_type-jsonlist 2>/dev/null | wc -l)" != "1" ] || return 0
-!(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_restart_ssp_rule') || return 0
 logger -st "SSP[$$]$bin_type" "更换配置文件"
 turn_temp=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist)
 turn_json=${turn_temp:0}
@@ -258,6 +259,28 @@ fi
 [ -n "$redir_json_file" ] && return 0 || return 1
 }
 
+custom_gfwlist()
+{
+gfwdnum=$(cat $dnsgfwdt | grep -v '^\.' | wc -l)
+gfwfnum=${gfwdnum:0}
+cp -rf $dnsgfwdt $dnsgfwdp
+md5sum $dnsgfwdp > $dnsgfwdm
+sed -i '/^\./d' $dnsgfwdp
+for addgfw in $(nvram get ss_custom_gfwlist); do
+  [ "$addgfw" != "" ] && $(echo $addgfw | grep -v -q '^\.') && echo ".$addgfw" >> $dnsgfwdp
+done
+md5sum -c -s $dnsgfwdm
+[ "$?" != "0" ] && rm -rf $dnsgfwdt && cp -rf $dnsgfwdp $dnsgfwdt
+rm -rf $dnsgfwdp && rm -rf $dnsgfwdm
+if [ $(cat $dnsgfwdt | wc -l) -ge $gfwfnum ]; then
+  return 0
+else
+  logger -st "SSP[$$]WARNING" "自定义黑名单域名发生错误!恢复默认黑名单域名"
+  rm -rf $dnsgfwdt && tar jxf /etc_ro/gfwlist.bz2 -C /etc/storage/gfwlist
+  return 1
+fi
+}
+
 del_dns_conf()
 {
 logger -st "SSP[$$]$bin_type" "清除解析规则"
@@ -273,10 +296,11 @@ restart_dhcpd
 
 get_dns_conf()
 {
+custom_gfwlist
 [ "$1" != "dnsmasq-tcp" ] && grep -v '^#' $dnsgfwdt | grep -v '^$' | awk '{printf("server=/%s/'$dnsfslsp'\n", $1, $1 )}' >> $dnsgfwdc
 [ "$1" != "dnsmasq-tcp" ] && grep -v '^#' $dnsgfwdt | grep -v '^$' | awk '{printf("ipset=/%s/gfwlist\n", $1, $1 )}' >> $dnsgfwdc
 sed -i 's/^### gfwlist related.*/### gfwlist related resolve by '$1' '$2'/g' $dnsmasqc
-[ "$1" != "dnsmasq-tcp" ] && sed -i 's/^#min-cache-ttl=/min-cache-ttl=/g' $dnsmasqc
+sed -i 's/^#min-cache-ttl=/min-cache-ttl=/g' $dnsmasqc
 [ "$1" != "dnsmasq-tcp" ] && sed -i 's/^#conf-dir=/conf-dir=/g' $dnsmasqc
 [ "$1" == "dnsmasq-tcp" ] && sed -i 's:^#gfwlist='$dnsgfwdt'.*:gfwlist='$dnsgfwdt'@'$dnstcpsp':g' $dnsmasqc
 return 0
@@ -335,6 +359,12 @@ black_ip()
 echo " -b $dnsfsmip"
 }
 
+white_ip()
+{
+addchn=$(nvram get ss_custom_chnroute | sed 's/[[:space:]]/,/g')
+[ "$addchn" != "" ] && echo " -w $addchn" || echo ""
+}
+
 agent_mode()
 {
 if [ "$ss_mode" = "0" ]; then # global
@@ -357,31 +387,33 @@ fi
 
 udp_ext()
 {
-if [ "$(nvram get ss_udp)" = "1" ]; then
-  if [ "$ssp_server_type" = "SS" ] || [ "$ssp_server_type" = "SSR" ]; then
-    echo " -u"
-  fi
+if [ "$(nvram get ss_udp)" = "1" ] && [ "$ssp_server_type" = "SS" -o "$ssp_server_type" = "SSR" ]; then
+  echo " -u"
+else
+  echo ""
 fi
 }
 
 stop_rules()
 {
 killall -q -9 ss-rules
-logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f && restart_firewall && \
-!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q 'gfwlist') && \
+logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f && \
+!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q 'private') && \
+!(ipset list -n | grep -q 'gfwlist') && !(ipset list -n | grep -q 'chnlist') && \
 logger -st "SSP[$$]$bin_type" "透明代理已经关闭"
 }
 
 start_rules()
 {
-logger -st "SSP[$$]$bin_type" "开启透明代理" && \
+logger -st "SSP[$$]$bin_type" "开启透明代理"
 ss-rules\
- -s "$ssp_server_addr"\
+ -s $(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $1}')\
  -i "$ss_local_port"\
 $(gfw_list)\
 $(chn_list)\
 $(chnexp_list)\
 $(black_ip)\
+$(white_ip)\
 $(agent_mode)\
 $(agent_pact)
 }
@@ -406,19 +438,20 @@ return $?
 
 stop_watchcat()
 {
-(sed -i '/ss-watchcat.sh/d' $CRON_CONF && restart_crond)&
-(killall -q -9 ss-watchcat.sh)&
-(rm -rf $statusfile
+echo "daten_stopwatchcat" > $statusfile && sleep 1 && logger -st "SSP[$$]$bin_type" "关闭自动配置"
+sed -i '/ss-watchcat.sh/d' $CRON_CONF && restart_crond
+killall -q -9 ss-watchcat.sh
+rm -rf $statusfile
 rm -rf $netdpcount
 rm -rf $errorcount
-rm -rf $issjfinfor)&
-wait
+rm -rf $issjfinfor
 return 0
 }
 
 ncron()
 {
 !(cat "$CRON_CONF" 2>/dev/null | grep -q "ss-watchcat.sh") && \
+sed -i '/ss-watchcat.sh/d' $CRON_CONF && \
 echo "*/$1 * * * * nohup /usr/bin/ss-watchcat.sh 2>/dev/null &" >> $CRON_CONF || return 1
 }
 
@@ -438,31 +471,31 @@ return 0
 
 stop_ssp()
 {
-[ -n "$1" ] && logger -st "SSP[$$]WARNING" "$1" && nvram set ss_enable=0
-[ "$(nvram get ss_enable)" = "0" ] && echo "daten_stopwatchcat" > $statusfile && del_json_file
-$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_stop_ssp') || \
-$(cat "$statusfile" 2>/dev/null | grep -q "watchcat_restart_ssp_") || stop_watchcat
+$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_stop_ssp') || stop_watchcat
 del_dns_conf
 stop_rules
 stop_redir
-(if [ -e "$CONF_DIR/amsallexp.set" ] || [ -e "$CONF_DIR/amsallexp.txt" ]; then
+if [ "$(nvram get ss_enable)" = "0" ]; then
+  del_json_file
+  custom_gfwlist
+fi
+if [ -e "$CONF_DIR/amsallexp.set" ] || [ -e "$CONF_DIR/amsallexp.txt" ]; then
   cat $CONF_DIR/amsallexp.set $CONF_DIR/amsallexp.txt 2>/dev/null | sort -u >> $CONF_DIR/amsallexp.tmp && \
   rm -rf $CONF_DIR/amsallexp.set && rm -rf $CONF_DIR/amsallexp.txt && \
   mv -f $CONF_DIR/amsallexp.tmp $CONF_DIR/amsallexp.txt
-fi)&
-wait
-[ -n "$1" ] && logger -st "SSP[$$]WARNING" "启动失败" && exit 1 || return 0
+fi
+return 0
 }
 
 start_ssp()
 {
 ulimit -n 65536
-logger -st "SSP[$$]$bin_type" "开始启动" && gen_json_file || stop_ssp "配置文件发生错误"
-$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_start_ssp') || \
-$(cat "$statusfile" 2>/dev/null | grep -q "watchcat_restart_ssp_") || stop_watchcat
-start_redir || stop_ssp "代理进程发生错误"
-start_rules || stop_ssp "透明代理发生错误"
-gen_dns_conf || stop_ssp "解析规则发生错误"
+[ $(tail -n +1 "$errorcount") -ge 1 ] && scron 1 && exit 0
+$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_start_ssp') || stop_watchcat
+logger -st "SSP[$$]$bin_type" "开始启动" && gen_json_file || echo "1" > $errorcount
+start_redir || echo "1" > $errorcount
+start_rules || echo "1" > $errorcount
+gen_dns_conf || echo "1" > $errorcount
 echo "$ssp_server_type──$ssp_server_addr:$ssp_server_port──[$redir_json_file]" > $issjfinfor
 sleep 1 && pidof ss-watchcat.sh &>/dev/null && STA_LOG="重启完成" || /usr/bin/ss-watchcat.sh
 logger -st "SSP[$(pidof $redir_bin)]$ssp_server_type" "$ssp_server_addr:$ssp_server_port [$redir_json_file] ${STA_LOG:=成功启动}" && scron 1
@@ -484,11 +517,8 @@ rednsconf)
   del_dns_conf
   gen_dns_conf
   ;;
-cleandnsconf)
-  del_dns_conf
-  ;;
 *)
-  echo "Usage: $0 { start | stop | restart | rednsconf | cleandnsconf }"
+  echo "Usage: $0 { stop | start | restart | rednsconf }"
   exit 1
   ;;
 esac
