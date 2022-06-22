@@ -2,6 +2,7 @@
 
 CONF_DIR="/tmp/SSP"
 statusfile="$CONF_DIR/statusfile"
+areconnect="$CONF_DIR/areconnect"
 netdpcount="$CONF_DIR/netdpcount"
 errorcount="$CONF_DIR/errorcount"
 ssp_log_file="/tmp/ss-watchcat.log"
@@ -47,14 +48,14 @@ count(){
 godet(){
 	if !(iptables-save -c | grep -q "SSP_") || !(ipset list -n | grep -q 'private') || \
 	!(ipset list -n | grep -q 'gfwlist') || !(ipset list -n | grep -q 'chnlist'); then
-		count $errorcount ++ 1
+		count $errorcount ++ 1 && count $areconnect +- 0
 	fi
-	!(pidof ss-redir &>/dev/null) && count $errorcount ++ 1
 	for sspredirPID in $(pidof ss-redir); do
 		sspredirRSS=$(cat /proc/$sspredirPID/status | grep 'VmRSS' | \
 		sed 's/[[:space:]]//g' | sed 's/kB//g' | awk -F: '{print $2}')
-		[ $sspredirRSS -ge $redirmaxRAM ] && count $errorcount +- 5
+		[ $sspredirRSS -ge $redirmaxRAM ] && count $errorcount +- 5 && count $areconnect +- 0
 	done
+	!(pidof ss-redir &>/dev/null) && count $errorcount ++ 1
 	return 0
 }
 
@@ -134,7 +135,7 @@ reconnection(){
 			[ "$autorec" = "1" ] && count $netdpcount ++ 1 && \
 			[ $(count $netdpcount) -ge 3 ] && count $errorcount ++ 1 && goout || goout
 		elif [ "$?" = "1" ]; then
-			count $errorcount ++ 1 && goout || goout
+			count $errorcount ++ 1 && count $areconnect +- 0 && goout || goout
 		else
 			goout
 		fi
@@ -184,7 +185,7 @@ check_cat_file(){
 	[ -e $ssp_log_file ] && loger "└──$(infor)" || \
 	echo "$(date "+%Y-%m-%d_%H:%M:%S")_$logmark└──$(infor)" > $ssp_log_file
 	$(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_automaticset') && \
-	echo "daten_stopwatchcat" > $statusfile && sleep 1 && loger "├──关闭自动配置"
+	echo "daten_stopwatchcat" > $statusfile && sleep 1 && loger "├──关闭地址集合自动配置"
 	[ $(stat -c %s $ssp_log_file) -lt $max_log_bytes ] || \
 	sed -i '/'$(tail -n 1 $ssp_log_file | awk -F: '{print $1}')'/d' $ssp_log_file
 	touch $redir_log_file && [ $(stat -c %s $redir_log_file) -lt $max_log_bytes ] || \

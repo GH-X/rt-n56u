@@ -18,11 +18,13 @@ v2rp_link="/var/v2ray-plugin"
 CONF_DIR="/tmp/SSP"
 redir_log_file="/tmp/ss-redir.log"
 statusfile="$CONF_DIR/statusfile"
+areconnect="$CONF_DIR/areconnect"
 netdpcount="$CONF_DIR/netdpcount"
 errorcount="$CONF_DIR/errorcount"
 issjfinfor="$CONF_DIR/issjfinfor"
 CRON_CONF="/etc/storage/cron/crontabs/$(nvram get http_username)"
 
+autorec=$(nvram get ss_watchcat_autorec)
 ss_type=$(nvram get ss_type)
 ssp_type=${ss_type:0} # 0=ss 1=ssr 2=trojan 9=auto
 ss_mode=$(nvram get ss_mode) # 0=global 1=chnroute 2=gfwlist
@@ -30,14 +32,9 @@ ss_local_port=$(nvram get ss_local_port)
 ss_mtu=$(nvram get ss_mtu)
 ss_tunnel_mtu=$(nvram get ss-tunnel_mtu)
 ss_timeout=$(nvram get ss_timeout)
-
-nodesnum=$(nvram get ss_server_num_x)
-nodenewn=$(expr $nodesnum - 1)
-nodenewa=$(nvram get ss_server_addr_x$nodenewn)
-nodenewp=$(nvram get ss_server_port_x$nodenewn)
-
 ss_dns_p=$(nvram get ss_dns_local_port)
 ss_dns_s=$(nvram get ss_dns_remote_server)
+nodesnum=$(nvram get ss_server_num_x)
 dnsfsmip=$(echo "$ss_dns_s" | awk -F: '{print $1}')
 dnstcpsp=$(echo "$ss_dns_s" | sed 's/:/~/g')
 
@@ -54,7 +51,7 @@ dnsmasqc="/etc/storage/dnsmasq/dnsmasq.conf"
 [ "$ssp_type" = "9" ] && bin_type="Auto"
 [ "$bin_type" = "Trojan" -o "$bin_type" = "Auto" ] && [ "$(nvram get ss-tunnel_enable)" = "1" ] && nvram set ss-tunnel_enable=0
 [ "$(nvram get dns_forwarder_enable)" = "1" ] && [ "$(nvram get ss-tunnel_enable)" = "1" ] && nvram set ss-tunnel_enable=0
-[ ! -d "$CONF_DIR/gfwlist" ] && mkdir -p "$CONF_DIR/gfwlist" && echo "1" > $errorcount
+[ ! -d "$CONF_DIR/gfwlist" ] && mkdir -p "$CONF_DIR/gfwlist" && echo "1" > $errorcount && echo "0" > $areconnect
 [ -e /tmp/trojan ] && chmod +x /tmp/trojan && ssp_trojan="/tmp/trojan" || ssp_trojan="/usr/bin/trojan"
 [ -e /tmp/ss-v2ray-plugin ] && chmod +x /tmp/ss-v2ray-plugin && ssp_v2rp="/tmp/ss-v2ray-plugin" || ssp_v2rp="/usr/bin/ss-v2ray-plugin"
 [ -L /etc/storage/chinadns/chnroute.txt ] && [ ! -e /tmp/chnroute.txt ] && \
@@ -65,16 +62,29 @@ del_json_file()
 logger -st "SSP[$$]$bin_type" "清除配置文件"
 rm -rf $CONF_DIR/*.json
 rm -rf $CONF_DIR/*-jsonlist
+rm -rf $CONF_DIR/Nodes-list
+rm -rf $CONF_DIR/Nodes-list.md5
 return 0
 }
 
 turn_json_file()
 {
-[ "$bin_type" = "Auto" ] || \
-$(cat $CONF_DIR/$bin_type-jsonlist 2>/dev/null | grep -q "$bin_type-redir") || return 1
-[ "$(cat $CONF_DIR/Auto-jsonlist 2>/dev/null | wc -l)" = "$nodesnum" ] || return 1
-$(cat $CONF_DIR/Auto-jsonlist 2>/dev/null | grep -q "$nodenewa#$nodenewp#") || return 1
+[ -e "$CONF_DIR/Nodes-list.md5" ] && rm -rf $CONF_DIR/Nodes-list && for i in $(seq 1 $nodesnum); do
+  j=$(expr $i - 1)
+  node_type=$(nvram get ss_server_type_x$j)      # 0  1   2
+  server_addr=$(nvram get ss_server_addr_x$j)    # SS SSR Trojan
+  server_port=$(nvram get ss_server_port_x$j)    # SS SSR Trojan
+  server_key=$(nvram get ss_server_key_x$j)      # SS SSR Trojan
+  server_sni=$(nvram get ss_server_sni_x$j)      # SS     Trojan
+  ss_method=$(nvram get ss_method_x$j)           # SS SSR
+  ss_protocol=$(nvram get ss_protocol_x$j)       #    SSR
+  ss_proto_param=$(nvram get ss_proto_param_x$j) #    SSR
+  ss_obfs=$(nvram get ss_obfs_x$j)               # SS SSR
+  ss_obfs_param=$(nvram get ss_obfs_param_x$j)   # SS SSR
+  echo "$i#$node_type#$server_addr#$server_port#$server_key#$server_sni#$ss_method#$ss_protocol#$ss_proto_param#$ss_obfs#$ss_obfs_param" >> $CONF_DIR/Nodes-list
+done && md5sum -c -s $CONF_DIR/Nodes-list.md5 || return 1
 [ "$(cat $CONF_DIR/$bin_type-jsonlist 2>/dev/null | wc -l)" != "1" ] || return 0
+[ "$(tail -n 1 $areconnect 2>/dev/null)" = "1" ] || return 0
 logger -st "SSP[$$]$bin_type" "更换配置文件"
 turn_temp=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist)
 turn_json=${turn_temp:0}
@@ -85,24 +95,28 @@ return 0
 
 gen_json_file()
 {
-turn_json_file || del_json_file
 [ $nodesnum -ge 1 ] || stop_ssp "请到[节点设置]添加服务器"
-if [ ! -e "$CONF_DIR/Auto-jsonlist" ]; then
+turn_json_file || del_json_file
+[ "$autorec" = "1" ] && echo "1" > $areconnect || echo "0" > $areconnect
+if [ ! -e "$CONF_DIR/Nodes-list.md5" ]; then
   logger -st "SSP[$$]$bin_type" "创建配置文件"
   for i in $(seq 1 $nodesnum); do
     j=$(expr $i - 1)
-    node_type=$(nvram get ss_server_type_x$j)
+    node_type=$(nvram get ss_server_type_x$j)      # 0  1   2
+    server_addr=$(nvram get ss_server_addr_x$j)    # SS SSR Trojan
+    server_port=$(nvram get ss_server_port_x$j)    # SS SSR Trojan
+    server_key=$(nvram get ss_server_key_x$j)      # SS SSR Trojan
+    server_sni=$(nvram get ss_server_sni_x$j)      # SS     Trojan
+    ss_method=$(nvram get ss_method_x$j)           # SS SSR
+    ss_protocol=$(nvram get ss_protocol_x$j)       #    SSR
+    ss_proto_param=$(nvram get ss_proto_param_x$j) #    SSR
+    ss_obfs=$(nvram get ss_obfs_x$j)               # SS SSR
+    ss_obfs_param=$(nvram get ss_obfs_param_x$j)   # SS SSR
+    echo "$i#$node_type#$server_addr#$server_port#$server_key#$server_sni#$ss_method#$ss_protocol#$ss_proto_param#$ss_obfs#$ss_obfs_param" >> $CONF_DIR/Nodes-list
     [ "$node_type" = "0" ] && server_type="SS"
     [ "$node_type" = "1" ] && server_type="SSR"
     [ "$node_type" = "2" ] && server_type="Trojan"
     if [ "$server_type" = "SS" ]; then
-      server_addr=$(nvram get ss_server_addr_x$j)
-      server_port=$(nvram get ss_server_port_x$j)
-      server_key=$(nvram get ss_server_key_x$j)
-      server_sni=$(nvram get ss_server_sni_x$j)
-      ss_method=$(nvram get ss_method_x$j)
-      ss_obfs=$(nvram get ss_obfs_x$j)
-      ss_obfs_param=$(nvram get ss_obfs_param_x$j)
       if [ "$ss_obfs" = "v2ray_plugin_websocket" ] && [ "$server_sni" == "" ]; then
         ss_pm="v2rp-HTTP" && ss_plugin="$v2rp_bin" && ss_plugin_opts=""
       elif [ "$ss_obfs" = "v2ray_plugin_websocket" ] && [ "$server_sni" != "" ]; then
@@ -149,14 +163,6 @@ EOF
 
 EOF
     elif [ "$server_type" = "SSR" ]; then
-      server_addr=$(nvram get ss_server_addr_x$j)
-      server_port=$(nvram get ss_server_port_x$j)
-      server_key=$(nvram get ss_server_key_x$j)
-      ss_method=$(nvram get ss_method_x$j)
-      ss_protocol=$(nvram get ss_protocol_x$j)
-      ss_proto_param=$(nvram get ss_proto_param_x$j)
-      ss_obfs=$(nvram get ss_obfs_x$j)
-      ss_obfs_param=$(nvram get ss_obfs_param_x$j)
       r_json_file="$i-$server_type-redir.json"
       t_json_file="$i-$server_type-tunnel.json"
       echo "$server_addr#$server_port#$r_json_file#$t_json_file#null" >> $CONF_DIR/SSR-jsonlist
@@ -196,10 +202,6 @@ EOF
 
 EOF
     elif [ "$server_type" = "Trojan" ]; then
-      server_addr=$(nvram get ss_server_addr_x$j)
-      server_port=$(nvram get ss_server_port_x$j)
-      server_key=$(nvram get ss_server_key_x$j)
-      server_sni=$(nvram get ss_server_sni_x$j)
       if [ "$server_sni" = "" ]; then
         verifyhostname="false"
       else
@@ -229,6 +231,7 @@ EOF
 EOF
     fi
   done
+  md5sum $CONF_DIR/Nodes-list > $CONF_DIR/Nodes-list.md5
 fi
 [ "$bin_type" = "Auto" ] || \
 $(cat $CONF_DIR/$bin_type-jsonlist 2>/dev/null | grep -q "$bin_type-redir") || \
@@ -433,12 +436,12 @@ start_redir()
 logger -st "SSP[$$]$bin_type" "启动代理进程" && \
 nohup $redir_bin -c $CONF_DIR/$redir_json_file $(udp_ext) &>$redir_log_file &
 $(sleep 1 && pidof $redir_bin &>/dev/null) || $(sleep 1 && pidof $redir_bin &>/dev/null)
-return $?
+[ "$?" = "1" ] && echo "1" > $areconnect && return 1 || return 0
 }
 
 stop_watchcat()
 {
-echo "daten_stopwatchcat" > $statusfile && sleep 1 && logger -st "SSP[$$]$bin_type" "关闭自动配置"
+echo "daten_stopwatchcat" > $statusfile && sleep 1 && logger -st "SSP[$$]$bin_type" "关闭地址集合自动配置"
 sed -i '/ss-watchcat.sh/d' $CRON_CONF && restart_crond
 killall -q -9 ss-watchcat.sh
 rm -rf $statusfile
@@ -478,6 +481,7 @@ stop_redir
 if [ "$(nvram get ss_enable)" = "0" ]; then
   del_json_file
   custom_gfwlist
+  rm -rf $areconnect
 fi
 if [ -e "$CONF_DIR/amsallexp.set" ] || [ -e "$CONF_DIR/amsallexp.txt" ]; then
   cat $CONF_DIR/amsallexp.set $CONF_DIR/amsallexp.txt 2>/dev/null | sort -u >> $CONF_DIR/amsallexp.tmp && \
@@ -490,7 +494,7 @@ return 0
 start_ssp()
 {
 ulimit -n 65536
-[ $(tail -n +1 "$errorcount") -ge 1 ] && scron 1 && exit 0
+[ $(tail -n +1 "$errorcount" 2>/dev/null) -ge 1 ] && scron 1 && exit 0
 $(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_start_ssp') || stop_watchcat
 logger -st "SSP[$$]$bin_type" "开始启动" && gen_json_file || echo "1" > $errorcount
 start_redir || echo "1" > $errorcount
