@@ -1986,16 +1986,23 @@ static int mentohust_status_hook(int eid, webs_t wp, int argc, char **argv)
 #if defined (APP_SHADOWSOCKS)
 static int shadowsocks_action_hook(int eid, webs_t wp, int argc, char **argv)
 {
-	int needed_seconds = 3;
+	int needed_seconds = 9;
 	char *ss_action = websGetVar(wp, "connect_action", "");
 
-	if (!strcmp(ss_action, "Reconnect")) {
+	if (!strcmp(ss_action, "subRestart")) {
+		doSystem("echo %s > %s", "0", "/tmp/SSP/areconnect");
+		needed_seconds = 9;
+	} else if (!strcmp(ss_action, "Reconnect")) {
 		notify_rc(RCN_RESTART_SHADOWSOCKS);
+		doSystem("echo %s > %s", "1", "/tmp/SSP/areconnect");
+		needed_seconds = 9;
 	} else if (!strcmp(ss_action, "Update_chnroute")) {
 		notify_rc(RCN_RESTART_CHNROUTE_UPD);
+		doSystem("echo %s > %s", "0", "/tmp/SSP/areconnect");
 		needed_seconds = 1;
 	} else if (!strcmp(ss_action, "Update_gfwlist")) {
 		notify_rc(RCN_RESTART_GFWLIST_UPD);
+		needed_seconds = 1;
 	}
 	websWrite(wp, "<script>restart_needed_time(%d);</script>\n", needed_seconds);
 	return 0;
