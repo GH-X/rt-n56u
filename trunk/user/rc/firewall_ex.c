@@ -2196,6 +2196,7 @@ start_firewall_ex(void)
 #if defined (APP_SHADOWSOCKS)
 	if (nvram_match("ss_enable", "1"))
 		doSystem("echo %s > %s", "1", shadowsocks_iptables_script);
+		doSystem("echo %s > %s", "0", "/tmp/SSP/areconnect");
 #endif
 	if (check_if_file_exist(int_iptables_script))
 		doSystem("%s", int_iptables_script);
