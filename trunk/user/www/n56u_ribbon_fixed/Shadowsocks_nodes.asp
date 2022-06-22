@@ -57,8 +57,8 @@ function initial(){
 function applyRule(){
 	showLoading();
 	document.form.action_mode.value = " Restart ";
-	document.form.current_page.value = "Shadowsocks_nodes.asp";
-	document.form.next_page.value = "Shadowsocks.asp";
+	document.form.current_page.value = "/Shadowsocks_nodes.asp";
+	document.form.next_page.value = "";
 	document.form.submit();
 }
 

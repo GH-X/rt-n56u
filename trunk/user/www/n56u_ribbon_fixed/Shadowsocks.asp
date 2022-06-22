@@ -68,14 +68,14 @@ function switch_ss_type(){
 function applyRule(){
 	showLoading();
 	document.form.action_mode.value = " Restart ";
-	document.form.current_page.value = "Shadowsocks.asp";
+	document.form.current_page.value = "/Shadowsocks.asp";
 	document.form.next_page.value = "";
 	document.form.submit();
 }
 
 function submitInternet(v){
 	showLoading();
-	document.Shadowsocks_action.action = "Shadowsocks_action.asp";
+	document.Shadowsocks_action.action = "/Shadowsocks_action.asp";
 	document.Shadowsocks_action.connect_action.value = v;
 	document.Shadowsocks_action.submit();
 }
@@ -290,9 +290,9 @@ function fill_ss_forwarder_status(status_code){
                                             </td>
                                         </tr>
 
-                                        <tr>
+                                        <tr id="spoiler_chnroute_url" style="display:none;">
                                             <td colspan="2" style="text-align: center; border-top: 0 none;">
-                                                <div id="spoiler_chnroute_url" style="display:none;">
+                                                <div>
                                                     <input type="text" maxlength="90" class="input" size="90" name="chnroute_url" style="width: 654px" placeholder="<#menu5_16_17A#>" value="<% nvram_get_x("","chnroute_url"); %>">
                                                 </div>
                                             </td>
@@ -305,9 +305,9 @@ function fill_ss_forwarder_status(status_code){
                                             </td>
                                         </tr>
 
-                                        <tr>
+                                        <tr id="spoiler_custom_chnroute" style="display:none;">
                                             <td colspan="2" style="text-align: center; border-top: 0 none;">
-                                                <div id="spoiler_custom_chnroute" style="display:none;">
+                                                <div>
                                                     <input type="text" maxlength="90" class="input" size="90" name="ss_custom_chnroute" style="width: 654px" placeholder="<#menu5_16_10A#>" value="<% nvram_get_x("","ss_custom_chnroute"); %>">
                                                 </div>
                                             </td>
@@ -327,9 +327,9 @@ function fill_ss_forwarder_status(status_code){
                                             </td>
                                         </tr>
 
-                                        <tr>
+                                        <tr id="spoiler_gfwlist_url" style="display:none;">
                                             <td colspan="2" style="text-align: center; border-top: 0 none;">
-                                                <div id="spoiler_gfwlist_url" style="display:none;">
+                                                <div>
                                                     <input type="text" maxlength="90" class="input" size="90" name="gfwlist_url" style="width: 654px" placeholder="<#menu5_16_17B#>" value="<% nvram_get_x("","gfwlist_url"); %>">
                                                 </div>
                                             </td>
@@ -342,9 +342,9 @@ function fill_ss_forwarder_status(status_code){
                                             </td>
                                         </tr>
 
-                                        <tr>
+                                        <tr id="spoiler_custom_gfwlist" style="display:none;">
                                             <td colspan="2" style="text-align: center; border-top: 0 none;">
-                                                <div id="spoiler_custom_gfwlist" style="display:none;">
+                                                <div>
                                                     <input type="text" maxlength="90" class="input" size="90" name="ss_custom_gfwlist" style="width: 654px" placeholder="<#menu5_16_11A#>" value="<% nvram_get_x("","ss_custom_gfwlist"); %>">
                                                 </div>
                                             </td>
@@ -398,7 +398,7 @@ function fill_ss_forwarder_status(status_code){
 
                                         <tr>
                                             <td colspan="2">
-                                                <center><input class="btn btn-primary" style="width: 217px" type="button" value="<#CTL_apply#>" onclick="applyRule()" /></center>
+                                                <center><input class="btn btn-primary" style="width: 217px" type="button" value="<#CTL_apply#>" onclick="submitInternet('subRestart');applyRule();" /></center>
                                             </td>
                                         </tr>
                                     </table>
