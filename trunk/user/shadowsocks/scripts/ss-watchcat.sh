@@ -108,8 +108,8 @@ amsgetnotset(){
 	awk -F- '{print $2}' >> $CONF_DIR/amsallexp.tmp && rm -rf $CONF_DIR/amsnotset.tmp
 	for addr in $(cat $CONF_DIR/amsallexp.tmp); do
 		if [ $(grep -o "$addr" $CONF_DIR/amsallexp.tmp | wc -l) -ge 2 ]; then
-			ipset add gfwlist $addr &>/dev/null
 			$(ipset list chnlist | grep -q "$addr") && ipset del chnlist $addr &>/dev/null
+			$(ipset list gfwlist | grep -v -q "$addr") && ipset add gfwlist $addr &>/dev/null
 			sed -i '/'$addr'/d' $CONF_DIR/CHNwhiteip.conf
 			sed -i '/'$addr'/d' $CONF_DIR/GFWblackip.conf
 			echo $addr >> $CONF_DIR/GFWblackip.conf
@@ -156,16 +156,16 @@ automaticset(){
 		amsgetnotset && for ip in $(cat $CONF_DIR/amsallexp.txt 2>/dev/null); do
 			$(ping -c 1 -s 36 -W 1 -w 1 -q $ip | grep -q '1 packets received')
 			if [ "$?" = "0" ]; then
-				ipset add chnlist $ip &>/dev/null
-				$(ipset list gfwlist | grep -q "$addr") && ipset del gfwlist $ip &>/dev/null
+				$(ipset list gfwlist | grep -q "$ip") && ipset del gfwlist $ip &>/dev/null
+				$(ipset list chnlist | grep -v -q "$ip") && ipset add chnlist $ip &>/dev/null
 				sed -i '/'$ip'/d' $CONF_DIR/GFWblackip.conf
 				sed -i '/'$ip'/d' $CONF_DIR/CHNwhiteip.conf
 				echo $ip >> $CONF_DIR/CHNwhiteip.conf
 				sed -i '/'$ip'/d' $CONF_DIR/amsallexp.set
 				echo $ip >> $CONF_DIR/amsallexp.set
 			else
-				ipset add gfwlist $ip &>/dev/null
-				$(ipset list chnlist | grep -q "$addr") && ipset del chnlist $ip &>/dev/null
+				$(ipset list chnlist | grep -q "$ip") && ipset del chnlist $ip &>/dev/null
+				$(ipset list gfwlist | grep -v -q "$ip") && ipset add gfwlist $ip &>/dev/null
 				sed -i '/'$ip'/d' $CONF_DIR/CHNwhiteip.conf
 				sed -i '/'$ip'/d' $CONF_DIR/GFWblackip.conf
 				echo $ip >> $CONF_DIR/GFWblackip.conf
