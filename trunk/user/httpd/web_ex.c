@@ -60,6 +60,16 @@
 #define GROUP_FLAG_DELETE 	1
 #define GROUP_FLAG_ADD 		2
 #define GROUP_FLAG_REMOVE 	3
+#if defined (USE_STORAGE)
+#define FIX_BOOT_TIME		90
+#else
+#define FIX_BOOT_TIME		10
+#endif
+#if defined (APP_SHADOWSOCKS)
+#define FIX_FLASH_TIME	90
+#else
+#define FIX_FLASH_TIME	10
+#endif
 
 static int apply_cgi_group(webs_t wp, int sid, struct variable *var, const char *groupName, int flag);
 static void nvram_clr_group_temp(struct variable *v);
@@ -95,8 +105,16 @@ nvram_commit_safe(void)
 void
 sys_reboot(void)
 {
-#ifdef MTD_FLASH_32M_REBOOT_BUG
 	doSystem("/sbin/mtd_storage.sh %s", "save");
+#if defined (USE_STORAGE)
+	system("ejall");
+#endif
+#if defined (USE_USB_SUPPORT)
+#if defined (BOARD_GPIO_PWR_USB) || defined (BOARD_GPIO_PWR_USB2)
+	system("usb5v 0");
+#endif
+#endif
+#ifdef MTD_FLASH_32M_REBOOT_BUG
 	system("/bin/mtd_write -r unlock mtd1");
 #else
 	kill(1, SIGTERM);
@@ -2882,8 +2900,8 @@ static int ej_get_static_ccount(int eid, webs_t wp, int argc, char **argv)
 
 static int ej_get_flash_time(int eid, webs_t wp, int argc, char **argv)
 {
-	websWrite(wp, "function board_boot_time() { return %d;}\n", BOARD_BOOT_TIME+5);
-	websWrite(wp, "function board_flash_time() { return %d;}\n", BOARD_FLASH_TIME);
+	websWrite(wp, "function board_boot_time() { return %d;}\n", BOARD_BOOT_TIME+FIX_BOOT_TIME);
+	websWrite(wp, "function board_flash_time() { return %d;}\n", BOARD_FLASH_TIME+FIX_FLASH_TIME);
 
 	return 0;
 }
