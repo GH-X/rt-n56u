@@ -22,9 +22,11 @@ areconnect="$CONF_DIR/areconnect"
 netdpcount="$CONF_DIR/netdpcount"
 errorcount="$CONF_DIR/errorcount"
 issjfinfor="$CONF_DIR/issjfinfor"
+quickstart="$CONF_DIR/quickstart"
 CRON_CONF="/etc/storage/cron/crontabs/$(nvram get http_username)"
 
 autorec=$(nvram get ss_watchcat_autorec)
+ss_enable=$(nvram get ss_enable)
 ss_type=$(nvram get ss_type)
 ssp_type=${ss_type:0} # 0=ss 1=ssr 2=trojan 9=auto
 ss_mode=$(nvram get ss_mode) # 0=global 1=chnroute 2=gfwlist
@@ -401,7 +403,7 @@ stop_rules()
 {
 killall -q -9 ss-rules
 logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f && \
-!(iptables-save -c | grep -q "SSP_") && !(ipset list -n | grep -q 'private') && \
+!(iptables-save | grep -q "SSP_") && !(ipset list -n | grep -q 'private') && \
 !(ipset list -n | grep -q 'gfwlist') && !(ipset list -n | grep -q 'chnlist') && \
 logger -st "SSP[$$]$bin_type" "透明代理已经关闭"
 }
@@ -433,16 +435,22 @@ return 0
 
 start_redir()
 {
+cat > "$quickstart" << EOF
+#!/bin/sh
+
+nohup $redir_bin -c "$CONF_DIR/$redir_json_file"$(udp_ext) &>$redir_log_file &
+EOF
+chmod +x $quickstart
 logger -st "SSP[$$]$bin_type" "启动代理进程" && \
-nohup $redir_bin -c $CONF_DIR/$redir_json_file $(udp_ext) &>$redir_log_file &
+nohup $redir_bin -c "$CONF_DIR/$redir_json_file"$(udp_ext) &>$redir_log_file &
 $(sleep 1 && pidof $redir_bin &>/dev/null) || $(sleep 1 && pidof $redir_bin &>/dev/null)
 [ "$?" = "1" ] && echo "1" > $areconnect && return 1 || return 0
 }
 
 stop_watchcat()
 {
-echo "daten_stopwatchcat" > $statusfile && sleep 1 && logger -st "SSP[$$]$bin_type" "关闭地址集合自动配置"
 sed -i '/ss-watchcat.sh/d' $CRON_CONF && restart_crond
+echo "daten_stopwatchcat" > $statusfile && sleep 2 && logger -st "SSP[$$]$bin_type" "关闭地址集合自动配置"
 killall -q -9 ss-watchcat.sh
 rm -rf $statusfile
 rm -rf $netdpcount
@@ -455,14 +463,14 @@ ncron()
 {
 !(cat "$CRON_CONF" 2>/dev/null | grep -q "ss-watchcat.sh") && \
 sed -i '/ss-watchcat.sh/d' $CRON_CONF && \
-echo "*/$1 * * * * nohup /usr/bin/ss-watchcat.sh 2>/dev/null &" >> $CRON_CONF || return 1
+echo "*/$1 * * * * nice -n -9 nohup /usr/bin/ss-watchcat.sh 2>/dev/null &" >> $CRON_CONF || return 1
 }
 
 dcron()
 {
 $(cat "$CRON_CONF" 2>/dev/null | grep "ss-watchcat.sh" | grep -v -q "/$1") && \
 sed -i '/ss-watchcat.sh/d' $CRON_CONF && \
-echo "*/$1 * * * * nohup /usr/bin/ss-watchcat.sh 2>/dev/null &" >> $CRON_CONF || return 1
+echo "*/$1 * * * * nice -n -9 nohup /usr/bin/ss-watchcat.sh 2>/dev/null &" >> $CRON_CONF || return 1
 }
 
 scron()
@@ -474,20 +482,23 @@ return 0
 
 stop_ssp()
 {
+$([ "$ss_enable" = "0" ] && stop_watchcat) || \
 $(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_stop_ssp') || stop_watchcat
 del_dns_conf
-stop_rules
-stop_redir
-if [ "$(nvram get ss_enable)" = "0" ]; then
+if [ "$ss_enable" = "0" ]; then
+  stop_rules
   del_json_file
   custom_gfwlist
   rm -rf $areconnect
 fi
+stop_redir
 if [ -e "$CONF_DIR/amsallexp.set" ] || [ -e "$CONF_DIR/amsallexp.txt" ]; then
   cat $CONF_DIR/amsallexp.set $CONF_DIR/amsallexp.txt 2>/dev/null | sort -u >> $CONF_DIR/amsallexp.tmp && \
   rm -rf $CONF_DIR/amsallexp.set && rm -rf $CONF_DIR/amsallexp.txt && \
   mv -f $CONF_DIR/amsallexp.tmp $CONF_DIR/amsallexp.txt
 fi
+rm -rf $quickstart
+[ -n "$1" ] && logger -st "SSP[$$]WARNING" "$1"
 return 0
 }
 
@@ -496,13 +507,15 @@ start_ssp()
 ulimit -n 65536
 [ $(tail -n +1 "$errorcount" 2>/dev/null) -ge 1 ] && scron 1 && exit 0
 $(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_start_ssp') || stop_watchcat
-logger -st "SSP[$$]$bin_type" "开始启动" && gen_json_file || echo "1" > $errorcount
-start_redir || echo "1" > $errorcount
-start_rules || echo "1" > $errorcount
-gen_dns_conf || echo "1" > $errorcount
+logger -st "SSP[$$]$bin_type" "开始启动" && gen_json_file || $(echo "1" > $errorcount && logger -st "SSP[$$]WARNING" "创建配置文件出错")
+start_redir || $(echo "1" > $errorcount && logger -st "SSP[$$]WARNING" "启动代理进程出错")
+start_rules || $(echo "1" > $errorcount && logger -st "SSP[$$]WARNING" "开启透明代理出错")
+gen_dns_conf || $(echo "1" > $errorcount && logger -st "SSP[$$]WARNING" "创建解析规则出错")
 echo "$ssp_server_type──$ssp_server_addr:$ssp_server_port──[$redir_json_file]" > $issjfinfor
+[ $(tail -n +1 "$errorcount" 2>/dev/null) -ge 1 ] && scron 1 && exit 0
 sleep 1 && pidof ss-watchcat.sh &>/dev/null && STA_LOG="重启完成" || /usr/bin/ss-watchcat.sh
 logger -st "SSP[$(pidof $redir_bin)]$ssp_server_type" "$ssp_server_addr:$ssp_server_port [$redir_json_file] ${STA_LOG:=成功启动}" && scron 1
+echo "1" > $netdpcount
 return 0
 }
 

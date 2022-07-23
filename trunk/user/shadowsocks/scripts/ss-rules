@@ -2,64 +2,36 @@
 #
 # Copyright (C) 2021 GH-X
 
-private_addr="0.0.0.0/8
-              10.0.0.0/8
-              100.64.0.0/10
-              127.0.0.0/8
-              169.254.0.0/16
-              172.16.0.0/12
-              192.0.0.0/24
-              192.0.2.0/24
-              192.31.196.0/24
-              192.52.193.0/24
-              192.88.99.0/24
-              192.168.0.0/16
-              192.175.48.0/24
-              198.18.0.0/15
-              198.51.100.0/24
-              203.0.113.0/24
-              224.0.0.0/4
-              240.0.0.0/4
-              255.255.255.255/32"
+private_addr="0.0.0.0/8          10.0.0.0/8         100.64.0.0/10      127.0.0.0/8
+              169.254.0.0/16     172.16.0.0/12      192.0.0.0/24       192.0.2.0/24
+              192.31.196.0/24    192.52.193.0/24    192.88.99.0/24     192.168.0.0/16
+              192.175.48.0/24    198.18.0.0/15      198.51.100.0/24    203.0.113.0/24
+              224.0.0.0/4        240.0.0.0/4        255.255.255.255/32"
 
 iptn="iptables -t nat"
 iptm="iptables -t mangle"
 iptf="iptables -t filter"
+amtf="/tmp/SSP_AUTOM"
 
 flush_rules()
 {
-$iptn -F SSP_PREROUTING
-$iptn -F SSP_OUTPUT
-$iptn -F SSP_RULES
-$iptn -F SSP_AGENT
-$iptn -X SSP_PREROUTING
-$iptn -X SSP_OUTPUT
-$iptn -X SSP_RULES
-$iptn -X SSP_AGENT
-$iptn -D OUTPUT -j SSP_OUTPUT
-$iptn -D PREROUTING -j SSP_PREROUTING
-$iptf -F SSP_INPUT
-$iptf -X SSP_INPUT
-$iptf -D INPUT -j SSP_INPUT
-$iptm -F SSP_PREROUTING
-$iptm -F SSP_OUTPUT
-$iptm -F SSP_RULES
-$iptm -F SSP_AGENT
-$iptm -X SSP_PREROUTING
-$iptm -X SSP_OUTPUT
-$iptm -X SSP_RULES
-$iptm -X SSP_AGENT
-$iptm -D OUTPUT -j SSP_OUTPUT
-$iptm -D PREROUTING -j SSP_PREROUTING
-$iptm -D PREROUTING -p udp -m mark --mark 0x64/0x64 -j TPROXY --on-port $local_port
-ip route del local 0.0.0.0/0 dev lo table 100
-ip rule del fwmark 0x64 lookup 100
-ip route flush cache
-iptables-save -c | grep -v "SSP_" | iptables-restore -c
-iptables-save -c | grep -v "TPROXY" | iptables-restore -c
+echo -1000 > /proc/$$/oom_score_adj
+nochain=0
+if [ "$1" = "0" ] || [ "$1" = "1" ]; then
+  iptables-save -c | grep -v -E "SSP_|TPROXY" | iptables-restore -c
+else
+  iptables-save -c | grep -v -E "SSP_OUTPUT|SSP_PREROUTING|SSP_RULES|SSP_INPUT|TPROXY" | iptables-restore -c
+  $iptn -F SSP_AGENT || nochain=$(echo "$?")
+  $iptm -F SSP_AGENT
+  $iptm -X SSP_AGENT
+fi
 ipset destroy private
 ipset destroy gfwlist
 ipset destroy chnlist
+ip route del local 0.0.0.0/0 dev lo table 100
+ip rule del fwmark 0x64 lookup 100
+ip route flush cache
+rm -rf $amtf
 return 0
 }
 
@@ -81,20 +53,32 @@ return 0
 
 ipt_nat()
 {
-$iptn -N SSP_PREROUTING
-$iptn -N SSP_OUTPUT
-$iptn -N SSP_RULES
-$iptn -N SSP_AGENT
+echo "*nat" > $amtf
+if [ "$agent_mode" == "0" ] || [ "$agent_mode" == "1" ] || [ "$nochain" = "1" ]; then
+  echo ":SSP_AGENT - [0:0]" >> $amtf
+fi
+[ "$nochain" = "1" ] && echo ":SSP_AUTOM - [0:0]" >> $amtf
+echo ":SSP_OUTPUT - [0:0]" >> $amtf
+echo ":SSP_PREROUTING - [0:0]" >> $amtf
+echo ":SSP_RULES - [0:0]" >> $amtf
+[ "$nochain" = "1" ] && for CIDR_08 in $(seq 1 223); do
+  [ "$CIDR_08" = "10" ] || [ "$CIDR_08" = "127" ] || for CIDR_16 in $(seq 0 255); do
+    echo "-A SSP_AUTOM -d $CIDR_08.$CIDR_16.0.0/16 -m limit --limit 3/sec --limit-burst 3 -j SSP_AGENT" >> $amtf
+  done
+done
+echo "COMMIT" >> $amtf && iptables-restore --noflush < $amtf && rm -rf $amtf || return 1
 $iptn -A SSP_PREROUTING -d $server_addr -j RETURN
 $iptn -A SSP_PREROUTING -p tcp -j SSP_RULES
 $iptn -A SSP_OUTPUT -d $server_addr -j RETURN
 $iptn -A SSP_OUTPUT -p tcp -j SSP_RULES
+$iptn -A SSP_RULES -m state --state RELATED,ESTABLISHED -j RETURN
 $iptn -A SSP_RULES -m set --match-set private dst -j RETURN
 [ "$agent_mode" == "0" ] && $iptn -A SSP_RULES -j SSP_AGENT
 [ "$agent_mode" == "1" ] && $iptn -A SSP_RULES -m set --match-set chnlist dst -j RETURN
 [ "$agent_mode" != "0" ] && $iptn -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
 [ "$agent_mode" == "2" ] && $iptn -A SSP_RULES -m set --match-set chnlist dst -j RETURN
 [ "$agent_mode" == "2" ] && $iptn -A SSP_RULES -j LOG --log-prefix "ipnotset "
+[ "$agent_mode" == "2" ] && $iptn -A SSP_RULES -j SSP_AUTOM
 [ "$agent_mode" == "1" ] && $iptn -A SSP_RULES -j SSP_AGENT
 [ "$agent_mode" == "2" ] && $iptn -A SSP_RULES -j RETURN
 $iptn -A SSP_AGENT -p tcp -j REDIRECT --to-ports $local_port
@@ -139,9 +123,8 @@ $iptm -A SSP_RULES -m set --match-set private dst -j RETURN
 [ "$agent_mode" == "2" ] && $iptm -A SSP_RULES -j LOG --log-prefix "ipnotset "
 [ "$agent_mode" == "1" ] && $iptm -A SSP_RULES -j SSP_AGENT
 [ "$agent_mode" == "2" ] && $iptm -A SSP_RULES -j RETURN
-$iptm -A SSP_AGENT -j CONNMARK --restore-mark
 $iptm -A SSP_AGENT -p udp -m conntrack --ctstate NEW -j CONNMARK --set-mark 0x64/0x64
-$iptm -A SSP_AGENT -j CONNMARK --save-mark
+$iptm -A SSP_AGENT -p udp -m conntrack --ctstate NEW -j CONNMARK --restore-mark
 $iptm -I OUTPUT 1 -j SSP_OUTPUT
 $iptm -I PREROUTING 1 -j SSP_PREROUTING
 $iptm -I PREROUTING 2 -p udp -m mark --mark 0x64/0x64 -j TPROXY --on-port $local_port
@@ -206,13 +189,13 @@ while getopts ":s:i:g:c:e:b:w:a:tmfh" arg; do
       agent_mode="$OPTARG"
       ;;
     t)
-      flush_rules 2>/dev/null && gen_ipset && ipt_nat && ipt_filter
+      flush_rules $agent_mode 2>/dev/null && gen_ipset && ipt_nat && ipt_filter
       ;;
     m)
-      flush_rules 2>/dev/null && gen_ipset && ipt_nat && ipt_filter && ipt_mangle
+      flush_rules $agent_mode 2>/dev/null && gen_ipset && ipt_nat && ipt_filter && ipt_mangle
       ;;
     f)
-      flush_rules 2>/dev/null
+      flush_rules 0 2>/dev/null
       ;;
     h)
       usage 0
