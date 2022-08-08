@@ -460,7 +460,9 @@ init_sysctl(void)
 	set_interface_conf_int("ipv4", "all", "rp_filter", 0); // new logic for new kernels
 
 	fput_int("/proc/sys/vm/min_free_kbytes", KERNEL_MIN_FREE_KBYTES);
+#if BOARD_RAM_SIZE < 512
 	fput_int("/proc/sys/vm/lowmem_reserve_ratio", 256);
+#endif
 	fput_int("/proc/sys/vm/overcommit_memory", 2);
 	fput_int("/proc/sys/vm/overcommit_ratio", KERNEL_OVERCOMMIT_RATIO);
 
