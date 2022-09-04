@@ -2009,14 +2009,17 @@ static int shadowsocks_action_hook(int eid, webs_t wp, int argc, char **argv)
 
 	if (!strcmp(ss_action, "subRestart")) {
 		doSystem("echo %s > %s", "0", "/tmp/SSP/areconnect");
+		doSystem("echo %s > %s", "1", "/tmp/SSP/rulesstart");
 		needed_seconds = 9;
 	} else if (!strcmp(ss_action, "Reconnect")) {
 		notify_rc(RCN_RESTART_SHADOWSOCKS);
 		doSystem("echo %s > %s", "1", "/tmp/SSP/areconnect");
+		doSystem("echo %s > %s", "0", "/tmp/SSP/rulesstart");
 		needed_seconds = 9;
 	} else if (!strcmp(ss_action, "Update_chnroute")) {
 		notify_rc(RCN_RESTART_CHNROUTE_UPD);
 		doSystem("echo %s > %s", "0", "/tmp/SSP/areconnect");
+		doSystem("echo %s > %s", "1", "/tmp/SSP/rulesstart");
 		needed_seconds = 1;
 	} else if (!strcmp(ss_action, "Update_gfwlist")) {
 		notify_rc(RCN_RESTART_GFWLIST_UPD);
