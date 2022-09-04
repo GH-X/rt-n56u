@@ -6,6 +6,7 @@ areconnect="$CONF_DIR/areconnect"
 netdpcount="$CONF_DIR/netdpcount"
 errorcount="$CONF_DIR/errorcount"
 quickstart="$CONF_DIR/quickstart"
+rulesstart="$CONF_DIR/rulesstart"
 ssp_log_file="/tmp/ss-watchcat.log"
 redir_log_file="/tmp/ss-redir.log"
 max_log_bytes="100000"
@@ -49,14 +50,17 @@ count(){
 
 godet(){
 	rm -rf $statusfile
-	if !(iptables-save | grep -q "SSP_RULES") || !(ipset list -n | grep -q 'private') || \
+	if !(iptables-save | grep -q "SSP_RULES") || \
+	!(ipset list -n | grep -q 'servers') || !(ipset list -n | grep -q 'private') || \
 	!(ipset list -n | grep -q 'gfwlist') || !(ipset list -n | grep -q 'chnlist'); then
-		count $errorcount ++ 1 && count $areconnect +- 0
+		count $errorcount ++ 1 && count $areconnect +- 0 && count $rulesstart +- 1
 	fi
 	for sspredirPID in $(pidof ss-redir); do
 		sspredirRSS=$(cat /proc/$sspredirPID/status | grep 'VmRSS' | \
 		sed 's/[[:space:]]//g' | sed 's/kB//g' | awk -F: '{print $2}')
-		[ $sspredirRSS -ge $redirmaxRAM ] && count $errorcount +- 5 && count $areconnect +- 0
+		if [ $sspredirRSS -ge $redirmaxRAM ]; then
+			count $errorcount +- 5 && count $areconnect +- 0 && count $rulesstart +- 1
+		fi
 	done
 	return 0
 }
@@ -140,7 +144,7 @@ amsgetnotset(){
 }
 
 reconnection(){
-	[ "$recyesornot" = "1" ] && [ $(daten -l 60) -ge 25 ] || return 0
+	[ "$recyesornot" = "1" ] && [ $(daten -l 60) -ge 30 ] || return 0
 	[ "$(daten -m)" = "0" ] || \
 	$([ "$autorec" = "1" ] && [ "$(daten -m)" = "5" ]) || \
 	$([ "$autorec" = "1" ] && [ $(count $netdpcount) -ge 1 ]) || return 0
@@ -155,7 +159,7 @@ reconnection(){
 			if [ "$autorec" = "1" ]; then
 				count $netdpcount ++ 1
 				[ $(count $netdpcount) -ge 3 ] && count $errorcount ++ 1
-				watchcat_stop_ssp || return 1
+				watchcat_stop_ssp || watchcat_start_ssp || return 1
 			else
 				count $netdpcount ++ 1
 				[ $(count $netdpcount) -ge 9 ] && count $errorcount ++ 1 && count $areconnect +- 0

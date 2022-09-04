@@ -23,6 +23,7 @@ netdpcount="$CONF_DIR/netdpcount"
 errorcount="$CONF_DIR/errorcount"
 issjfinfor="$CONF_DIR/issjfinfor"
 quickstart="$CONF_DIR/quickstart"
+rulesstart="$CONF_DIR/rulesstart"
 CRON_CONF="/etc/storage/cron/crontabs/$(nvram get http_username)"
 
 autorec=$(nvram get ss_watchcat_autorec)
@@ -53,7 +54,7 @@ dnsmasqc="/etc/storage/dnsmasq/dnsmasq.conf"
 [ "$ssp_type" = "9" ] && bin_type="Auto"
 [ "$bin_type" = "Trojan" -o "$bin_type" = "Auto" ] && [ "$(nvram get ss-tunnel_enable)" = "1" ] && nvram set ss-tunnel_enable=0
 [ "$(nvram get dns_forwarder_enable)" = "1" ] && [ "$(nvram get ss-tunnel_enable)" = "1" ] && nvram set ss-tunnel_enable=0
-[ ! -d "$CONF_DIR/gfwlist" ] && mkdir -p "$CONF_DIR/gfwlist" && echo "1" > $errorcount && echo "0" > $areconnect
+[ ! -d "$CONF_DIR/gfwlist" ] && mkdir -p "$CONF_DIR/gfwlist" && echo "3" > $errorcount && echo "0" > $areconnect
 [ -e /tmp/trojan ] && chmod +x /tmp/trojan && ssp_trojan="/tmp/trojan" || ssp_trojan="/usr/bin/trojan"
 [ -e /tmp/ss-v2ray-plugin ] && chmod +x /tmp/ss-v2ray-plugin && ssp_v2rp="/tmp/ss-v2ray-plugin" || ssp_v2rp="/usr/bin/ss-v2ray-plugin"
 [ -L /etc/storage/chinadns/chnroute.txt ] && [ ! -e /tmp/chnroute.txt ] && \
@@ -66,6 +67,8 @@ rm -rf $CONF_DIR/*.json
 rm -rf $CONF_DIR/*-jsonlist
 rm -rf $CONF_DIR/Nodes-list
 rm -rf $CONF_DIR/Nodes-list.md5
+rm -rf $CONF_DIR/Serveraddr-isip
+rm -rf $CONF_DIR/Serveraddr-noip
 return 0
 }
 
@@ -77,10 +80,10 @@ turn_json_file()
   server_addr=$(nvram get ss_server_addr_x$j)    # SS SSR Trojan
   server_port=$(nvram get ss_server_port_x$j)    # SS SSR Trojan
   server_key=$(nvram get ss_server_key_x$j)      # SS SSR Trojan
-  server_sni=$(nvram get ss_server_sni_x$j)      # SS     Trojan
+  server_sni=$(nvram get ss_server_sni_x$j)      #        Trojan
   ss_method=$(nvram get ss_method_x$j)           # SS SSR
   ss_protocol=$(nvram get ss_protocol_x$j)       #    SSR
-  ss_proto_param=$(nvram get ss_proto_param_x$j) #    SSR
+  ss_proto_param=$(nvram get ss_proto_param_x$j) # SS SSR
   ss_obfs=$(nvram get ss_obfs_x$j)               # SS SSR
   ss_obfs_param=$(nvram get ss_obfs_param_x$j)   # SS SSR
   echo "$i#$node_type#$server_addr#$server_port#$server_key#$server_sni#$ss_method#$ss_protocol#$ss_proto_param#$ss_obfs#$ss_obfs_param" >> $CONF_DIR/Nodes-list
@@ -101,6 +104,7 @@ gen_json_file()
 turn_json_file || del_json_file
 [ "$autorec" = "1" ] && echo "1" > $areconnect || echo "0" > $areconnect
 if [ ! -e "$CONF_DIR/Nodes-list.md5" ]; then
+  echo "1" > $rulesstart
   logger -st "SSP[$$]$bin_type" "创建配置文件"
   for i in $(seq 1 $nodesnum); do
     j=$(expr $i - 1)
@@ -114,6 +118,14 @@ if [ ! -e "$CONF_DIR/Nodes-list.md5" ]; then
     ss_proto_param=$(nvram get ss_proto_param_x$j) # SS SSR
     ss_obfs=$(nvram get ss_obfs_x$j)               # SS SSR
     ss_obfs_param=$(nvram get ss_obfs_param_x$j)   # SS SSR
+    server_isip=$(echo "$server_addr" | grep -E "^([0-9]{1,3}\.){3}[0-9]{1,3}")
+    server_noip=$(echo "$server_addr" | grep -E -v "^([0-9]{1,3}\.){3}[0-9]{1,3}")
+    if [ "$server_isip" = "$server_addr" ]; then
+      [ ! -e "$CONF_DIR/Serveraddr-isip" ] || echo -e ",\c" >> $CONF_DIR/Serveraddr-isip
+      echo -e "$server_isip\c" >> $CONF_DIR/Serveraddr-isip
+    elif [ "$server_noip" = "$server_addr" ]; then
+      echo "$server_noip" >> $CONF_DIR/Serveraddr-noip
+    fi
     echo "$i#$node_type#$server_addr#$server_port#$server_key#$server_sni#$ss_method#$ss_protocol#$ss_proto_param#$ss_obfs#$ss_obfs_param" >> $CONF_DIR/Nodes-list
     [ "$node_type" = "0" ] && server_type="SS"
     [ "$node_type" = "1" ] && server_type="SSR"
@@ -302,9 +314,10 @@ get_dns_conf()
 custom_gfwlist
 [ "$1" != "dnsmasq-tcp" ] && grep -v '^#' $dnsgfwdt | grep -v '^$' | awk '{printf("server=/%s/'$dnsfslsp'\n", $1, $1 )}' >> $dnsgfwdc
 [ "$1" != "dnsmasq-tcp" ] && grep -v '^#' $dnsgfwdt | grep -v '^$' | awk '{printf("ipset=/%s/gfwlist\n", $1, $1 )}' >> $dnsgfwdc
+[ -e "$CONF_DIR/Serveraddr-noip" ] && cat $CONF_DIR/Serveraddr-noip | awk '{printf("ipset=/%s/servers\n", $1, $1 )}' >> $dnsgfwdc
 sed -i 's/^### gfwlist related.*/### gfwlist related resolve by '$1' '$2'/g' $dnsmasqc
 sed -i 's/^#min-cache-ttl=/min-cache-ttl=/g' $dnsmasqc
-[ "$1" != "dnsmasq-tcp" ] && sed -i 's/^#conf-dir=/conf-dir=/g' $dnsmasqc
+[ -e "$dnsgfwdc" ] && sed -i 's/^#conf-dir=/conf-dir=/g' $dnsmasqc
 [ "$1" == "dnsmasq-tcp" ] && sed -i 's:^#gfwlist='$dnsgfwdt'.*:gfwlist='$dnsgfwdt'@'$dnstcpsp':g' $dnsmasqc
 return 0
 }
@@ -322,6 +335,16 @@ else
   get_dns_conf dnsmasq-tcp "$dnstcpsp"
 fi
 restart_dhcpd
+}
+
+sip_addr()
+{
+if [ -e "$CONF_DIR/Serveraddr-isip" ]; then
+  serverisip=$(tail -n 1 $CONF_DIR/Serveraddr-isip)
+else
+  serverisip=0
+fi
+echo " -s $serverisip"
 }
 
 gfw_list()
@@ -399,18 +422,20 @@ fi
 
 stop_rules()
 {
+[ $(tail -n +1 "$rulesstart" 2>/dev/null) -eq 1 ] || return 0
 killall -q -9 ss-rules
-logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f && \
-!(iptables-save | grep -q "SSP_") && !(ipset list -n | grep -q 'private') && \
+logger -st "SSP[$$]$bin_type" "关闭透明代理" && ss-rules -f && !(iptables-save | grep -q "SSP_") && \
+!(ipset list -n | grep -q 'servers') && !(ipset list -n | grep -q 'private') && \
 !(ipset list -n | grep -q 'gfwlist') && !(ipset list -n | grep -q 'chnlist') && \
 logger -st "SSP[$$]$bin_type" "透明代理已经关闭"
 }
 
 start_rules()
 {
+[ $(tail -n +1 "$rulesstart" 2>/dev/null) -eq 1 ] || return 0
 logger -st "SSP[$$]$bin_type" "开启透明代理"
 ss-rules\
- -s $(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $1}')\
+$(sip_addr)\
  -i "$ss_local_port"\
 $(gfw_list)\
 $(chn_list)\
@@ -419,6 +444,7 @@ $(black_ip)\
 $(white_ip)\
 $(agent_mode)\
 $(agent_pact)
+$([ "$?" = "0" ] && echo "0" > $rulesstart) || $(echo "1" > $rulesstart && return 1)
 }
 
 stop_redir()
@@ -480,14 +506,15 @@ return 0
 
 stop_ssp()
 {
-$([ "$ss_enable" = "0" ] && stop_watchcat) || \
+$([ "$ss_enable" = "0" ] && echo "1" > $rulesstart && stop_watchcat) || \
 $(cat "$statusfile" 2>/dev/null | grep -q 'watchcat_stop_ssp') || stop_watchcat
 del_dns_conf
+stop_rules
 if [ "$ss_enable" = "0" ]; then
-  stop_rules
   del_json_file
   custom_gfwlist
   rm -rf $areconnect
+  rm -rf $rulesstart
 fi
 stop_redir
 if [ -e "$CONF_DIR/amsallexp.set" ] || [ -e "$CONF_DIR/amsallexp.txt" ]; then

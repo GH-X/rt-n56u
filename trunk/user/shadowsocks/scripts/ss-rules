@@ -17,14 +17,15 @@ flush_rules()
 {
 echo -1000 > /proc/$$/oom_score_adj
 nochain=0
-if [ "$1" = "0" ] || [ "$1" = "1" ]; then
-  iptables-save -c | grep -v -E "SSP_|TPROXY" | iptables-restore -c
-else
+if [ "$1" = "2" ]; then
   iptables-save -c | grep -v -E "SSP_OUTPUT|SSP_PREROUTING|SSP_RULES|SSP_INPUT|TPROXY" | iptables-restore -c
   $iptn -F SSP_AGENT || nochain=$(echo "$?")
   $iptm -F SSP_AGENT
   $iptm -X SSP_AGENT
+else
+  iptables-save -c | grep -v -E "SSP_|TPROXY" | iptables-restore -c
 fi
+ipset destroy servers
 ipset destroy private
 ipset destroy gfwlist
 ipset destroy chnlist
@@ -38,6 +39,7 @@ return 0
 gen_ipset()
 {
 ipset -! restore <<-EOF || return 1
+  create servers hash:net hashsize 64 maxelem 256
   create private hash:net hashsize 64 maxelem 128
   create gfwlist hash:net hashsize 1024 maxelem 65536
   create chnlist hash:net hashsize 16384 maxelem 1000000
@@ -67,9 +69,11 @@ echo ":SSP_RULES - [0:0]" >> $amtf
   done
 done
 echo "COMMIT" >> $amtf && iptables-restore --noflush < $amtf && rm -rf $amtf || return 1
-$iptn -A SSP_PREROUTING -d $server_addr -j RETURN
+$iptn -A SSP_PREROUTING -m set --match-set servers dst -j RETURN
+[ "$server_addr" != "0" ] && $iptn -A SSP_PREROUTING -d $server_addr -j RETURN
 $iptn -A SSP_PREROUTING -p tcp -j SSP_RULES
-$iptn -A SSP_OUTPUT -d $server_addr -j RETURN
+$iptn -A SSP_OUTPUT -m set --match-set servers dst -j RETURN
+[ "$server_addr" != "0" ] && $iptn -A SSP_OUTPUT -d $server_addr -j RETURN
 $iptn -A SSP_OUTPUT -p tcp -j SSP_RULES
 $iptn -A SSP_RULES -m state --state RELATED,ESTABLISHED -j RETURN
 $iptn -A SSP_RULES -m set --match-set private dst -j RETURN
@@ -91,8 +95,10 @@ ipt_filter()
 {
 $iptf -N SSP_INPUT
 $iptf -A SSP_INPUT -m set --match-set private src -j RETURN
-$iptf -A SSP_INPUT -s $server_addr -p tcp -m tcp --tcp-flags RST RST -m state --state RELATED,ESTABLISHED -m limit --limit 1/min --limit-burst 1 -j RETURN
-$iptf -A SSP_INPUT -s $server_addr -p tcp -m tcp --tcp-flags RST RST -j DROP
+$iptf -A SSP_INPUT -p tcp -m set --match-set servers src -m tcp --tcp-flags RST RST -m state --state RELATED,ESTABLISHED -m limit --limit 1/min --limit-burst 1 -j RETURN
+$iptf -A SSP_INPUT -p tcp -m set --match-set servers src -m tcp --tcp-flags RST RST -j DROP
+[ "$server_addr" != "0" ] && $iptf -A SSP_INPUT -s $server_addr -p tcp -m tcp --tcp-flags RST RST -m state --state RELATED,ESTABLISHED -m limit --limit 1/min --limit-burst 1 -j RETURN
+[ "$server_addr" != "0" ] && $iptf -A SSP_INPUT -s $server_addr -p tcp -m tcp --tcp-flags RST RST -j DROP
 $iptf -A SSP_INPUT -p tcp -m tcp --tcp-flags RST RST -m state --state INVALID,NEW -j DROP
 $iptf -A SSP_INPUT -j RETURN
 $iptf -I INPUT 1 -j SSP_INPUT
@@ -110,9 +116,11 @@ $iptm -N SSP_PREROUTING
 $iptm -N SSP_OUTPUT
 $iptm -N SSP_RULES
 $iptm -N SSP_AGENT
-$iptm -A SSP_PREROUTING -d $server_addr -j RETURN
+$iptm -A SSP_PREROUTING -m set --match-set servers dst -j RETURN
+[ "$server_addr" != "0" ] && $iptm -A SSP_PREROUTING -d $server_addr -j RETURN
 $iptm -A SSP_PREROUTING -p udp -j SSP_RULES
-$iptm -A SSP_OUTPUT -d $server_addr -j RETURN
+$iptm -A SSP_OUTPUT -m set --match-set servers dst -j RETURN
+[ "$server_addr" != "0" ] && $iptm -A SSP_OUTPUT -d $server_addr -j RETURN
 $iptm -A SSP_OUTPUT -p udp -j SSP_RULES
 $iptm -A SSP_RULES -m mark --mark 0x64/0x64 -j RETURN
 $iptm -A SSP_RULES -m set --match-set private dst -j RETURN
@@ -136,7 +144,7 @@ usage()
 cat <<-EOF
 
   ss-rules [选项] [赋值]         [说明]
-           -s     <server_addr>  服务器地址      支持域名
+           -s     <server_addr>  服务器地址      支持域名和IP/CIDR格式 赋值[0]禁用
            -i     <local_port>   本地端口        
            -g     <gfw_list>     黑名单地址列表  IP/CIDR格式
            -c     <chn_list>     国内路由表      IP/CIDR格式
@@ -161,31 +169,31 @@ while getopts ":s:i:g:c:e:b:w:a:tmfh" arg; do
       server_addr="$OPTARG"
       ;;
     i)
-      [ -z "$OPTARG" ] && usage 2
+      [ -z "$OPTARG" ] && usage 3
       local_port="$OPTARG"
       ;;
     g)
-      [ -z "$OPTARG" ] && usage 2
+      [ -z "$OPTARG" ] && usage 4
       gfw_list="$OPTARG"
       ;;
     c)
-      [ -z "$OPTARG" ] && usage 2
+      [ -z "$OPTARG" ] && usage 5
       chn_list="$OPTARG"
       ;;
     e)
-      [ -z "$OPTARG" ] && usage 2
+      [ -z "$OPTARG" ] && usage 6
       chnexp_list="$OPTARG"
       ;;
     b)
-      [ -z "$OPTARG" ] && usage 2
+      [ -z "$OPTARG" ] && usage 7
       black_ip=$(echo "$OPTARG" | sed 's/,/ /g')
       ;;
     w)
-      [ -z "$OPTARG" ] && usage 2
+      [ -z "$OPTARG" ] && usage 8
       white_ip=$(echo "$OPTARG" | sed 's/,/ /g')
       ;;
     a)
-      [ -z "$OPTARG" ] && usage 2
+      [ -z "$OPTARG" ] && usage 9
       agent_mode="$OPTARG"
       ;;
     t)
@@ -195,7 +203,7 @@ while getopts ":s:i:g:c:e:b:w:a:tmfh" arg; do
       flush_rules $agent_mode 2>/dev/null && gen_ipset && ipt_nat && ipt_filter && ipt_mangle
       ;;
     f)
-      flush_rules 0 2>/dev/null
+      flush_rules 2>/dev/null
       ;;
     h)
       usage 0
@@ -204,5 +212,5 @@ while getopts ":s:i:g:c:e:b:w:a:tmfh" arg; do
 done
 
 EC=$?
-[ $EC -eq 0 ] && logger -st "SSP[$$]Rules" "任务成功" || logger -st "SSP[$$]Rules" "任务失败"
+[ $EC -eq 0 ] && logger -st "SSP[$$]Rules" "任务成功" || logger -st "SSP[$$]Rules" "任务失败!错误代码:$EC"
 exit $EC
