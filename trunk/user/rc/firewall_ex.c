@@ -2120,12 +2120,16 @@ start_firewall_ex(void)
 	char wan_ip[16], man_ip[16], lan_ip[16], lan_net[24] = {0};
 	const char *opt_iptables_script = "/opt/bin/update_iptables.sh";
 	const char *int_iptables_script = SCRIPT_POST_FIREWALL;
-
 #if defined (APP_SHADOWSOCKS)
-	if (nvram_match("ss_enable", "1")) {
-		doSystem("echo %s > %s", "2", "/tmp/SSP/errorcount");
+	const char *shadowsocks_iptables_script = "/tmp/SSP/rulesstart";
+
+	if (check_if_file_exist(shadowsocks_iptables_script)) {
 		doSystem("echo %s > %s", "0", "/tmp/SSP/areconnect");
-		doSystem("echo %s > %s", "1", "/tmp/SSP/rulesstart");
+		doSystem("echo %s > %s", "0", "/tmp/SSP/startrules");
+	} else if (nvram_match("ss_enable", "1")) {
+		doSystem("echo %s > %s", "3", "/tmp/SSP/errorcount");
+		doSystem("echo %s > %s", "0", "/tmp/SSP/areconnect");
+		doSystem("echo %s > %s", "1", "/tmp/SSP/startrules");
 	}
 #endif
 
@@ -2207,16 +2211,19 @@ start_firewall_ex(void)
 	/* enable IPv4 forward */
 	set_ipv4_forward(1);
 
-#if defined (APP_SHADOWSOCKS)
-	if (nvram_match("ss_enable", "1"))
-		doSystem("echo %s > %s", "1", "/tmp/SSP/errorcount");
-#endif
-
 	/* try unload unused iptables modules */
 	module_smart_unload("xt_webstr", 0);
 	module_smart_unload("xt_HL", 0);
 	module_smart_unload("iptable_raw", 0);
 	module_smart_unload("iptable_mangle", 0);
 	module_smart_unload("ip6table_mangle", 0);
+
+#if defined (APP_SHADOWSOCKS)
+	if (check_if_file_exist(shadowsocks_iptables_script)) {
+		doSystem("sh %s", shadowsocks_iptables_script);
+	} else if (nvram_match("ss_enable", "1")) {
+		doSystem("echo %s > %s", "1", "/tmp/SSP/errorcount");
+	}
+#endif
 }
 
