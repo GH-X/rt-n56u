@@ -60,7 +60,6 @@ infor(){
 }
 
 loger(){
-	#sed -i '/'$(date "+%Y-%m-%d_%H:%M:%S")'_'$logmark''$1'/d' $ssp_log_file
 	sed -i '1i\'$(date "+%Y-%m-%d_%H:%M:%S")'_'$logmark''$1'' $ssp_log_file
 }
 
@@ -124,11 +123,9 @@ scout(){
 }
 
 score(){
-	if $(cat $scoresfile 2>/dev/null | grep -q "^$(infor 0)"); then
-		sed -i 's/^'$(infor 0)'.*/'$(infor 1)'#'$(count $scorecount)'/g' $scoresfile
-	else
-		echo "$(infor 1)#$(count $scorecount)" >> $scoresfile
-	fi
+	sed -i '/^'$(infor 0)'/d' $scoresfile
+	echo "$(infor 1)#$(count $scorecount)" >> $scoresfile
+	sort -u -n -r $scoresfile > $CONF_DIR/scoresfile.tmp && mv -f $CONF_DIR/scoresfile.tmp $scoresfile
 	servernum="0"
 	available="0"
 	while read line

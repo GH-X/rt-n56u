@@ -109,7 +109,7 @@ gfwfnum=${gfwdnum:0}
 cp -rf $dnsgfwdt $dnsgfwdp
 md5sum $dnsgfwdp > $dnsgfwdm
 sed -i '/^\./d' $dnsgfwdp
-for addgfw in $(nvram get ss_custom_gfwlist); do
+for addgfw in $(nvram get ss_custom_gfwlist | sed 's/,/ /g'); do
   [ "$addgfw" != "" ] && $(echo $addgfw | grep -v -q '^\.') && echo ".$addgfw" >> $dnsgfwdp
 done
 md5sum -c -s $dnsgfwdm
