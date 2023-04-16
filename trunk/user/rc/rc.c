@@ -836,6 +836,7 @@ init_crontab(void)
 #if defined (APP_SHADOWSOCKS)
 	ret |= system("/sbin/check_crontab.sh 0 8 a/10 a a update_chnroute.sh");
 	ret |= system("/sbin/check_crontab.sh 0 7 a/10 a a update_gfwlist.sh");
+	ret |= system("/sbin/check_crontab.sh a/1 a a a a ss-watchcat.sh");
 #endif
 	return ret;
 }
