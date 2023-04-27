@@ -2211,12 +2211,9 @@ start_firewall_ex(void)
 	/* enable IPv4 forward */
 	set_ipv4_forward(1);
 
-	/* try unload unused iptables modules */
-	module_smart_unload("xt_webstr", 0);
-	module_smart_unload("xt_HL", 0);
-	module_smart_unload("iptable_raw", 0);
-	module_smart_unload("iptable_mangle", 0);
-	module_smart_unload("ip6table_mangle", 0);
+#if BOARD_HAS_2G_RADIO
+	restart_iappd();
+#endif
 
 #if defined (APP_SHADOWSOCKS)
 	if (check_if_file_exist(shadowsocks_iptables_script)) {
@@ -2225,5 +2222,12 @@ start_firewall_ex(void)
 		doSystem("echo %s > %s", "1", "/tmp/SSP/errorcount");
 	}
 #endif
+
+	/* try unload unused iptables modules */
+	module_smart_unload("xt_webstr", 0);
+	module_smart_unload("xt_HL", 0);
+	module_smart_unload("iptable_raw", 0);
+	module_smart_unload("iptable_mangle", 0);
+	module_smart_unload("ip6table_mangle", 0);
 }
 

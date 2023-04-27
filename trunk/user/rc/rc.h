@@ -565,6 +565,11 @@ void restart_vlmcsd(void);
 #if defined(APP_NAPT66)
 void start_napt66(void);
 #endif
+#if BOARD_HAS_2G_RADIO
+void stop_iappd(void);
+void start_iappd(void);
+void restart_iappd(void);
+#endif
 
 /* services_ex.c */
 int fill_dnsmasq_servers(void);

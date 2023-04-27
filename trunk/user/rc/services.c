@@ -374,6 +374,19 @@ void start_napt66(void){
 }
 #endif
 
+#if BOARD_HAS_2G_RADIO
+void stop_iappd(void){
+	eval("/usr/bin/iappd.sh","stop");
+}
+void start_iappd(void){
+	eval("/usr/bin/iappd.sh","start");
+}
+void restart_iappd(void){
+	stop_iappd();
+	start_iappd();
+}
+#endif
+
 void
 start_httpd(int restart_fw)
 {
@@ -582,6 +595,9 @@ start_services_once(int is_ap_mode)
 	start_crond();
 	start_networkmap(1);
 	start_rstats();
+#if BOARD_HAS_2G_RADIO
+	start_iappd();
+#endif
 #if defined(APP_SCUT)
 	start_scutclient();
 #endif
@@ -649,6 +665,9 @@ stop_services_lan_wan(void)
 	stop_detect_link();
 #if defined (APP_SMBD) || defined (APP_NMBD)
 	stop_nmbd();
+#endif
+#if BOARD_HAS_2G_RADIO
+	stop_iappd();
 #endif
 }
 
