@@ -27,6 +27,8 @@ SOFTETHERVPN_ENABLE=n
 SHADOWSOCKS_ENABLE=n
 FRP_ENABLE=n
 TROJAN_ENABLE=n
+SMARTDNS_ENABLE=n
+IAPPD_ENABLE=n
 
 ifneq ($(CONFIG_FIRMWARE_INCLUDE_OPENSSH),y)
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_DROPBEAR),y)
@@ -94,6 +96,16 @@ ifneq ($(filter y,$(CONFIG_FIRMWARE_INCLUDE_SMARTDNS)),)
 SMARTDNS_ENABLE=y
 endif
 
+ifdef CONFIG_RT_FIRST_IF_RANGE_2GHZ
+IAPPD_ENABLE=y
+endif
+ifdef CONFIG_RT_SECOND_IF_RANGE_2GHZ
+IAPPD_ENABLE=y
+endif
+ifdef CONFIG_DBDC_MODE
+IAPPD_ENABLE=y
+endif
+
 dir_y =
 dir_n =
 dir_  =
@@ -128,6 +140,7 @@ dir_y						+= udpxy
 dir_y						+= utils
 dir_y						+= lanauth
 dir_y						+= 802.1x
+dir_$(IAPPD_ENABLE)						+= ralinkiappd
 dir_y						+= wpa_supplicant
 dir_y						+= pppd
 dir_y						+= pppoe
