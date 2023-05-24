@@ -423,7 +423,7 @@ typedef struct _FT_CLIENT_TABLE {
 
 /* IAPP control block */
 #define IAPP_ENCRYPT_KEY_MAX_SIZE		64
-#define MAX_WIFI_COUNT 2
+#define MAX_WIFI_COUNT 4
 typedef struct _RTMP_IAPP {
 
 	CHAR			IfNameEth[IFNAMSIZ]; /* ethernet interface name */

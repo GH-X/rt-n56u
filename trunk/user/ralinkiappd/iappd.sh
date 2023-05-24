@@ -1,6 +1,5 @@
 #!/bin/sh
 
-
 stop_iappd()
 {
 $(pidof ralinkiappd &>/dev/null) || return 1
@@ -13,29 +12,31 @@ return 0
 
 start_iappd()
 {
-if grep -q 'mt76x3_ap' /proc/modules; then
-  ralinkiappd -wi rai0 -d 0 &
-  sysctl -wq net.ipv4.neigh.rai0.base_reachable_time_ms=10000
-  sysctl -wq net.ipv4.neigh.rai0.delay_first_probe_time=1
-else
-  if grep -q 'rai0' /proc/interrupts; then
-    ralinkiappd -wi rai0 -wi ra0 -d 0 &
-    sysctl -wq net.ipv4.neigh.rai0.base_reachable_time_ms=10000
-    sysctl -wq net.ipv4.neigh.rai0.delay_first_probe_time=1
-  else
-    ralinkiappd -wi rax0 -wi ra0 -d 0 &
-    sysctl -wq net.ipv4.neigh.rax0.base_reachable_time_ms=10000
-    sysctl -wq net.ipv4.neigh.rax0.delay_first_probe_time=1	    
-  fi
-fi
+ifconfig | grep '^ra' | awk '{print $1}' > /tmp/iappdRAUP
+raupnum=$(cat /tmp/iappdRAUP | wc -l)
+[ "$raupnum" == "0" ] && logger -st "iappd[$$]" "wireless network is not enabled!!!" && exit 1
+cat > "/tmp/iappdRUNP" << EOF
+#!/bin/sh
+
+EOF
+num=0
+while read RAUP; do
+  num=$((num+1))
+  [ "$num" == "1" ] && echo -e "ralinkiappd -wi $RAUP\c" >> /tmp/iappdRUNP
+  [ "$num" != "1" ] && echo -e " -wi $RAUP\c" >> /tmp/iappdRUNP
+  [ "$num" == "$raupnum" ] && echo -e " -d 0 &\c" >> /tmp/iappdRUNP && echo "" >> /tmp/iappdRUNP
+  sysctl -wq net.ipv4.neigh.$RAUP.base_reachable_time_ms=10000
+  sysctl -wq net.ipv4.neigh.$RAUP.delay_first_probe_time=1
+done < /tmp/iappdRAUP
 sysctl -wq net.ipv4.neigh.br0.base_reachable_time_ms=10000
 sysctl -wq net.ipv4.neigh.br0.delay_first_probe_time=1
 sysctl -wq net.ipv4.neigh.eth2.base_reachable_time_ms=10000
 sysctl -wq net.ipv4.neigh.eth2.delay_first_probe_time=1
-sysctl -wq net.ipv4.neigh.ra0.base_reachable_time_ms=10000
-sysctl -wq net.ipv4.neigh.ra0.delay_first_probe_time=1
 iptables -A INPUT -i br0 -p tcp --dport 3517 -j ACCEPT
 iptables -A INPUT -i br0 -p udp --dport 3517 -j ACCEPT 
+chmod +x /tmp/iappdRUNP && /tmp/iappdRUNP
+rm -rf /tmp/iappdRAUP
+rm -rf /tmp/iappdRUNP
 }
 
 case "$1" in
