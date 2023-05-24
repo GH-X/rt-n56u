@@ -1769,6 +1769,7 @@ FirewallConfig_MFMethod_itemname=MAC 过滤器模式
 FirewallConfig_MFMethod_itemdesc=在 [接受模式] 下，ZVMODELVZ 仅允许列表中的主机访问网络。在 [拒绝模式] 下，则会拒绝列表中的主机访问网络。
 FirewallConfig_MFMethod_item1=接受模式
 FirewallConfig_MFMethod_item2=拒绝模式
+FirewallConfig_MFMethod_item3=强制漫游模式
 FirewallConfig_MFhwaddr_itemname=MAC 地址:
 FirewallConfig_MFList_groupitemname=MAC 访问控制列表
 FirewallConfig_MFList_accept_hint1=MAC 访问控制列表中至少要有一个允许的 MAC。\n确认要添加当前主机 MAC 地址。
