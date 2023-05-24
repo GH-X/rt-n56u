@@ -444,6 +444,22 @@ set_wifi_rssi_threshold(const char* ifname, int is_aband)
 		doSystem("iwpriv %s set %s=%d", ifname, "AssocReqRssiThres", assocrssi);
 }
 
+#if defined (STA_FORCE_ROAM)
+void
+set_wifi_force_roam(const char* ifname, int is_aband)
+{
+	const char *macmodeforceroam = nvram_wlan_get(is_aband, "macmode");
+
+	if (!strcmp(macmodeforceroam, "forceroam")) {
+		doSystem("iwpriv %s set %s=%d", ifname, "force_roam_enable", 1);
+		logmessage(LOGNAME, "[Force Roam] %s Force Roam start", ifname);
+	} else {
+		doSystem("iwpriv %s set %s=%d", ifname, "force_roam_enable", 0);
+		logmessage(LOGNAME, "[Force Roam] %s Force Roam stop", ifname);
+	}
+}
+#endif
+
 void 
 start_wifi_ap_wl(int radio_on)
 {
@@ -523,6 +539,9 @@ start_wifi_ap_rt(int radio_on)
 		br_add_del_if(IFNAME_BR, IFNAME_2G_MAIN, 1);
 		wif_control_m2u(0, IFNAME_2G_MAIN);
 		set_wifi_rssi_threshold(IFNAME_2G_MAIN, 0);
+#if defined (STA_FORCE_ROAM)
+		set_wifi_force_roam(IFNAME_2G_MAIN, 0);
+#endif
 		
 		if (is_guest_allowed_rt())
 		{
@@ -530,6 +549,9 @@ start_wifi_ap_rt(int radio_on)
 			br_add_del_if(IFNAME_BR, IFNAME_2G_GUEST, 1);
 			wif_control_m2u(0, IFNAME_2G_GUEST);
 			set_wifi_rssi_threshold(IFNAME_2G_GUEST, 0);
+#if defined (STA_FORCE_ROAM)
+			set_wifi_force_roam(IFNAME_2G_GUEST, 0);
+#endif
 		}
 	}
 #endif
