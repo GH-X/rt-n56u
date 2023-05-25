@@ -1800,6 +1800,9 @@ static void sta_rssi_check(void *ad_obj, void *pEntry)
 				{
 					if(MAC_ADDR_EQUAL(pMacEntry->Addr, pAd->ApCfg.MBSSID[apidx].AccessControlList.Entry[AclIdx].Addr))
 					{
+							pMacEntry->low_rssi_notified = FALSE;
+							pMacEntry->tick_sec = 0;
+
 							bDisconnectSta = TRUE;
 
 							DBGPRINT(RT_DEBUG_OFF,("[Force Roam] forced disconnect STA %02X:%02X:%02X:%02X:%02X:%02X\n",
