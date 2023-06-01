@@ -1719,7 +1719,6 @@ void load_froam_defaults(RTMP_ADAPTER *pAd)
 	//	("[Force Roam] => AclAgeTime=%d sec AclHoldTime=%d sec\n",pAd->acl_age_time, pAd->acl_hold_time));
 }
 #define MINIMUM_POWER_VALUE		       -127
-#define LIMITED_POWER_VALUE		       -100
 static CHAR staMaxRssi(RTMP_ADAPTER *pAd, struct wifi_dev *wdev, RSSI_SAMPLE *pRssi)
 {
 	CHAR Rssi = MINIMUM_POWER_VALUE;
@@ -1759,7 +1758,7 @@ static void sta_rssi_check(void *ad_obj, void *pEntry)
 
 	if(pMacEntry->low_rssi_notified)	// i.e rssi improved
 	{
-		if((maxRssi < pAd->sta_good_rssi) && (maxRssi > LIMITED_POWER_VALUE))
+		if((maxRssi < pAd->sta_good_rssi) && (maxRssi > MINIMUM_POWER_VALUE))
 		{
 			froam_event_sta_good_rssi event_data;
 
@@ -1814,7 +1813,7 @@ static void sta_rssi_check(void *ad_obj, void *pEntry)
 			}
 		}
 	}
-	else if((maxRssi != MINIMUM_POWER_VALUE) && ((maxRssi > pAd->sta_low_rssi) || (maxRssi < LIMITED_POWER_VALUE)))
+	else if((maxRssi > pAd->sta_low_rssi) || (maxRssi == MINIMUM_POWER_VALUE))
 	{
 		froam_event_sta_low_rssi event_data;
 
