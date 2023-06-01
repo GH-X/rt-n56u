@@ -138,6 +138,43 @@ stopp $tunnel_bin
 custom_gfwlist
 }
 
+get_dns_conf()
+{
+[ "$1" != "dnsmasq-tcp" ] && grep -v '^#' $dnsgfwdt | grep -v '^$' | awk '{printf("server=/%s/'$dnsfslsp'\n", $1, $1 )}' >> $dnsgfwdc
+[ "$1" != "dnsmasq-tcp" ] && grep -v '^#' $dnsgfwdt | grep -v '^$' | awk '{printf("ipset=/%s/gfwlist\n", $1, $1 )}' >> $dnsgfwdc
+[ -e "$CONF_DIR/Serveraddr-noip" ] && cat $CONF_DIR/Serveraddr-noip | awk '{printf("ipset=/%s/servers\n", $1, $1 )}' >> $dnsgfwdc
+sed -i 's/^### gfwlist related.*/### gfwlist related resolve by '$1' '$2'/g' $dnsmasqc
+sed -i 's/^#min-cache-ttl=/min-cache-ttl=/g' $dnsmasqc
+[ -e "$dnsgfwdc" ] && sed -i 's/^#conf-dir=/conf-dir=/g' $dnsmasqc
+[ "$1" == "dnsmasq-tcp" ] && sed -i 's:^#gfwlist='$dnsgfwdt'.*:gfwlist='$dnsgfwdt'@'$dnstcpsp':g' $dnsmasqc
+return 0
+}
+
+gen_dns_conf()
+{
+del_dns_conf
+if [ "$1" != "0" ] && [ "$(nvram get dns_forwarder_enable)" == "1" ]; then
+  get_dns_conf dns-forwarder "$dnsfslsp"
+  cat > "$dnscqstart" << EOF
+#!/bin/sh
+
+start-stop-daemon -S -b -N 0 -x dns-forwarder -- -b 0.0.0.0 -p $ss_dns_p -s $ss_dns_s
+EOF
+elif [ "$1" != "0" ] && [ "$(nvram get ss-tunnel_enable)" == "1" ]; then
+  get_dns_conf ss-tunnel "$dnsfslsp"
+  cat > "$dnscqstart" << EOF
+#!/bin/sh
+
+start-stop-daemon -S -b -N 0 -x $tunnel_bin -- -u -c $CONF_DIR/$tunnel_json_file -L $ss_dns_s
+EOF
+elif [ "$(nvram get dns_forwarder_enable)" == "0" ] && [ "$(nvram get ss-tunnel_enable)" == "0" ]; then
+  get_dns_conf dnsmasq-tcp "$dnstcpsp"
+fi
+logger -st "SSP[$$]$bin_type" "创建解析规则"
+[ -e "$dnscqstart" ] && chmod +x $dnscqstart && $dnscqstart
+restart_dhcpd
+}
+
 del_json_file()
 {
 logger -st "SSP[$$]$bin_type" "清除配置文件"
@@ -173,7 +210,7 @@ stop_ssp()
 if [ "$ss_enable" = "0" ]; then
   stop_watchcat
   stop_rules
-  del_dns_conf && restart_dhcpd
+  gen_dns_conf 0
   del_json_file
   del_score_file
   rm -rf $areconnect
@@ -648,43 +685,6 @@ fi
 $([ -n "$ssp_server_snum" ] && [ -n "$ssp_server_type" ] && \
 [ -n "$ssp_server_addr" ] && [ -n "$ssp_server_port" ] && \
 [ -n "$redir_json_file" ] && return 0) || $(stop_ssp "创建配置文件出错" && return 1) || exit 1
-}
-
-get_dns_conf()
-{
-[ "$1" != "dnsmasq-tcp" ] && grep -v '^#' $dnsgfwdt | grep -v '^$' | awk '{printf("server=/%s/'$dnsfslsp'\n", $1, $1 )}' >> $dnsgfwdc
-[ "$1" != "dnsmasq-tcp" ] && grep -v '^#' $dnsgfwdt | grep -v '^$' | awk '{printf("ipset=/%s/gfwlist\n", $1, $1 )}' >> $dnsgfwdc
-[ -e "$CONF_DIR/Serveraddr-noip" ] && cat $CONF_DIR/Serveraddr-noip | awk '{printf("ipset=/%s/servers\n", $1, $1 )}' >> $dnsgfwdc
-sed -i 's/^### gfwlist related.*/### gfwlist related resolve by '$1' '$2'/g' $dnsmasqc
-sed -i 's/^#min-cache-ttl=/min-cache-ttl=/g' $dnsmasqc
-[ -e "$dnsgfwdc" ] && sed -i 's/^#conf-dir=/conf-dir=/g' $dnsmasqc
-[ "$1" == "dnsmasq-tcp" ] && sed -i 's:^#gfwlist='$dnsgfwdt'.*:gfwlist='$dnsgfwdt'@'$dnstcpsp':g' $dnsmasqc
-return 0
-}
-
-gen_dns_conf()
-{
-del_dns_conf
-if [ "$(nvram get dns_forwarder_enable)" = "1" ]; then
-  get_dns_conf dns-forwarder "$dnsfslsp"
-  cat > "$dnscqstart" << EOF
-#!/bin/sh
-
-start-stop-daemon -S -b -N 0 -x dns-forwarder -- -b 0.0.0.0 -p $ss_dns_p -s $ss_dns_s
-EOF
-elif [ "$(nvram get ss-tunnel_enable)" = "1" ]; then
-  get_dns_conf ss-tunnel "$dnsfslsp"
-  cat > "$dnscqstart" << EOF
-#!/bin/sh
-
-start-stop-daemon -S -b -N 0 -x $tunnel_bin -- -u -c $CONF_DIR/$tunnel_json_file -L $ss_dns_s
-EOF
-else
-  get_dns_conf dnsmasq-tcp "$dnstcpsp"
-fi
-logger -st "SSP[$$]$bin_type" "创建解析规则"
-[ -e "$dnscqstart" ] && chmod +x $dnscqstart && $dnscqstart
-restart_dhcpd
 }
 
 sip_addr()
