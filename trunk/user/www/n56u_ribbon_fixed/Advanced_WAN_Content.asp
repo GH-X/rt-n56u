@@ -155,7 +155,7 @@ function validForm(){
 			return false;
 	}
 
-	if(wan_proto != "pppoe" && wan_proto != "pptp" && wan_proto != "l2tp"){
+	if(wan_proto == "static"){
 		if(!validate_range(document.form.wan_mtu, 1300, 1500))
 			return false;
 	}
@@ -318,8 +318,8 @@ function change_wan_type(wan_type, flag){
 	showhide_div("tbl_vpn_control", is_pppoe||is_pptp||is_l2tp);
 	showhide_div("row_auth_type", is_static||is_dhcp);
 
-	inputCtrl(document.form.wan_mtu, is_static||is_dhcp);
-	showhide_div("row_wan_mtu", is_static||is_dhcp);
+	inputCtrl(document.form.wan_mtu, is_static);
+	showhide_div("row_wan_mtu", is_static);
 
 	if(is_pppoe||is_pptp||is_l2tp){
 		$("dhcp_sect_desc").innerHTML = "<#WAN_MAN_desc#>";
