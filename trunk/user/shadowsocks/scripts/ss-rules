@@ -18,6 +18,8 @@ ipt_m="/tmp/ss-rules_iptables_mangle"
 routemark="0x64"
 ruletable="100"
 
+connlimitsrc="-m connlimit --connlimit-upto 256 --connlimit-mask 32 --connlimit-saddr"
+
 flush_rules()
 {
 echo -1000 > /proc/$$/oom_score_adj
@@ -52,34 +54,33 @@ ipt_nat()
 {
 echo "*nat" > $ipt_n
 echo ":SSP_AGENT - [0:0]" >> $ipt_n
-[ "$agent_mode" != "0" ] && echo ":SSP_AUTOC - [0:0]" >> $ipt_n
-[ "$agent_mode" != "0" ] && echo ":SSP_AUTOG - [0:0]" >> $ipt_n
-[ "$agent_mode" != "0" ] && echo ":SSP_AUTOM - [0:0]" >> $ipt_n
+[ "$agent_mode" == "2" ] && echo ":SSP_AUTOC - [0:0]" >> $ipt_n
+[ "$agent_mode" == "2" ] && echo ":SSP_AUTOG - [0:0]" >> $ipt_n
+[ "$agent_mode" == "2" ] && echo ":SSP_AUTOM - [0:0]" >> $ipt_n
 echo ":SSP_OUTPUT - [0:0]" >> $ipt_n
 echo ":SSP_PREROUTING - [0:0]" >> $ipt_n
 echo ":SSP_RULES - [0:0]" >> $ipt_n
 echo "-A PREROUTING -j SSP_PREROUTING" >> $ipt_n
 echo "-A OUTPUT -j SSP_OUTPUT" >> $ipt_n
-echo "-A SSP_AGENT -p tcp -m connlimit --connlimit-upto 256 --connlimit-mask 32 --connlimit-saddr -j REDIRECT --to-ports $local_port" >> $ipt_n
-[ "$agent_mode" != "0" ] && echo "-A SSP_AUTOC -p tcp -m connlimit --connlimit-upto 256 --connlimit-mask 32 --connlimit-saddr -m connlimit --connlimit-above $DR2 --connlimit-mask 32 --connlimit-daddr -j SSP_AGENT" >> $ipt_n
-[ "$agent_mode" != "0" ] && echo "-A SSP_AUTOC -p tcp -m connlimit --connlimit-upto 256 --connlimit-mask 32 --connlimit-saddr -m connlimit --connlimit-upto $DR2 --connlimit-mask 32 --connlimit-daddr -j RETURN" >> $ipt_n
-[ "$agent_mode" != "0" ] && echo "-A SSP_AUTOG -p tcp -m connlimit --connlimit-upto 256 --connlimit-mask 32 --connlimit-saddr -m connlimit --connlimit-above $DR2 --connlimit-mask 32 --connlimit-daddr -j RETURN" >> $ipt_n
-[ "$agent_mode" != "0" ] && echo "-A SSP_AUTOG -p tcp -m connlimit --connlimit-upto 256 --connlimit-mask 32 --connlimit-saddr -m connlimit --connlimit-upto $DR2 --connlimit-mask 32 --connlimit-daddr -j SSP_AGENT" >> $ipt_n
-[ "$agent_mode" == "1" ] && echo "-A SSP_AUTOM -p tcp -m connlimit --connlimit-upto 256 --connlimit-mask 32 --connlimit-saddr -m connlimit --connlimit-above $DR1 --connlimit-mask 32 --connlimit-daddr -j RETURN" >> $ipt_n
-[ "$agent_mode" == "1" ] && echo "-A SSP_AUTOM -p tcp -m connlimit --connlimit-upto 256 --connlimit-mask 32 --connlimit-saddr -m connlimit --connlimit-upto $DR1 --connlimit-mask 32 --connlimit-daddr -j SSP_AGENT" >> $ipt_n
-[ "$agent_mode" == "2" ] && echo "-A SSP_AUTOM -p tcp -m connlimit --connlimit-upto 256 --connlimit-mask 32 --connlimit-saddr -m connlimit --connlimit-above $DR1 --connlimit-mask 32 --connlimit-daddr -j SSP_AGENT" >> $ipt_n
-[ "$agent_mode" == "2" ] && echo "-A SSP_AUTOM -p tcp -m connlimit --connlimit-upto 256 --connlimit-mask 32 --connlimit-saddr -m connlimit --connlimit-upto $DR1 --connlimit-mask 32 --connlimit-daddr -j RETURN" >> $ipt_n
+echo "-A SSP_AGENT -p tcp $connlimitsrc -j REDIRECT --to-ports $local_port" >> $ipt_n
+echo "-A SSP_AGENT -j RETURN" >> $ipt_n
+[ "$agent_mode" == "2" ] && echo "-A SSP_AUTOC -p tcp $connlimitsrc -m connlimit --connlimit-above $DR2 --connlimit-mask 32 --connlimit-daddr -j SSP_AGENT" >> $ipt_n
+[ "$agent_mode" == "2" ] && echo "-A SSP_AUTOC -j RETURN" >> $ipt_n
+[ "$agent_mode" == "2" ] && echo "-A SSP_AUTOG -p tcp $connlimitsrc -m connlimit --connlimit-upto $DR2 --connlimit-mask 32 --connlimit-daddr -j SSP_AGENT" >> $ipt_n
+[ "$agent_mode" == "2" ] && echo "-A SSP_AUTOG -j RETURN" >> $ipt_n
+[ "$agent_mode" == "2" ] && echo "-A SSP_AUTOM -p tcp $connlimitsrc -m connlimit --connlimit-above $DR1 --connlimit-mask 32 --connlimit-daddr -j SSP_AGENT" >> $ipt_n
+[ "$agent_mode" == "2" ] && echo "-A SSP_AUTOM -j RETURN" >> $ipt_n
 echo "-A SSP_OUTPUT -p tcp -j SSP_RULES" >> $ipt_n
 echo "-A SSP_PREROUTING -p tcp -j SSP_RULES" >> $ipt_n
 echo "-A SSP_RULES -m state --state RELATED,ESTABLISHED -j RETURN" >> $ipt_n
 echo "-A SSP_RULES -m set --match-set private dst -j RETURN" >> $ipt_n
 echo "-A SSP_RULES -m set --match-set servers dst -j RETURN" >> $ipt_n
-[ "$server_addr" = "0" ] || echo "-A SSP_RULES -d $server_addr -j RETURN" >> $ipt_n
-[ "$agent_mode" == "0" ] && echo "-A SSP_RULES -j SSP_AGENT" >> $ipt_n
+[ "$serveraddr" == "0" ] || echo "-A SSP_RULES -d $serveraddr -j RETURN" >> $ipt_n
+[ "$agent_mode" == "1" ] && echo "-A SSP_RULES -m set --match-set chnlist dst -j RETURN" >> $ipt_n
 [ "$agent_mode" == "2" ] && echo "-A SSP_RULES -m set --match-set gfwlist dst -j SSP_AUTOG" >> $ipt_n
-[ "$agent_mode" != "0" ] && echo "-A SSP_RULES -m set --match-set chnlist dst -j SSP_AUTOC" >> $ipt_n
-[ "$agent_mode" == "1" ] && echo "-A SSP_RULES -m set --match-set gfwlist dst -j SSP_AUTOG" >> $ipt_n
-[ "$agent_mode" != "0" ] && echo "-A SSP_RULES -j SSP_AUTOM" >> $ipt_n
+[ "$agent_mode" == "2" ] && echo "-A SSP_RULES -m set --match-set chnlist dst -j SSP_AUTOC" >> $ipt_n
+[ "$agent_mode" != "2" ] && echo "-A SSP_RULES -j SSP_AGENT" >> $ipt_n
+[ "$agent_mode" == "2" ] && echo "-A SSP_RULES -j SSP_AUTOM" >> $ipt_n
 echo "COMMIT" >> $ipt_n && iptables-restore --noflush < $ipt_n && rm -rf $ipt_n || return 1
 }
 
@@ -91,8 +92,8 @@ echo "-A INPUT -j SSP_INPUT" >> $ipt_f
 echo "-A SSP_INPUT -m set --match-set private src -j RETURN" >> $ipt_f
 echo "-A SSP_INPUT -p tcp -m set --match-set servers src -m tcp --tcp-flags RST RST -m state --state RELATED,ESTABLISHED -m limit --limit 1/min --limit-burst 1 -j RETURN" >> $ipt_f
 echo "-A SSP_INPUT -p tcp -m set --match-set servers src -m tcp --tcp-flags RST RST -j DROP" >> $ipt_f
-[ "$server_addr" = "0" ] || echo "-A SSP_INPUT -s $server_addr -p tcp -m tcp --tcp-flags RST RST -m state --state RELATED,ESTABLISHED -m limit --limit 1/min --limit-burst 1 -j RETURN" >> $ipt_f
-[ "$server_addr" = "0" ] || echo "-A SSP_INPUT -s $server_addr -p tcp -m tcp --tcp-flags RST RST -j DROP" >> $ipt_f
+[ "$serveraddr" == "0" ] || echo "-A SSP_INPUT -s $serveraddr -p tcp -m tcp --tcp-flags RST RST -m state --state RELATED,ESTABLISHED -m limit --limit 1/min --limit-burst 1 -j RETURN" >> $ipt_f
+[ "$serveraddr" == "0" ] || echo "-A SSP_INPUT -s $serveraddr -p tcp -m tcp --tcp-flags RST RST -j DROP" >> $ipt_f
 echo "-A SSP_INPUT -p tcp -m tcp --tcp-flags RST RST -m state --state INVALID,NEW -j DROP" >> $ipt_f
 echo "-A SSP_INPUT -j RETURN" >> $ipt_f
 echo "COMMIT" >> $ipt_f && iptables-restore --noflush < $ipt_f && rm -rf $ipt_f || return 1
@@ -120,12 +121,10 @@ $iptm -A SSP_PREROUTING -p udp -j SSP_RULES
 $iptm -A SSP_RULES -m mark --mark $routemark -j RETURN
 $iptm -A SSP_RULES -m set --match-set private dst -j RETURN
 $iptm -A SSP_RULES -m set --match-set servers dst -j RETURN
-[ "$server_addr" = "0" ] || $iptm -A SSP_RULES -d $server_addr -j RETURN
-[ "$agent_mode" == "0" ] && $iptm -A SSP_RULES -j SSP_AGENT
+[ "$serveraddr" == "0" ] || $iptm -A SSP_RULES -d $serveraddr -j RETURN
 [ "$agent_mode" == "2" ] && $iptm -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
 [ "$agent_mode" != "0" ] && $iptm -A SSP_RULES -m set --match-set chnlist dst -j RETURN
-[ "$agent_mode" == "1" ] && $iptm -A SSP_RULES -m set --match-set gfwlist dst -j SSP_AGENT
-[ "$agent_mode" == "1" ] && $iptm -A SSP_RULES -j SSP_AGENT
+[ "$agent_mode" != "2" ] && $iptm -A SSP_RULES -j SSP_AGENT
 [ "$agent_mode" == "2" ] && $iptm -A SSP_RULES -j RETURN
 return 0
 }
@@ -135,7 +134,7 @@ usage()
 cat <<-EOF
 
   ss-rules [选项] [赋值]            [说明]
-           -s     <server_addr>     服务器地址      支持域名和IP/CIDR格式 赋值[0]禁用
+           -s     <serveraddr>      服务器地址      支持域名和IP/CIDR格式 赋值[0]禁用
            -i     <local_port>      本地端口        
            -g     <gfw_list>        黑名单地址列表  IP/CIDR格式
            -c     <chn_list>        国内路由表      IP/CIDR格式
@@ -158,7 +157,7 @@ while getopts ":s:i:g:c:e:b:w:a:tmfh" arg; do
   case "$arg" in
     s)
       [ -z "$OPTARG" ] && usage 2
-      server_addr="$OPTARG"
+      serveraddr="$OPTARG"
       ;;
     i)
       [ -z "$OPTARG" ] && usage 3
@@ -188,9 +187,7 @@ while getopts ":s:i:g:c:e:b:w:a:tmfh" arg; do
       [ -z "$OPTARG" ] && usage 9
       agentmode_diversionrate="$OPTARG"
       agent_mode=${agentmode_diversionrate:0:1}
-      diversion_rate=${agentmode_diversionrate:1:1}
-      DR1="$diversion_rate"
-      DR2=$(expr $DR1 \* 4)
+      [ "$agent_mode" == "2" ] && diversion_rate=${agentmode_diversionrate:1:1} && DR1="$diversion_rate" && DR2=$(expr $DR1 \* 2)
       ;;
     t)
       flush_rules 2>/dev/null && gen_ipset && ipt_nat && ipt_filter

@@ -412,6 +412,9 @@ EOF
       echo "$server_addr#$server_port#$r_json_file#null#null" >> $CONF_DIR/Auto-jsonlist
       cat > "$CONF_DIR/$r_json_file" << EOF
 {
+  "log": {
+    "loglevel": "warning"
+  },
   "inbounds": [
     {
       "port": $ss_local_port,
@@ -702,7 +705,7 @@ gfw_list()
 if [ "$ss_mode" = "0" ] || [ ! -e "$EXTB_DIR/GFWblackip.conf" ]; then # global or not GFWblackip.conf
   echo ""
 elif [ "$ss_mode" = "1" ]; then # chnroute
-  echo " -g $EXTB_DIR/GFWblackip.conf"
+  echo ""
 elif [ "$ss_mode" = "2" ]; then # gfwlist
   echo " -g $EXTB_DIR/GFWblackip.conf"
 fi
@@ -746,7 +749,7 @@ agent_mode()
 if [ "$ss_mode" = "0" ]; then # global
   echo " -a 0"
 elif [ "$ss_mode" = "1" ]; then # chnroute
-  echo " -a 1$diversion_rate"
+  echo " -a 1"
 elif [ "$ss_mode" = "2" ]; then # gfwlist
   echo " -a 2$diversion_rate"
 fi
