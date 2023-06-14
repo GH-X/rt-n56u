@@ -63,7 +63,7 @@ function initial(){
 
 function change_ss_mode(){
 	var v = document.form.ss_mode.value; //0=global 1=chnroute 2=gfwlist
-	showhide_div('row_diversion_rate', (v != 0));
+	showhide_div('row_diversion_rate', (v == 2));
 }
 
 function applyRule(){
