@@ -289,12 +289,17 @@ if [ ! -e "$CONF_DIR/Nodes-list.md5" ]; then
       else
         ss_pm="null" && ss_plugin=""
       fi
-      if $(echo "$ss_obfs_param" | grep -q ","); then
-        ss_popts=$(echo "$ss_obfs_param" | awk -F, '{print $1}')
-        ss_pargs=$(echo "$ss_obfs_param" | awk -F, '{print $2}')
-      else
-        ss_popts="$ss_obfs_param"
+      if [ "$ss_pm" == "null" ]; then
+        ss_popts=""
         ss_pargs=""
+      else
+        if $(echo "$ss_obfs_param" | grep -q ","); then
+          ss_popts=$(echo "$ss_obfs_param" | awk -F, '{print $1}')
+          ss_pargs=$(echo "$ss_obfs_param" | awk -F, '{print $2}')
+        else
+          ss_popts="$ss_obfs_param"
+          ss_pargs=""
+        fi
       fi
       r_json_file="$i-$server_type-redir.json"
       [ "$ss_pm" != "v2rp-QUIC" ] && t_json_file="$i-$server_type-tunnel.json" || t_json_file="null"
