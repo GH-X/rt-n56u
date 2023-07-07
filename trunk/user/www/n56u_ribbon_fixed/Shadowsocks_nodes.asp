@@ -59,80 +59,6 @@ function change_server_type(){
 	var md = document.form.ss_method_x_0.value;
 	var pl = document.form.ss_protocol_x_0.value;
 	var os = document.form.ss_obfs_x_0.value;
-	showhide_div('row_013_m', (st != 2));
-	showhide_div('row_3_m_o_chacha20poly1305', (st == 3));
-	showhide_div('row_03_m_o_aes128gcm', ((st == 0) || (st == 3)));
-	showhide_div('row_0_m_o_aes192gcm', (st == 0));
-	showhide_div('row_0_m_o_aes256gcm', (st == 0));
-	showhide_div('row_0_m_o_chacha20ietfpoly1305', (st == 0));
-	showhide_div('row_0_m_o_xchacha20ietfpoly1305', (st == 0));
-	showhide_div('row_13_m_o_none', ((st == 1) || (st == 3)));
-	showhide_div('row_3_m_o_zero', (st == 3));
-	showhide_div('row_01_m_o_rc4', ((st == 0) || (st == 1)));
-	showhide_div('row_01_m_o_rc4md5', ((st == 0) || (st == 1)));
-	showhide_div('row_01_m_o_aes128cfb', ((st == 0) || (st == 1)));
-	showhide_div('row_01_m_o_aes192cfb', ((st == 0) || (st == 1)));
-	showhide_div('row_01_m_o_aes256cfb', ((st == 0) || (st == 1)));
-	showhide_div('row_01_m_o_aes128ctr', ((st == 0) || (st == 1)));
-	showhide_div('row_01_m_o_aes192ctr', ((st == 0) || (st == 1)));
-	showhide_div('row_01_m_o_aes256ctr', ((st == 0) || (st == 1)));
-	showhide_div('row_01_m_o_camellia128cfb', ((st == 0) || (st == 1)));
-	showhide_div('row_01_m_o_camellia192cfb', ((st == 0) || (st == 1)));
-	showhide_div('row_01_m_o_camellia256cfb', ((st == 0) || (st == 1)));
-	showhide_div('row_01_m_o_bfcfb', ((st == 0) || (st == 1)));
-	showhide_div('row_01_m_o_salsa20', ((st == 0) || (st == 1)));
-	showhide_div('row_01_m_o_chacha20', ((st == 0) || (st == 1)));
-	showhide_div('row_01_m_o_chacha20ietf', ((st == 0) || (st == 1)));
-	showhide_div('row_01_mnote', ((st == 0) || (st == 1)));
-	showhide_div('row_3_mnote', (st == 3));
-	showhide_div('row_13_p', ((st == 1) || (st == 3)));
-	showhide_div('row_1_p_o_origin', (st == 1));
-	showhide_div('row_1_p_o_authsha1', (st == 1));
-	showhide_div('row_1_p_o_authsha1v2', (st == 1));
-	showhide_div('row_1_p_o_authsha1v4', (st == 1));
-	showhide_div('row_1_p_o_authaes128md5', (st == 1));
-	showhide_div('row_1_p_o_authaes128sha1', (st == 1));
-	showhide_div('row_1_p_o_authchaina', (st == 1));
-	showhide_div('row_1_p_o_authchainb', (st == 1));
-	showhide_div('row_3_p_o_ws', (st == 3));
-	showhide_div('row_3_p_o_wstls', (st == 3));
-	showhide_div('row_3_p_o_tcp', (st == 3));
-	showhide_div('row_3_p_o_tcptls', (st == 3));
-	showhide_div('row_1_pnote', (st == 1));
-	showhide_div('row_3_pnote', (st == 3));
-	showhide_div('row_13_pp', ((st == 1) || (st == 3)));
-	showhide_div('row_1_ppmenu', (st == 1));
-	showhide_div('row_3_ppmenu', (st == 3));
-	showhide_div('row_1_ppnote', (st == 1));
-	showhide_div('row_3_ppnote', (st == 3));
-	showhide_div('row_013_o', (st != 2));
-	showhide_div('row_0_omenu', (st == 0));
-	showhide_div('row_1_omenu', (st == 1));
-	showhide_div('row_3_omenu', (st == 3));
-	showhide_div('row_1_o_o_plain', (st == 1));
-	showhide_div('row_1_o_o_httpsimple', (st == 1));
-	showhide_div('row_1_o_o_httppost', (st == 1));
-	showhide_div('row_1_o_o_tls1.2ticketauth', (st == 1));
-	showhide_div('row_03_o_o_none', ((st == 0) || (st == 3)));
-	showhide_div('row_0_o_o_v2raypluginwebsocket', (st == 0));
-	showhide_div('row_0_o_o_v2raypluginquic', (st == 9));
-	showhide_div('row_3_o_o_http', ((st == 3) && (pl == "tcp")));
-	showhide_div('row_3_o_o_srtp', ((st == 3) && ((pl == "kcp") || (pl == "quic"))));
-	showhide_div('row_3_o_o_utp', ((st == 3) && ((pl == "kcp") || (pl == "quic"))));
-	showhide_div('row_3_o_o_wechatvideo', ((st == 3) && ((pl == "kcp") || (pl == "quic"))));
-	showhide_div('row_3_o_o_dtls', ((st == 3) && ((pl == "kcp") || (pl == "quic"))));
-	showhide_div('row_3_o_o_wireguard', ((st == 3) && ((pl == "kcp") || (pl == "quic"))));
-	showhide_div('row_0_onote', (st == 0));
-	showhide_div('row_1_onote', (st == 1));
-	showhide_div('row_3_onote', (st == 3));
-	showhide_div('row_013_op', (st != 2));
-	showhide_div('row_0_opmenu', (st == 0));
-	showhide_div('row_1_opmenu', (st == 1));
-	showhide_div('row_3_opmenu', (st == 3));
-	showhide_div('row_0_opnote', (st == 0));
-	showhide_div('row_1_opnote', (st == 1));
-	showhide_div('row_3_opnote', (st == 3));
-	showhide_div('row_23_sni', ((st == 2) || ((st == 3) && ((pl == "ws_tls") || (pl == "tcp_tls")))));
 	if(st == 0){
 		if((md != "aes-128-gcm")
 		&& (md != "aes-192-gcm")
@@ -231,6 +157,83 @@ function change_server_type(){
 			document.form.ss_obfs_x_0.value = "none";
 		}
 	}
+	var md = document.form.ss_method_x_0.value;
+	var pl = document.form.ss_protocol_x_0.value;
+	var os = document.form.ss_obfs_x_0.value;
+	showhide_div('row_013_m', (st != 2));
+	showhide_div('row_3_m_o_chacha20poly1305', (st == 3));
+	showhide_div('row_03_m_o_aes128gcm', ((st == 0) || (st == 3)));
+	showhide_div('row_0_m_o_aes192gcm', (st == 0));
+	showhide_div('row_0_m_o_aes256gcm', (st == 0));
+	showhide_div('row_0_m_o_chacha20ietfpoly1305', (st == 0));
+	showhide_div('row_0_m_o_xchacha20ietfpoly1305', (st == 0));
+	showhide_div('row_13_m_o_none', ((st == 1) || (st == 3)));
+	showhide_div('row_3_m_o_zero', (st == 3));
+	showhide_div('row_01_m_o_rc4', ((st == 0) || (st == 1)));
+	showhide_div('row_01_m_o_rc4md5', ((st == 0) || (st == 1)));
+	showhide_div('row_01_m_o_aes128cfb', ((st == 0) || (st == 1)));
+	showhide_div('row_01_m_o_aes192cfb', ((st == 0) || (st == 1)));
+	showhide_div('row_01_m_o_aes256cfb', ((st == 0) || (st == 1)));
+	showhide_div('row_01_m_o_aes128ctr', ((st == 0) || (st == 1)));
+	showhide_div('row_01_m_o_aes192ctr', ((st == 0) || (st == 1)));
+	showhide_div('row_01_m_o_aes256ctr', ((st == 0) || (st == 1)));
+	showhide_div('row_01_m_o_camellia128cfb', ((st == 0) || (st == 1)));
+	showhide_div('row_01_m_o_camellia192cfb', ((st == 0) || (st == 1)));
+	showhide_div('row_01_m_o_camellia256cfb', ((st == 0) || (st == 1)));
+	showhide_div('row_01_m_o_bfcfb', ((st == 0) || (st == 1)));
+	showhide_div('row_01_m_o_salsa20', ((st == 0) || (st == 1)));
+	showhide_div('row_01_m_o_chacha20', ((st == 0) || (st == 1)));
+	showhide_div('row_01_m_o_chacha20ietf', ((st == 0) || (st == 1)));
+	showhide_div('row_01_mnote', ((st == 0) || (st == 1)));
+	showhide_div('row_3_mnote', (st == 3));
+	showhide_div('row_13_p', ((st == 1) || (st == 3)));
+	showhide_div('row_1_p_o_origin', (st == 1));
+	showhide_div('row_1_p_o_authsha1', (st == 1));
+	showhide_div('row_1_p_o_authsha1v2', (st == 1));
+	showhide_div('row_1_p_o_authsha1v4', (st == 1));
+	showhide_div('row_1_p_o_authaes128md5', (st == 1));
+	showhide_div('row_1_p_o_authaes128sha1', (st == 1));
+	showhide_div('row_1_p_o_authchaina', (st == 1));
+	showhide_div('row_1_p_o_authchainb', (st == 1));
+	showhide_div('row_3_p_o_ws', (st == 3));
+	showhide_div('row_3_p_o_wstls', (st == 3));
+	showhide_div('row_3_p_o_tcp', (st == 3));
+	showhide_div('row_3_p_o_tcptls', (st == 3));
+	showhide_div('row_1_pnote', (st == 1));
+	showhide_div('row_3_pnote', (st == 3));
+	showhide_div('row_13_pp', ((st == 1) || (st == 3)));
+	showhide_div('row_1_ppmenu', (st == 1));
+	showhide_div('row_3_ppmenu', (st == 3));
+	showhide_div('row_1_ppnote', (st == 1));
+	showhide_div('row_3_ppnote', (st == 3));
+	showhide_div('row_013_o', (st != 2));
+	showhide_div('row_0_omenu', (st == 0));
+	showhide_div('row_1_omenu', (st == 1));
+	showhide_div('row_3_omenu', (st == 3));
+	showhide_div('row_1_o_o_plain', (st == 1));
+	showhide_div('row_1_o_o_httpsimple', (st == 1));
+	showhide_div('row_1_o_o_httppost', (st == 1));
+	showhide_div('row_1_o_o_tls1.2ticketauth', (st == 1));
+	showhide_div('row_03_o_o_none', ((st == 0) || (st == 3)));
+	showhide_div('row_0_o_o_v2raypluginwebsocket', (st == 0));
+	showhide_div('row_0_o_o_v2raypluginquic', (st == 9));
+	showhide_div('row_3_o_o_http', ((st == 3) && (pl == "tcp")));
+	showhide_div('row_3_o_o_srtp', ((st == 3) && ((pl == "kcp") || (pl == "quic"))));
+	showhide_div('row_3_o_o_utp', ((st == 3) && ((pl == "kcp") || (pl == "quic"))));
+	showhide_div('row_3_o_o_wechatvideo', ((st == 3) && ((pl == "kcp") || (pl == "quic"))));
+	showhide_div('row_3_o_o_dtls', ((st == 3) && ((pl == "kcp") || (pl == "quic"))));
+	showhide_div('row_3_o_o_wireguard', ((st == 3) && ((pl == "kcp") || (pl == "quic"))));
+	showhide_div('row_0_onote', (st == 0));
+	showhide_div('row_1_onote', (st == 1));
+	showhide_div('row_3_onote', (st == 3));
+	showhide_div('row_013_op', (((st == 0) && (os != "none")) || (st == 1) || (st == 3)));
+	showhide_div('row_0_opmenu', ((st == 0) && (os != "none")));
+	showhide_div('row_1_opmenu', (st == 1));
+	showhide_div('row_3_opmenu', (st == 3));
+	showhide_div('row_0_opnote', ((st == 0) && (os != "none")));
+	showhide_div('row_1_opnote', (st == 1));
+	showhide_div('row_3_opnote', (st == 3));
+	showhide_div('row_23_sni', ((st == 2) || ((st == 3) && ((pl == "ws_tls") || (pl == "tcp_tls")))));
 }
 
 function applyRule(){
@@ -467,7 +470,7 @@ function showMRULESList(){
 
                                         <tr id="row_013_o" style="display:none;"> <th width="22%" id="row_0_omenu" style="display:none;"><#menu5_16_44A#></th> <th width="22%" id="row_1_omenu" style="display:none;"><#menu5_16_44#></th> <th width="22%" id="row_3_omenu" style="display:none;"><#menu5_16_44B#></th>
                                             <td>
-                                                <select name="ss_obfs_x_0" class="input" style="width: 342px">   
+                                                <select name="ss_obfs_x_0" class="input" style="width: 342px" onchange="change_server_type();">   
                                                     <option id="row_1_o_o_plain" style="display:none;" value="plain" <% nvram_match_x("","ss_obfs_x_0", "plain","selected"); %>>plain</option> <!--ssr-->
                                                     <option id="row_1_o_o_httpsimple" style="display:none;" value="http_simple" <% nvram_match_x("","ss_obfs_x_0", "http_simple","selected"); %>>http_simple</option> <!--ssr-->
                                                     <option id="row_1_o_o_httppost" style="display:none;" value="http_post" <% nvram_match_x("","ss_obfs_x_0", "http_post","selected"); %>>http_post</option> <!--ssr-->
@@ -490,7 +493,7 @@ function showMRULESList(){
                                             <td>
                                                 <input type="text" maxlength="64" class="input" size="64" name="ss_obfs_param_x_0" style="width: 333px" value="<% nvram_get_x("","ss_obfs_param_x_0"); %>">
                                             </td>
-                                            <td width="22%" id="row_0_opnote" style="display:none;">..plugin_opts</td> <td width="22%" id="row_1_opnote" style="display:none;">..obfs_param</td> <td width="22%" id="row_3_opnote" style="display:none;">..Host</td>
+                                            <td width="22%" id="row_0_opnote" style="display:none;">..opts(opts,args)</td> <td width="22%" id="row_1_opnote" style="display:none;">..obfs_param</td> <td width="22%" id="row_3_opnote" style="display:none;">..Host(host1,host2)</td>
                                         </tr>
 
                                         <tr id="row_23_sni" style="display:none;"> <th width="22%"><#menu5_16_39#></th>
