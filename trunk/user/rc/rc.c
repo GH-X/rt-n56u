@@ -1641,9 +1641,6 @@ main(int argc, char **argv)
 
 	if (!strcmp(base, "reboot")) {
 		write_storage_to_mtd();
-#if defined(APP_SHADOWSOCKS)
-		stop_ss();
-#endif
 #if defined (USE_STORAGE)
 		safe_remove_all_stor_devices(1);
 #endif
@@ -1652,12 +1649,7 @@ main(int argc, char **argv)
 		power_control_usb_port(0, 0);
 #endif
 #endif
-#ifdef MTD_FLASH_32M_REBOOT_BUG
-		system("/bin/mtd_write -r unlock mtd1");
-		return 0;
-#else
 		return sys_exit();
-#endif
 	}
 
 	if (!strcmp(base, "shutdown") || !strcmp(base, "halt")) {
