@@ -253,6 +253,25 @@ VOID ApSiteSurvey(
 	IN 	struct wifi_dev		*wdev
 );
 
+#ifdef OFFCHANNEL_SCAN_FEATURE
+INT ApSiteSurveyNew_by_wdev(
+	IN	PRTMP_ADAPTER	pAd,
+	IN  UINT 		channel,
+	IN  UINT 		timeout,
+	IN	UCHAR		ScanType,
+	IN	BOOLEAN		ChannelSel,
+	struct wifi_dev 	*wdev);
+INT Channel_Info_MsgHandle(PRTMP_ADAPTER pAd, RTMP_IOCTL_INPUT_STRUCT *wrq, POS_COOKIE pObj);
+VOID Calculate_NF(RTMP_ADAPTER *pAd);
+VOID ResetEnable_NF_Registers(RTMP_ADAPTER *pAd);
+#endif
+
+#if (defined(CUSTOMER_DCC_FEATURE) || defined(OFFCHANNEL_SCAN_FEATURE))
+UCHAR Channel2Index(   
+	IN PRTMP_ADAPTER 	pAd,
+	IN UCHAR 			channel);
+#endif
+
 VOID SupportRate(
 	IN PUCHAR SupRate,
 	IN UCHAR SupRateLen,
@@ -385,21 +404,15 @@ VOID AP_E2PROM_IOCTL_PostCtrl(RTMP_IOCTL_INPUT_STRUCT *wrq, RTMP_STRING *msg);
 
 VOID IAPP_L2_UpdatePostCtrl(RTMP_ADAPTER *pAd, UINT8 *mac, INT wdev_idx);
 
-/* ap_assoc.c */
-BOOLEAN IAPP_L2_Update_Frame_Send(
-    IN PRTMP_ADAPTER pAd,
-    IN UINT8 *mac_p,
-    IN INT wdev_idx);
-
 #ifdef AIRPLAY_SUPPORT
 #define AIRPLAY_ON(_pAd)          ((_pAd)->bAirplayEnable == 1)
 #endif /* AIRPLAY_SUPPORT*/
 #ifdef STA_FORCE_ROAM_SUPPORT
 
 
-#define FROAM_SUPP_DEF			TRUE // FALSE by default?
-#define STA_LOW_RSSI			60	// absolute
-#define STA_DETECT_RSSI			65	// absolute
+#define FROAM_SUPP_DEF			FALSE // TRUE by default?
+#define STA_LOW_RSSI			65	// absolute
+#define STA_DETECT_RSSI			55	// absolute
 #define	STALIST_AGEOUT_TIME 	5	// sec
 #define	MNTRLIST_AGEOUT_TIME 	4	// sec
 #define	MNTR_MIN_PKT_COUNT 		5
