@@ -18,10 +18,10 @@ where
 =====================================
 1. Set ATE actions.
 	Value:
-		ATESTART	- Stop AP & ATE function.
-		ATESTOP		- Start AP function.
-		TXCONT		- Start AP continuous TX, for power mask.
-		TXCARR		- Start AP carrier test, for frequency calibration.
+		ATESTART	- Start ATE function and stop station function.
+		ATESTOP		- Stop ATE function and start station function.
+		TXCONT		- Start continuous TX, for power mask.
+		TXCARR		- Start carrier test, for frequency calibration.
 		TXFRAME		- Transmit frame, for EVM.
 		RXFRAME		- Continuous RX, for PER/FER.
 		
@@ -159,11 +159,12 @@ where
 		xxxxxxxx          ;32-bit, hex
 
 1.25 ATELDE2P
-		Overwrite all EEPROM contents from "/etc/Wireless/RT2860/(70)AP(/STA)/e2p.bin".
+		Overwrite all EEPROM contents
 	Value:
 		1
 	E.g.
 		iwpriv ra0 set ATELDE2P=1
+
 1.26 ATERE2P
 		Display all EEPROM content.
 	Value:
