@@ -29,7 +29,6 @@
 #include "rt_config.h"
 #include "ap.h"
 
-BOOLEAN bDisconnectSta = FALSE;
 
 #ifdef SW_ATF_SUPPORT
 #define WcidTxThr	43
@@ -1004,17 +1003,16 @@ VOID APStartUp(RTMP_ADAPTER *pAd)
 		COPY_MAC_ADDR(pAd->CommonCfg.Bssid, pAd->CurrentAddress);
 
 		ap_security_init(pAd, wdev, idx);
-
 #ifdef STA_FORCE_ROAM_SUPPORT
 				DBGPRINT(RT_DEBUG_OFF, 
-					("\n[Force Roam] Force Roam Support = %d\n",pAd->en_force_roam_supp));
-				//DBGPRINT(RT_DEBUG_OFF, 
-				//	("[Force Roam] => StaLowRssiThr=%d dBm low_sta_renotify=%d sec StaAgeTime=%d sec\n",pAd->sta_low_rssi, pAd->low_sta_renotify,pAd->sta_age_time));	
-				//DBGPRINT(RT_DEBUG_OFF, 
-				//	("[Force Roam] => MntrAgeTime=%d sec mntr_min_pkt_count=%d mntr_min_time=%d sec mntr_avg_rssi_pkt_count=%d\n",
-				//	pAd->mntr_age_time, pAd->mntr_min_pkt_count,pAd->mntr_min_time, pAd->mntr_avg_rssi_pkt_count));
-				//DBGPRINT(RT_DEBUG_OFF, 
-				//	("[Force Roam] => AclAgeTime=%d sec AclHoldTime=%d sec\n",pAd->acl_age_time, pAd->acl_hold_time));
+					("\n[Force Roam] => Force Roam Support = %d\n",pAd->en_force_roam_supp));
+				DBGPRINT(RT_DEBUG_OFF, 
+					("[Force Roam] => StaLowRssiThr=%d dBm low_sta_renotify=%d sec StaAgeTime=%d sec\n",pAd->sta_low_rssi, pAd->low_sta_renotify,pAd->sta_age_time));	
+				DBGPRINT(RT_DEBUG_OFF, 
+					("[Force Roam] => MntrAgeTime=%d sec mntr_min_pkt_count=%d mntr_min_time=%d sec mntr_avg_rssi_pkt_count=%d\n",
+					pAd->mntr_age_time, pAd->mntr_min_pkt_count,pAd->mntr_min_time, pAd->mntr_avg_rssi_pkt_count));
+				DBGPRINT(RT_DEBUG_OFF, 
+					("[Force Roam] => AclAgeTime=%d sec AclHoldTime=%d sec\n",pAd->acl_age_time, pAd->acl_hold_time));
 #endif
 
 #ifdef MWDS
@@ -1469,11 +1467,6 @@ VOID APStopBssOnly(RTMP_ADAPTER *pAd, BSS_STRUCT *pMbss)
 {
 	BOOLEAN Cancelled;
 	struct wifi_dev *wdev_bss;
-#ifdef WH_EZ_SETUP
-	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
-	struct wifi_dev *wdev = &pAd->ApCfg.MBSSID[pObj->ioctl_if].wdev;
-#endif
-
 	wdev_bss = &pMbss->wdev;
 
 	if (!wdev_bss) {
@@ -1486,69 +1479,11 @@ VOID APStopBssOnly(RTMP_ADAPTER *pAd, BSS_STRUCT *pMbss)
 	RTMP_ASIC_INTERRUPT_DISABLE(pAd);
 #endif
 
-#ifdef DFS_SUPPORT
-		NewRadarDetectionStop(pAd);
-#endif /* DFS_SUPPORT */
-
-#ifdef CONFIG_AP_SUPPORT
-#ifdef CARRIER_DETECTION_SUPPORT
-		if (pAd->CommonCfg.CarrierDetect.Enable == TRUE) {
-			/* make sure CarrierDetect wont send CTS */
-			CarrierDetectionStop(pAd);
-		}
-#endif /* CARRIER_DETECTION_SUPPORT */
-#endif /* CONFIG_AP_SUPPORT */
-
-
-#ifdef WDS_SUPPORT
-	WdsDown(pAd);
-#endif /* WDS_SUPPORT */
-
-#if defined(APCLI_SUPPORT) && defined(MAP_SUPPORT) && defined(A4_CONN)
-	{
-		for (idx = 0; idx < MAX_APCLI_NUM; idx++) {
-			wdev_apcli = &pAd->ApCfg.ApCliTab[idx].wdev;
-
-			/* WPS cli will disconnect and connect again */
-			pWscControl = &pAd->ApCfg.ApCliTab[idx].WscControl;
-			if (pWscControl->bWscTrigger == TRUE)
-				continue;
-
-			if (wdev_apcli->channel == wdev_bss->channel) {
-				UINT8 enable = pAd->ApCfg.ApCliTab[idx].Enable;
-
-				if (enable) {
-					pAd->ApCfg.ApCliTab[idx].Enable = FALSE;
-					ApCliIfDown(pAd);
-					pAd->ApCfg.ApCliTab[idx].Enable = enable;
-				}
-			}
-		}
-	}
-#endif /* APCLI_SUPPORT */
-
 	MacTableResetWdev(pAd, wdev_bss);
 
-	/*RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS); */
-
-	/* Disable pre-tbtt interrupt */
-	/*CMDHandler(pAd); */
-	AsicSetPreTbtt(pAd, FALSE);
-
-	/* Disable piggyback */
-	RTMPSetPiggyBack(pAd, FALSE);
-
-	AsicUpdateProtect(pAd, 0,  (ALLN_SETPROTECT|CCKSETPROTECT|OFDMSETPROTECT), TRUE, FALSE);
-
-	if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)) {
-		AsicDisableSync(pAd);
-
-#ifdef LED_CONTROL_SUPPORT
-		/* Set LED */
-		RTMPSetLED(pAd, LED_LINK_DOWN);
-#endif /* LED_CONTROL_SUPPORT */
-	}
-
+	pAd->ApCfg.MBSSID[pMbss->mbss_idx].bcn_buf.bBcnSntReq = FALSE;
+	APMakeAllBssBeacon(pAd);
+	APUpdateAllBeaconFrame(pAd);
 
 
 	if (pMbss->REKEYTimerRunning == TRUE) {
@@ -1567,23 +1502,7 @@ VOID APStopBssOnly(RTMP_ADAPTER *pAd, BSS_STRUCT *pMbss)
 	if (wdev_bss->if_dev && pAd->net_dev)
 		wapp_send_bss_state_change(pAd, wdev_bss, WAPP_BSS_STOP);
 #endif /*WAPP_SUPPORT*/
-#if defined(CONFIG_WIFI_PKT_FWD) || defined(CONFIG_WIFI_PKT_FWD_MODULE)
-#if (MT7615_MT7603_COMBO_FORWARDING == 1)
-	{
-		if (wf_fwd_entry_delete_hook)
-			wf_fwd_entry_delete_hook(pAd->net_dev, pMbss->wdev.if_dev, 0);
-
-		if (wf_fwd_check_device_hook)
-			wf_fwd_check_device_hook(pMbss->wdev.if_dev, INT_MBSSID,
-									pMbss->mbss_idx, pMbss->wdev.channel, 0);
-	}
-#endif /* CONFIG_WIFI_PKT_FWD */
-#endif
 	pMbss->bcn_buf.bcn_state = BCN_TX_IDLE;
-#ifdef WH_EZ_SETUP
-	if (IS_CONF_EZ_SETUP_ENABLED(&pMbss->wdev))
-		ez_stop(&pMbss->wdev);
-#endif /* WH_EZ_SETUP */
 
 #ifdef BAND_STEERING
 	if (pAd->ApCfg.BandSteering) {
@@ -1596,37 +1515,6 @@ VOID APStopBssOnly(RTMP_ADAPTER *pAd, BSS_STRUCT *pMbss)
 		}
 	}
 #endif /* BAND_STEERING */
-
-	if (pAd->ApCfg.CMTimerRunning == TRUE) {
-		RTMPCancelTimer(&pAd->ApCfg.CounterMeasureTimer, &Cancelled);
-		pAd->ApCfg.CMTimerRunning = FALSE;
-		pAd->ApCfg.BANClass3Data = FALSE;
-	}
-
-#ifdef WAPI_SUPPORT
-	RTMPCancelWapiRekeyTimerAction(pAd, NULL);
-#endif /* WAPI_SUPPORT */
-
-	/* */
-	/* Cancel the Timer, to make sure the timer was not queued. */
-	/* */
-	/* OPSTATUS_CLEAR_FLAG(pAd, fOP_AP_STATUS_MEDIA_STATE_CONNECTED); */
-	RTMP_IndicateMediaState(pAd, NdisMediaStateDisconnected);
-
-#ifdef IDS_SUPPORT
-	/* if necessary, cancel IDS timer */
-	RTMPIdsStop(pAd);
-#endif /* IDS_SUPPORT */
-
-#ifdef DOT11R_FT_SUPPORT
-	FT_Release(pAd);
-#endif /* DOT11R_FT_SUPPORT */
-
-#ifdef DOT11V_WNM_SUPPORT
-	DMSTable_Release(pAd);
-#endif /* DOT11V_WNM_SUPPORT */
-
-
 }
 
 /*
@@ -1709,14 +1597,14 @@ void load_froam_defaults(RTMP_ADAPTER *pAd)
 	pAd->acl_age_time = ACLLIST_AGEOUT_TIME;
 	pAd->acl_hold_time = ACLLIST_HOLD_TIME;	
 	DBGPRINT(RT_DEBUG_TRACE, 
-		("\n[Force Roam] Force Roam Support = %d\n",pAd->en_force_roam_supp));
-	//DBGPRINT(RT_DEBUG_TRACE, 
-	//	("[Force Roam] => StaLowRssiThr=%d dBm low_sta_renotify=%d sec StaAgeTime=%d sec\n",pAd->sta_low_rssi, pAd->low_sta_renotify,pAd->sta_age_time)); 	
-	//DBGPRINT(RT_DEBUG_TRACE, 
-	//	("[Force Roam] => MntrAgeTime=%d sec mntr_min_pkt_count=%d mntr_min_time=%d sec mntr_avg_rssi_pkt_count=%d\n",
-	//	pAd->mntr_age_time, pAd->mntr_min_pkt_count,pAd->mntr_min_time, pAd->mntr_avg_rssi_pkt_count));
-	//DBGPRINT(RT_DEBUG_TRACE, 
-	//	("[Force Roam] => AclAgeTime=%d sec AclHoldTime=%d sec\n",pAd->acl_age_time, pAd->acl_hold_time));
+		("\n[Force Roam] => Force Roam Support = %d\n",pAd->en_force_roam_supp));
+	DBGPRINT(RT_DEBUG_TRACE, 
+		("[Force Roam] => StaLowRssiThr=%d dBm low_sta_renotify=%d sec StaAgeTime=%d sec\n",pAd->sta_low_rssi, pAd->low_sta_renotify,pAd->sta_age_time)); 	
+	DBGPRINT(RT_DEBUG_TRACE, 
+		("[Force Roam] => MntrAgeTime=%d sec mntr_min_pkt_count=%d mntr_min_time=%d sec mntr_avg_rssi_pkt_count=%d\n",
+		pAd->mntr_age_time, pAd->mntr_min_pkt_count,pAd->mntr_min_time, pAd->mntr_avg_rssi_pkt_count));
+	DBGPRINT(RT_DEBUG_TRACE, 
+		("[Force Roam] => AclAgeTime=%d sec AclHoldTime=%d sec\n",pAd->acl_age_time, pAd->acl_hold_time));
 }
 #define MINIMUM_POWER_VALUE		       -127
 static CHAR staMaxRssi(RTMP_ADAPTER *pAd, struct wifi_dev *wdev, RSSI_SAMPLE *pRssi)
@@ -1743,9 +1631,6 @@ static void sta_rssi_check(void *ad_obj, void *pEntry)
 	CHAR maxRssi = MINIMUM_POWER_VALUE;
 	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *)ad_obj;
 	MAC_TABLE_ENTRY *pMacEntry = (MAC_TABLE_ENTRY *)pEntry;
-	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
-	UCHAR apidx = pObj->ioctl_if;
-	ULONG AclIdx;
 
 	// average value of rssi for all antenna is not being considered, as it depends on whether all antenna slots as usage
 	// have got antenna connected.
@@ -1753,18 +1638,17 @@ static void sta_rssi_check(void *ad_obj, void *pEntry)
 
 	maxRssi = staMaxRssi(pAd, pMacEntry->wdev, &pMacEntry->RssiSample);
 
-	//printk("STA %02x-%02x-%02x-%02x-%02x-%02x RSSI:%d\n",
-	//	pMacEntry->Addr[0],pMacEntry->Addr[1],pMacEntry->Addr[2],pMacEntry->Addr[3],pMacEntry->Addr[4],pMacEntry->Addr[5],maxRssi);
+	printk("STA %02x-%02x-%02x-%02x-%02x-%02x maxRssi:%d !!\n",
+		pMacEntry->Addr[0],pMacEntry->Addr[1],pMacEntry->Addr[2],pMacEntry->Addr[3],pMacEntry->Addr[4],pMacEntry->Addr[5],maxRssi);
 
 	if(pMacEntry->low_rssi_notified)	// i.e rssi improved
 	{
-		if((maxRssi < pAd->sta_good_rssi) && (maxRssi > MINIMUM_POWER_VALUE))
-		{
+		if(maxRssi > pAd->sta_low_rssi ){
 			froam_event_sta_good_rssi event_data;
-
-			//printk("issue FROAM_EVT_STA_RSSI_GOOD -> for STA %02x-%02x-%02x-%02x-%02x-%02x\n",
-			//    pMacEntry->Addr[0],pMacEntry->Addr[1],pMacEntry->Addr[2],pMacEntry->Addr[3],pMacEntry->Addr[4],pMacEntry->Addr[5]);
-
+			
+			printk("issue FROAM_EVT_STA_RSSI_GOOD -> for STA %02x-%02x-%02x-%02x-%02x-%02x\n",
+			    pMacEntry->Addr[0],pMacEntry->Addr[1],pMacEntry->Addr[2],pMacEntry->Addr[3],pMacEntry->Addr[4],pMacEntry->Addr[5]);
+			
 			memset(&event_data,0,sizeof(event_data));
 
 			event_data.hdr.event_id = FROAM_EVT_STA_RSSI_GOOD;	
@@ -1772,9 +1656,9 @@ static void sta_rssi_check(void *ad_obj, void *pEntry)
 
 			//DBGPRINT(RT_DEBUG_TRACE,("FROAM_EVT_STA_RSSI_GOOD payload len:%d datLen: %d-> \n",
 			//	event_data.hdr.event_len,sizeof(event_data)));
-
+			
 			memcpy(event_data.mac,pMacEntry->Addr,MAC_ADDR_LEN);
-
+			
 			RtmpOSWrielessEventSend(
 						pAd->net_dev,
 						RT_WLAN_EVENT_CUSTOM,
@@ -1782,49 +1666,32 @@ static void sta_rssi_check(void *ad_obj, void *pEntry)
 						NULL,
 						(UCHAR *) &event_data,
 						sizeof(event_data));
-
+			
 			pMacEntry->low_rssi_notified = FALSE;
 			pMacEntry->tick_sec = 0;
 			//printk("Froam event sent <- \n");
 		}
-		else
-		{
-			if(pMacEntry->tick_sec < pAd->low_sta_renotify)
-			{
-				pMacEntry->tick_sec++;
-			}
-			if((pMacEntry->tick_sec == pAd->low_sta_renotify) && (pAd->ApCfg.MBSSID[apidx].AccessControlList.Policy == 0))
-			{
-				for(AclIdx = 0; AclIdx < pAd->ApCfg.MBSSID[apidx].AccessControlList.Num; AclIdx++)
-				{
-					if(MAC_ADDR_EQUAL(pMacEntry->Addr, pAd->ApCfg.MBSSID[apidx].AccessControlList.Entry[AclIdx].Addr))
-					{
-							pMacEntry->low_rssi_notified = FALSE;
-							pMacEntry->tick_sec = 0;
-
-							bDisconnectSta = TRUE;
-
-							DBGPRINT(RT_DEBUG_OFF,("[Force Roam] forced disconnect STA %02X:%02X:%02X:%02X:%02X:%02X\n",
-								pMacEntry->Addr[0],pMacEntry->Addr[1],pMacEntry->Addr[2],pMacEntry->Addr[3],pMacEntry->Addr[4],pMacEntry->Addr[5]));
-
-							break;
-					}
-				}
+		else{
+			pMacEntry->tick_sec++;
+			if(pMacEntry->tick_sec >= pAd->low_sta_renotify){
+				pMacEntry->tick_sec = 0;
+				pMacEntry->low_rssi_notified = FALSE;
 			}
 		}
 	}
-	else if((maxRssi > pAd->sta_low_rssi) || (maxRssi == MINIMUM_POWER_VALUE))
+	else if((maxRssi != MINIMUM_POWER_VALUE) && (maxRssi < pAd->sta_low_rssi ))	//pAd->ApCfg.EventNotifyCfg.StaRssiDetectThreshold))
 	{
 		froam_event_sta_low_rssi event_data;
 
-		DBGPRINT(RT_DEBUG_OFF,("[Force Roam] RSSI %d for STA %02X:%02X:%02X:%02X:%02X:%02X\n",
-			maxRssi,pMacEntry->Addr[0],pMacEntry->Addr[1],pMacEntry->Addr[2],pMacEntry->Addr[3],pMacEntry->Addr[4],pMacEntry->Addr[5]));
-
+		DBGPRINT(RT_DEBUG_TRACE,("issue FROAM_EVT_STA_RSSI_LOW -> for STA %02x-%02x-%02x-%02x-%02x-%02x\n",
+		    pMacEntry->Addr[0],pMacEntry->Addr[1],pMacEntry->Addr[2],pMacEntry->Addr[3],pMacEntry->Addr[4],pMacEntry->Addr[5]));
+		
 		memset(&event_data,0,sizeof(event_data));
 
 		event_data.hdr.event_id = FROAM_EVT_STA_RSSI_LOW;	
 		event_data.hdr.event_len = sizeof(froam_event_sta_low_rssi) - sizeof(froam_event_hdr);
 
+		//event_data.channel = pMacEntry->wdev->channel;
 		event_data.channel = pAd->CommonCfg.Channel;
 		memcpy(event_data.mac,pMacEntry->Addr,MAC_ADDR_LEN);
 
@@ -1838,6 +1705,7 @@ static void sta_rssi_check(void *ad_obj, void *pEntry)
 
 		pMacEntry->low_rssi_notified = TRUE;
 		pMacEntry->tick_sec = 0;
+
 		//DBGPRINT(RT_DEBUG_TRACE,("Froam event sent <- \n"));
 	}
 }
@@ -1938,7 +1806,7 @@ VOID MacTableMaintenance(RTMP_ADAPTER *pAd)
 	{
 		MAC_TABLE_ENTRY *pEntry = &pMacTable->Content[i];
 		STA_TR_ENTRY *tr_entry = &pMacTable->tr_entry[i];
-		bDisconnectSta = FALSE;
+		BOOLEAN bDisconnectSta = FALSE;
 #ifdef APCLI_SUPPORT
 
 #ifdef TRAFFIC_BASED_TXOP	
@@ -2134,8 +2002,8 @@ VOID MacTableMaintenance(RTMP_ADAPTER *pAd)
 #endif /* MAC_REPEATER_SUPPORT */
 		/* detect the station alive status */
 		/* detect the station alive status */
-#ifdef NEW_IXIA_METHOD
-		if (force_connect == 1)
+#ifdef MAX_CONTINUOUS_TX_CNT
+		if (pAd->ixiaCtrl.iForceAge == 1)
 			pEntry->NoDataIdleCount = 0;
 #endif
 		if ((pMbss->StationKeepAliveTime > 0) &&
@@ -2227,16 +2095,6 @@ VOID MacTableMaintenance(RTMP_ADAPTER *pAd)
 					pEntry->StationKeepAliveCount = 0;
 			}
 		}
-
-#ifdef STA_FORCE_ROAM_SUPPORT
-			if (IS_ENTRY_CLIENT(pEntry) &&
-				tr_entry && (!pEntry->is_peer_entry_apcli)
-				&& (((PRTMP_ADAPTER)(pEntry->wdev->sys_handle))->en_force_roam_supp)
-				&& (tr_entry->PortSecured == WPA_802_1X_PORT_SECURED))
-			{
-				sta_rssi_check(pAd, pEntry);
-			}
-#endif
 
 		/* 2. delete those MAC entry that has been idle for a long time */
 		if ((pEntry->TxSucCnt == 0) && (pEntry->NoDataIdleCount >= pEntry->StaIdleTimeout))
@@ -2374,7 +2232,7 @@ VOID MacTableMaintenance(RTMP_ADAPTER *pAd)
 #endif /* ALL_NET_EVENT */
 
 
-		if (bDisconnectSta) /* DisconnectSTA */
+		if (bDisconnectSta)
 		{
 #ifdef FAST_DETECT_STA_OFF
 			UCHAR flush_wcid = pEntry->wcid;
@@ -2466,7 +2324,7 @@ VOID MacTableMaintenance(RTMP_ADAPTER *pAd)
 #endif
 
 			continue;
-		} /* DisconnectSTA */
+		}
 
 #if defined(CONFIG_HOTSPOT_R2) || defined(CONFIG_DOT11V_WNM)
 		if (pEntry->BTMDisassocCount == 1)
@@ -2523,7 +2381,7 @@ VOID MacTableMaintenance(RTMP_ADAPTER *pAd)
 				}
 				else {
 #endif				
-					MacTableDeleteEntry(pAd, pEntry->wcid, pEntry->Addr);
+					MacTableDeleteEntry(pAd, pEntry->Aid, pEntry->Addr);
 #ifdef WH_EZ_SETUP
 				}
 #endif
@@ -2603,6 +2461,15 @@ VOID MacTableMaintenance(RTMP_ADAPTER *pAd)
 			}
 		}
 #endif /* WFA_VHT_PF */
+#ifdef STA_FORCE_ROAM_SUPPORT
+			if (IS_ENTRY_CLIENT(pEntry) &&
+				tr_entry && (!pEntry->is_peer_entry_apcli)
+				&& (((PRTMP_ADAPTER)(pEntry->wdev->sys_handle))->en_force_roam_supp)
+				&& (tr_entry->PortSecured == WPA_802_1X_PORT_SECURED))
+			{
+				sta_rssi_check(pAd, pEntry);
+			}
+#endif
 
 #ifdef WH_EVENT_NOTIFIER
         if(pAd->ApCfg.EventNotifyCfg.bStaRssiDetect)
@@ -3398,8 +3265,8 @@ VOID ApUpdateAccessControlList(RTMP_ADAPTER *pAd, UCHAR Apidx)
 				}
 			}
 		}
-#endif
 		if (drop == FALSE)
+#endif
 		{
 			Matched = FALSE;
 			for (AclIdx = 0; AclIdx < pMbss->AccessControlList.Num; AclIdx++) {
