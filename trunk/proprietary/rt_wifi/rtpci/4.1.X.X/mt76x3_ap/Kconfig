@@ -106,12 +106,12 @@ config MT7603E_WNM_SUPPORT
 
 config MT7603E_INTERWORKING
 	bool "802.11u Interworking/Gas Support"
-        depends on MT7603E_RLT_AP_SUPPORT
+        depends on MT_AP_SUPPORT
         default n
 
 config MT7603E_MAP_SUPPORT
 	bool "Multi-AP Support"
-	depends on MT7603E_RLT_AP_SUPPORT
+	depends on MT_AP_SUPPORT
 	#select MBO_SUPPORT
 	default n
 
