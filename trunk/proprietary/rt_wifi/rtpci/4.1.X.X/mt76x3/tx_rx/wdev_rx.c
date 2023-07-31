@@ -1546,7 +1546,7 @@ static INT rtmp_chk_rx_err(RTMP_ADAPTER *pAd, RX_BLK *pRxBlk, HEADER_802_11 *pHd
 					return NDIS_STATUS_FAILURE;
 			}
 #endif
-			DBGPRINT(RT_DEBUG_OFF, ("ICV Error\n"));
+			DBGPRINT(RT_DEBUG_TRACE, ("ICV Error\n"));
 			dump_rxblk(pAd, pRxBlk);
 #ifdef WIFI_DIAG
 			/* WEP + open, wrong passowrd can association success, but rx data error */
