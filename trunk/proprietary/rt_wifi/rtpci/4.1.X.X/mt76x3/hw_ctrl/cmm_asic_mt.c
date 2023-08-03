@@ -953,7 +953,7 @@ VOID RTMPSetPiggyBack(RTMP_ADAPTER *pAd, BOOLEAN bPiggyBack)
 {
 	// TODO: shiang-7603
 	if (pAd->chipCap.hif_type == HIF_MT) {
-		DBGPRINT(RT_DEBUG_OFF, ("%s(%d): Not support for HIF_MT yet!\n",
+		DBGPRINT(RT_DEBUG_TRACE, ("%s(%d): Not support for HIF_MT yet!\n",
 							__FUNCTION__, __LINE__));
 	}
 
@@ -1391,8 +1391,8 @@ VOID APCheckBcnQHandler(RTMP_ADAPTER *pAd, INT apidx, BOOLEAN *is_pretbtt_int)
 
 	//check filter resilt
 	RTMP_IO_READ32(pAd, 0x21c0c, &temp);
-	DBGPRINT(RT_DEBUG_ERROR, ("flush result = %x\n", temp));
-	DBGPRINT(RT_DEBUG_ERROR, ("check pse fid Q7:"));
+	DBGPRINT(RT_DEBUG_TRACE, ("flush result = %x\n", temp));
+	DBGPRINT(RT_DEBUG_TRACE, ("check pse fid Q7:"));
 	set_get_fid(pAd, "7");
 
 	val = 0;
@@ -2083,7 +2083,7 @@ VOID AsicAddSharedKeyEntry(
 
 	// TODO: shiang-7603
 	if (pAd->chipCap.hif_type == HIF_MT) {
-		DBGPRINT(RT_DEBUG_OFF, ("%s(%d): Not support for HIF_MT yet!\n",
+		DBGPRINT(RT_DEBUG_TRACE, ("%s(%d): Not support for HIF_MT yet!\n",
 							__FUNCTION__, __LINE__));
 		return;
 	}
