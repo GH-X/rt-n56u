@@ -1707,7 +1707,7 @@ static void sta_rssi_check(void *ad_obj, void *pEntry)
 	{
 		froam_event_sta_low_rssi event_data;
 
-		DBGPRINT(RT_DEBUG_OFF,("[Force Roam] RSSI %d for STA %02X:%02X:%02X:%02X:%02X:%02X\n",
+		DBGPRINT(RT_DEBUG_TRACE,("[Force Roam] RSSI %d for STA %02X:%02X:%02X:%02X:%02X:%02X\n",
 			maxRssi,pMacEntry->Addr[0],pMacEntry->Addr[1],pMacEntry->Addr[2],pMacEntry->Addr[3],pMacEntry->Addr[4],pMacEntry->Addr[5]));
 
 		memset(&event_data,0,sizeof(event_data));

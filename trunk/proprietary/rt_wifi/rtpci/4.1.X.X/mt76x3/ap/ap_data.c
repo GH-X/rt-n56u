@@ -2531,11 +2531,12 @@ VOID AP_Fragment_Frame_Tx(RTMP_ADAPTER *pAd, TX_BLK *pTxBlk)
 	USHORT AckDuration;
 	UINT NextMpduSize;
 	//UINT8 tx_hw_hdr_len = pAd->chipCap.tx_hw_hdr_len;
-	
-	ASSERT(pTxBlk);
-	ASSERT(TX_BLK_TEST_FLAG(pTxBlk, fTX_bAllowFrag));
 
-//DBGPRINT(RT_DEBUG_TRACE, ("%s()-->\n", __FUNCTION__));
+	ASSERT(pTxBlk);
+	if (TX_BLK_TEST_FLAG(pTxBlk, fTX_bAllowFrag)) {
+		DBGPRINT(RT_DEBUG_OFF, ("%s() FLAG fragment failed!\n", __FUNCTION__));
+		return;
+	}
 
 	pQEntry = RemoveHeadQueue(&pTxBlk->TxPacketList);
 	pTxBlk->pPacket = QUEUE_ENTRY_TO_PACKET(pQEntry);
