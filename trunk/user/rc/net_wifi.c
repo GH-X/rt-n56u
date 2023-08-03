@@ -661,13 +661,13 @@ start_wifi_apcli_wl(int radio_on)
 		if (nvram_wlan_get_int(1, "sta_auto"))
 #if defined (USE_WID_5G) && (USE_WID_5G==7615 || USE_WID_5G==7915)
 		{
-			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 3);
 			logmessage(LOGNAME, "Set ApCliAutoConnect to 3");
+			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 3);
 		}
 #else
 		{
-			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 1);
 			logmessage(LOGNAME, "Set ApCliAutoConnect to 1");
+			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 1);
 		}
 #endif
 	}
@@ -692,18 +692,18 @@ start_wifi_apcli_rt(int radio_on)
 		if (nvram_wlan_get_int(0, "sta_auto"))
 #if defined (USE_WID_2G) && (USE_WID_2G==7615 || USE_WID_2G==7915)
 		{
-			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 3);
 			logmessage(LOGNAME, "Set ApCliAutoConnect to 3");
+			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 3);
 		}
 #elif defined (USE_WID_2G) && (USE_WID_2G==7603)
 		{
-			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 2);
 			logmessage(LOGNAME, "Set ApCliAutoConnect to 2");
+			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 2);
 		}
 #else
 		{
-			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 1);
 			logmessage(LOGNAME, "Set ApCliAutoConnect to 1");
+			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 1);
 		}
 #endif
 #endif
@@ -740,22 +740,22 @@ reconnect_apcli(const char *ifname_apcli, int force)
 	if (get_apcli_sta_auto(is_aband)) {
 		if (is_aband) {
 #if defined (USE_WID_5G) && (USB_WID_5G==7615 || USE_WID_5G==7915)
-			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 3);
 			logmessage(LOGNAME, "Set ApCliAutoConnect to 3");
+			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 3);
 #else
-			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 1);
 			logmessage(LOGNAME, "Set ApCliAutoConnect to 1");
+			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 1);
 #endif
 		} else {
 #if defined (USE_WID_2G) && (USB_WID_2G==7615 || USE_WID_2G==7915)
-			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 3);
 			logmessage(LOGNAME, "Set ApCliAutoConnect to 3");
+			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 3);
 #elif defined (USE_WID_2G) && (USE_WID_2G==7603)
-			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 2);
 			logmessage(LOGNAME, "Set ApCliAutoConnect to 2");
+			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 2);
 #else
-			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 1);
 			logmessage(LOGNAME, "Set ApCliAutoConnect to 1");
+			doSystem("iwpriv %s set %s=%d", ifname_apcli, "ApCliAutoConnect", 1);
 #endif
 		}
 		
