@@ -12307,44 +12307,47 @@ INT Set_ApCli_AutoConnect_Proc(
 
 	if (pObj->ioctl_if_type != INT_APCLI)
 		return FALSE;
+
 	pApCfg = &pAd->ApCfg;
 	ifIndex = pObj->ioctl_if;
 
-	if (scan_mode) {
+	if (scan_mode == 1) {
 		pApCfg->ApCliTab[ifIndex].AutoConnectFlag = TRUE;
 		Set_ApCli_Enable_Proc(pAd, "0");
 		pApCfg->ApCliAutoConnectRunning = TRUE;
+	} else if (scan_mode == 2) {
+		pApCfg->ApCliTab[ifIndex].AutoConnectFlag = TRUE;
+		Set_ApCli_Enable_Proc(pAd, "1");
+		pApCfg->ApCliAutoConnectRunning = FALSE;
 	} else {
 		pApCfg->ApCliTab[ifIndex].AutoConnectFlag = FALSE;
 		pApCfg->ApCliAutoConnectRunning = FALSE;
-		DBGPRINT(RT_DEBUG_TRACE, ("Set_ApCli_AutoConnect_Proc() is still running\n"));
 		return TRUE;
 	}
-	DBGPRINT(RT_DEBUG_TRACE, ("I/F(apcli%d) Set_ApCli_AutoConnect_Proc::(Len=%d,Ssid=%s)\n",
-			ifIndex, pApCfg->ApCliTab[ifIndex].CfgSsidLen, pApCfg->ApCliTab[ifIndex].CfgSsid));
 
 #ifdef AP_PARTIAL_SCAN_SUPPORT
+
 #define AUTO_SCAN_MODE_FULL    1
 #define AUTO_SCAN_MODE_PARTIAL 2
-		
-		if(scan_mode != AUTO_SCAN_MODE_PARTIAL)
-		{
+
+	if (scan_mode == AUTO_SCAN_MODE_FULL) {
 			pAd->ApCfg.bPartialScanEnable = FALSE;
 			pAd->ApCfg.bPartialScanning = FALSE;
-		}
-		
-		if (scan_mode == AUTO_SCAN_MODE_PARTIAL)
-		{
+	} else if (scan_mode == AUTO_SCAN_MODE_PARTIAL) {
 			pAd->ApCfg.bPartialScanEnable = TRUE;
 			pAd->ApCfg.bPartialScanning = TRUE;
-		}
-		else
+	}
+
 #endif /* AP_PARTIAL_SCAN_SUPPORT */
 
 	/*
 		use site survey function to trigger auto connecting (when pAd->ApCfg.ApAutoConnectRunning == TRUE)
 	*/
-	Set_SiteSurvey_Proc(pAd,pApCfg->ApCliTab[ifIndex].CfgSsid);	
+	Set_SiteSurvey_Proc(pAd, pApCfg->ApCliTab[ifIndex].CfgSsid);	
+
+	DBGPRINT(RT_DEBUG_OFF, ("ApCliAutoConnect apcli%d MODE=%ld LEN=%d SSID=%s\n",
+			ifIndex, scan_mode, pApCfg->ApCliTab[ifIndex].CfgSsidLen, pApCfg->ApCliTab[ifIndex].CfgSsid));
+
 	return TRUE;
 }
 #endif  /* APCLI_AUTO_CONNECT_SUPPORT */
