@@ -2118,7 +2118,7 @@ VOID PeerPairMsg3Action(
 			pEntry->CCMP_BC_PN[kid] += ((UINT64)pMsg3->KeyDesc.KeyRsc[idx] << (idx*8));
 		pEntry->AllowUpdateRSC = FALSE;
 		pEntry->Init_CCMP_BC_PN_Passed[kid] = FALSE;
-		DBGPRINT(RT_DEBUG_OFF, ("%s(%d)-%d: update CCMP_BC_PN to %llu\n",
+		DBGPRINT(RT_DEBUG_TRACE, ("%s(%d)-%d: update CCMP_BC_PN to %llu\n",
 			__func__, pEntry->wcid, kid, pEntry->CCMP_BC_PN[kid]));
 	}
 
