@@ -1682,7 +1682,7 @@ INT set_get_fid(RTMP_ADAPTER *pAd, RTMP_STRING *arg)
     head_fid_addr = head_fid_addr & 0xfff;
 
     if (head_fid_addr == 0xfff) {
-        DBGPRINT(RT_DEBUG_ERROR, ("%s, q_idx:%d empty!!\n", __func__, q_idx));
+        DBGPRINT(RT_DEBUG_TRACE, ("%s, q_idx:%d empty!!\n", __func__, q_idx));
         return TRUE;
     }
 
@@ -1690,7 +1690,7 @@ INT set_get_fid(RTMP_ADAPTER *pAd, RTMP_STRING *arg)
     while (1) {
         for (dw_idx = 0; dw_idx < 8; dw_idx++) {
             RTMP_IO_READ32(pAd, ((MT_PCI_REMAP_ADDR_1 + (((value & 0x0fff0000) >> 16) * 128)) + (dw_idx * 4)), &dw_content);//get head FID.
-            DBGPRINT(RT_DEBUG_ERROR, ("pkt:%d, fid:%x, dw_idx = %d, dw_content = 0x%x\n", loop, ((value & 0x0fff0000) >> 16), dw_idx, dw_content));
+            DBGPRINT(RT_DEBUG_TRACE, ("pkt:%d, fid:%x, dw_idx = %d, dw_content = 0x%x\n", loop, ((value & 0x0fff0000) >> 16), dw_idx, dw_content));
         }
         RTMP_IO_WRITE32(pAd, 0x8028, value);
         RTMP_IO_READ32(pAd, 0x8028, &next_fid_addr);//get next FID.
