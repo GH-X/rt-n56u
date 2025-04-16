@@ -7,6 +7,13 @@ SRC_SSR_NAME=shadowsocksr-libev-master
 ARCHIVE_SSR_NAME=shadowsocksr-libev-master-e2373d7
 #https://github.com/shadowsocksr-backup/shadowsocksr-libev.git
 
+HYSTERIA2_BIN=$(THISDIR)/hysteria2
+HYSTERIA2_VER=v2.6.1
+HYSTERIA2_SRC=hysteria-app-$(HYSTERIA2_VER)
+HYSTERIA2_DIR=$(HYSTERIA2_SRC)/app
+HYSTERIA2_TAR=$(HYSTERIA2_SRC).tar.gz
+HYSTERIA2_URL=https://codeload.github.com/apernet/hysteria/tar.gz/refs/tags/app/$(HYSTERIA2_VER)
+
 SRC_IPT_NAME=ipt2socks-1.1.3
 SRC_SDNS_NAME=smartdns-Release46.1
 
@@ -27,13 +34,16 @@ GFWLIST_PURL=https://cokebar.github.io/gfwlist2dnsmasq
 GFWLIST_URL=$(GFWLIST_PURL)/$(GFWLIST_NAME)
 GFWLIST_DIR=gfwlist
 
-all: cacert_dl chnroute_dl chnlist_dl gfwlist_dl extract_test config_test
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-	$(MAKE) -j$(HOST_NCPU) -C $(SRC_SSR_NAME)
-	$(MAKE) -j$(HOST_NCPU) -C $(SRC_IPT_NAME) CC="$(CC)"
-	$(MAKE) -C $(SRC_SDNS_NAME)
+all: download_test extract_test config_test build_test
+
+download_test: hysteria2_dl cacert_dl chnroute_dl chnlist_dl gfwlist_dl
+
+hysteria2_dl:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
+	( if [ ! -e $(HYSTERIA2_TAR) ]; then \
+		wget -t8 -4 --timeout=8 -O $(HYSTERIA2_TAR) $(HYSTERIA2_URL); \
+	fi )
 endif
-	$(MAKE) -j$(HOST_NCPU) -C $(SRC_SS_NAME)
 
 cacert_dl:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
@@ -80,9 +90,16 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 endif
 
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-extract_test: extract_ipt_test extract_sdns_test extract_ssr_test extract_ss_test
+extract_test: extract_hysteria2 extract_ipt_test extract_sdns_test extract_ssr_test extract_ss_test
 else
 extract_test: extract_ss_test
+endif
+
+extract_hysteria2:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
+	( if [ ! -d $(HYSTERIA2_SRC) ]; then \
+		tar -zxf $(HYSTERIA2_TAR); \
+	fi )
 endif
 
 extract_ipt_test:
@@ -106,7 +123,7 @@ extract_ss_test:
 	fi )
 
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-config_test: config_ipt config_sdns config_ssr config_ss
+config_test: config_ss config_ssr config_ipt config_sdns
 else
 config_test: config_ss
 endif
@@ -118,12 +135,38 @@ config_ss:
 		make configure_ss && touch ss_config_done; \
 	fi )
 
+configure_ss:
+	( cd $(SRC_SS_NAME) ; \
+	ac_cv_prog_PCRE_CONFIG="$(STAGEDIR)/bin/pcre-config" \
+	./configure \
+		--prefix=/usr \
+		--disable-documentation \
+		--disable-ssp \
+		--disable-assert \
+		--host=$(HOST_TARGET) \
+		--build=$(HOST_BUILD) ; \
+	)
+
 config_ssr:
 	( if [ -f ./ssr_config_done ]; then \
 		echo "the same configuration"; \
 	else \
 		make configure_ssr && touch ssr_config_done; \
 	fi )
+
+configure_ssr:
+	( cd $(SRC_SSR_NAME) ; \
+	ac_cv_prog_PCRE_CONFIG="$(STAGEDIR)/bin/pcre-config" \
+	./configure \
+		--prefix=/usr \
+		--disable-documentation \
+		--disable-ssp \
+		--disable-assert \
+		--enable-system-shared-lib \
+		--with-crypto-library=mbedtls \
+		--host=$(HOST_TARGET) \
+		--build=$(HOST_BUILD) ; \
+	)
 
 config_ipt:
 	( if [ -f ./config_done ]; then \
@@ -143,36 +186,36 @@ config_sdns:
 
 configure_sdns:
 
-configure_ssr:
-	( cd $(SRC_SSR_NAME) ; \
-	ac_cv_prog_PCRE_CONFIG="$(STAGEDIR)/bin/pcre-config" \
-	./configure \
-		--prefix=/usr \
-		--disable-documentation \
-		--disable-ssp \
-		--disable-assert \
-		--enable-system-shared-lib \
-		--with-crypto-library=mbedtls \
-		--host=$(HOST_TARGET) \
-		--build=$(HOST_BUILD) ; \
-	)
+build_test: build_go
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
+	$(MAKE) -j$(HOST_NCPU) -C $(SRC_SSR_NAME)
+	$(MAKE) -j$(HOST_NCPU) -C $(SRC_IPT_NAME) CC="$(CC)"
+	$(MAKE) -C $(SRC_SDNS_NAME)
+endif
+	$(MAKE) -j$(HOST_NCPU) -C $(SRC_SS_NAME)
 
-configure_ss:
-	( cd $(SRC_SS_NAME) ; \
-	ac_cv_prog_PCRE_CONFIG="$(STAGEDIR)/bin/pcre-config" \
-	./configure \
-		--prefix=/usr \
-		--disable-documentation \
-		--disable-ssp \
-		--disable-assert \
-		--host=$(HOST_TARGET) \
-		--build=$(HOST_BUILD) ; \
-	)
+build_go: build_hysteria2
 
-clean: clean_sdns clean_ipt clean_ssr clean_ss
+build_hysteria2:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
+	( if [ ! -e $(HYSTERIA2_BIN) ]; then \
+		cd $(HYSTERIA2_DIR) && \
+		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(HYSTERIA2_BIN); \
+	fi )
+endif
+
+clean: clean_hysteria2 clean_sdns clean_ipt clean_ssr clean_ss
 	rm -f ssr_config_done ss_config_done ipt_config_done
 	rm -rf $(CACERT_DIR)
 	rm -rf $(CHNROUTE_DIR)
+
+clean_hysteria2:
+	( if [ -e $(HYSTERIA2_BIN) ]; then \
+		rm -rf $(HYSTERIA2_BIN); \
+	fi )
+	( if [ -d $(HYSTERIA2_SRC) ]; then \
+		rm -rf $(HYSTERIA2_SRC); \
+	fi )
 
 clean_sdns:
 	( if [ -f $(SRC_SDNS_NAME)/Makefile ] ; then \
@@ -230,6 +273,6 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSNAIVE),y)
 	$(ROMFSINST) -p +x $(THISDIR)/naive /usr/bin/naive
 endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
-	$(ROMFSINST) -p +x $(THISDIR)/hysteria2 /usr/bin/hysteria2
+	$(ROMFSINST) -p +x $(HYSTERIA2_BIN) /usr/bin/hysteria2
 endif
 
