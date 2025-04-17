@@ -7,10 +7,17 @@ SRC_SSR_NAME=shadowsocksr-libev-master
 ARCHIVE_SSR_NAME=shadowsocksr-libev-master-e2373d7
 #https://github.com/shadowsocksr-backup/shadowsocksr-libev.git
 
-HYSTERIA2_BIN=$(THISDIR)/hysteria2
+V2RAY_VER=5.30.0
+V2RAY_SRC=v2ray-core-$(V2RAY_VER)
+V2RAY_DIR=$(V2RAY_SRC)/main
+V2RAY_BIN=$(THISDIR)/v2ray
+V2RAY_TAR=$(V2RAY_SRC).tar.gz
+V2RAY_URL=https://codeload.github.com/v2fly/v2ray-core/tar.gz/refs/tags/v$(V2RAY_VER)
+
 HYSTERIA2_VER=v2.6.1
 HYSTERIA2_SRC=hysteria-app-$(HYSTERIA2_VER)
 HYSTERIA2_DIR=$(HYSTERIA2_SRC)/app
+HYSTERIA2_BIN=$(THISDIR)/hysteria2
 HYSTERIA2_TAR=$(HYSTERIA2_SRC).tar.gz
 HYSTERIA2_URL=https://codeload.github.com/apernet/hysteria/tar.gz/refs/tags/app/$(HYSTERIA2_VER)
 
@@ -36,7 +43,14 @@ GFWLIST_DIR=gfwlist
 
 all: download_test extract_test config_test build_test
 
-download_test: hysteria2_dl cacert_dl chnroute_dl chnlist_dl gfwlist_dl
+download_test: v2ray_dl hysteria2_dl cacert_dl chnroute_dl chnlist_dl gfwlist_dl
+
+v2ray_dl:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
+	( if [ ! -e $(V2RAY_TAR) ]; then \
+		wget -t8 -4 --timeout=8 -O $(V2RAY_TAR) $(V2RAY_URL); \
+	fi )
+endif
 
 hysteria2_dl:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
@@ -90,9 +104,16 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 endif
 
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-extract_test: extract_hysteria2 extract_ipt_test extract_sdns_test extract_ssr_test extract_ss_test
+extract_test: extract_v2ray extract_hysteria2 extract_ipt_test extract_sdns_test extract_ssr_test extract_ss_test
 else
 extract_test: extract_ss_test
+endif
+
+extract_v2ray:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
+	( if [ ! -d $(V2RAY_SRC) ]; then \
+		tar -zxf $(V2RAY_TAR); \
+	fi )
 endif
 
 extract_hysteria2:
@@ -194,7 +215,15 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 endif
 	$(MAKE) -j$(HOST_NCPU) -C $(SRC_SS_NAME)
 
-build_go: build_hysteria2
+build_go: build_v2ray build_hysteria2
+
+build_v2ray:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
+	( if [ ! -e $(V2RAY_BIN) ]; then \
+		cd $(V2RAY_DIR) && \
+		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(V2RAY_BIN); \
+	fi )
+endif
 
 build_hysteria2:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
@@ -204,10 +233,18 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
 	fi )
 endif
 
-clean: clean_hysteria2 clean_sdns clean_ipt clean_ssr clean_ss
+clean: clean_v2ray clean_hysteria2 clean_sdns clean_ipt clean_ssr clean_ss
 	rm -f ssr_config_done ss_config_done ipt_config_done
 	rm -rf $(CACERT_DIR)
 	rm -rf $(CHNROUTE_DIR)
+
+clean_v2ray:
+	( if [ -e $(V2RAY_BIN) ]; then \
+		rm -rf $(V2RAY_BIN); \
+	fi )
+	( if [ -d $(V2RAY_SRC) ]; then \
+		rm -rf $(V2RAY_SRC); \
+	fi )
 
 clean_hysteria2:
 	( if [ -e $(HYSTERIA2_BIN) ]; then \
@@ -267,7 +304,7 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSV2RP),y)
 	$(ROMFSINST) -p +x $(THISDIR)/ss-v2ray-plugin /usr/bin/ss-v2ray-plugin
 endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
-	$(ROMFSINST) -p +x $(THISDIR)/v2ray /usr/bin/v2ray
+	$(ROMFSINST) -p +x $(V2RAY_BIN) /usr/bin/v2ray
 endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSNAIVE),y)
 	$(ROMFSINST) -p +x $(THISDIR)/naive /usr/bin/naive
