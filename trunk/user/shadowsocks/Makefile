@@ -7,6 +7,11 @@ SRC_SSR_NAME=shadowsocksr-libev-master
 ARCHIVE_SSR_NAME=shadowsocksr-libev-master-e2373d7
 #https://github.com/shadowsocksr-backup/shadowsocksr-libev.git
 
+V2RAYPLUGIN_SRC=v2ray-plugin-master
+V2RAYPLUGIN_BIN=$(THISDIR)/ss-v2ray-plugin
+V2RAYPLUGIN_ZIP=$(V2RAYPLUGIN_SRC).zip
+V2RAYPLUGIN_URL=https://codeload.github.com/shadowsocks/v2ray-plugin/zip/refs/heads/master
+
 V2RAY_VER=5.30.0
 V2RAY_SRC=v2ray-core-$(V2RAY_VER)
 V2RAY_DIR=$(V2RAY_SRC)/main
@@ -43,7 +48,14 @@ GFWLIST_DIR=gfwlist
 
 all: download_test extract_test config_test build_test
 
-download_test: v2ray_dl hysteria2_dl cacert_dl chnroute_dl chnlist_dl gfwlist_dl
+download_test: v2rayplugin_dl v2ray_dl hysteria2_dl cacert_dl chnroute_dl chnlist_dl gfwlist_dl
+
+v2rayplugin_dl:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSV2RP),y)
+	( if [ ! -e $(V2RAYPLUGIN_ZIP) ]; then \
+		wget -t8 -4 --timeout=8 -O $(V2RAYPLUGIN_ZIP) $(V2RAYPLUGIN_URL); \
+	fi )
+endif
 
 v2ray_dl:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
@@ -104,9 +116,16 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 endif
 
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-extract_test: extract_v2ray extract_hysteria2 extract_ipt_test extract_sdns_test extract_ssr_test extract_ss_test
+extract_test: extract_v2rayplugin extract_v2ray extract_hysteria2 extract_ipt_test extract_sdns_test extract_ssr_test extract_ss_test
 else
 extract_test: extract_ss_test
+endif
+
+extract_v2rayplugin:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSV2RP),y)
+	( if [ ! -d $(V2RAYPLUGIN_SRC) ]; then \
+		unzip -qq $(V2RAYPLUGIN_ZIP); \
+	fi )
 endif
 
 extract_v2ray:
@@ -215,7 +234,15 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 endif
 	$(MAKE) -j$(HOST_NCPU) -C $(SRC_SS_NAME)
 
-build_go: build_v2ray build_hysteria2
+build_go: build_v2rayplugin build_v2ray build_hysteria2
+
+build_v2rayplugin:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSV2RP),y)
+	( if [ ! -e $(V2RAYPLUGIN_BIN) ]; then \
+		cd $(V2RAYPLUGIN_SRC) && \
+		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(V2RAYPLUGIN_BIN); \
+	fi )
+endif
 
 build_v2ray:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
@@ -233,10 +260,18 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
 	fi )
 endif
 
-clean: clean_v2ray clean_hysteria2 clean_sdns clean_ipt clean_ssr clean_ss
+clean: clean_v2rayplugin clean_v2ray clean_hysteria2 clean_sdns clean_ipt clean_ssr clean_ss
 	rm -f ssr_config_done ss_config_done ipt_config_done
 	rm -rf $(CACERT_DIR)
 	rm -rf $(CHNROUTE_DIR)
+
+clean_v2rayplugin:
+	( if [ -e $(V2RAYPLUGIN_BIN) ]; then \
+		rm -rf $(V2RAYPLUGIN_BIN); \
+	fi )
+	( if [ -d $(V2RAYPLUGIN_SRC) ]; then \
+		rm -rf $(V2RAYPLUGIN_SRC); \
+	fi )
 
 clean_v2ray:
 	( if [ -e $(V2RAY_BIN) ]; then \
@@ -301,7 +336,7 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSSERVER),y)
 	$(ROMFSINST) -p +x $(THISDIR)/$(SRC_SS_NAME)/src/ss-server /usr/bin/ss-server
 endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSV2RP),y)
-	$(ROMFSINST) -p +x $(THISDIR)/ss-v2ray-plugin /usr/bin/ss-v2ray-plugin
+	$(ROMFSINST) -p +x $(V2RAYPLUGIN_BIN) /usr/bin/ss-v2ray-plugin
 endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
 	$(ROMFSINST) -p +x $(V2RAY_BIN) /usr/bin/v2ray
