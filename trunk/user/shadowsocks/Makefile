@@ -7,6 +7,12 @@ SRC_SSR_NAME=shadowsocksr-libev-master
 ARCHIVE_SSR_NAME=shadowsocksr-libev-master-e2373d7
 #https://github.com/shadowsocksr-backup/shadowsocksr-libev.git
 
+NAIVE_VER=v135.0.7049.38-2
+NAIVE_SRC=naiveproxy-$(NAIVE_VER)-openwrt-mipsel_24kc-static
+NAIVE_BIN=$(THISDIR)/naive
+NAIVE_TAR=$(NAIVE_SRC).tar.xz
+NAIVE_URL=https://github.com/klzgrad/naiveproxy/releases/download/$(NAIVE_VER)/$(NAIVE_TAR)
+
 V2RAYPLUGIN_SRC=v2ray-plugin-master
 V2RAYPLUGIN_BIN=$(THISDIR)/ss-v2ray-plugin
 V2RAYPLUGIN_ZIP=$(V2RAYPLUGIN_SRC).zip
@@ -47,8 +53,33 @@ GFWLIST_URL=$(GFWLIST_PURL)/$(GFWLIST_NAME)
 GFWLIST_DIR=gfwlist
 
 all: download_test extract_test config_test build_test
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSNAIVE),y)
+	chmod +x $(NAIVE_BIN)
+	upx --best --lzma $(NAIVE_BIN)
+endif
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSV2RP),y)
+	chmod +x $(V2RAYPLUGIN_BIN)
+	upx --best --lzma $(V2RAYPLUGIN_BIN)
+endif
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
+	chmod +x $(V2RAY_BIN)
+	upx --best --lzma $(V2RAY_BIN)
+endif
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
+	chmod +x $(HYSTERIA2_BIN)
+	upx --best --lzma $(HYSTERIA2_BIN)
+endif
+endif
 
-download_test: v2rayplugin_dl v2ray_dl hysteria2_dl cacert_dl chnroute_dl chnlist_dl gfwlist_dl
+download_test: naive_dl v2rayplugin_dl v2ray_dl hysteria2_dl cacert_dl chnroute_dl chnlist_dl gfwlist_dl
+
+naive_dl:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSNAIVE),y)
+	( if [ ! -e $(NAIVE_TAR) ]; then \
+		wget -t8 -4 --timeout=8 -O $(NAIVE_TAR) $(NAIVE_URL); \
+	fi )
+endif
 
 v2rayplugin_dl:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSV2RP),y)
@@ -75,7 +106,7 @@ cacert_dl:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -d $(CACERT_DIR) ]; then \
 		mkdir -p $(CACERT_DIR) && cd $(CACERT_DIR) && \
-		wget -q -t5 --timeout=20 --no-check-certificate $(CACERT_URL) && \
+		wget -t8 -4 --timeout=8 $(CACERT_URL) && \
 		tar jcf cacerts.bz2 $(CACERT_NAME); \
 	else \
 		cd $(CACERT_DIR) && tar jcf cacerts.bz2 $(CACERT_NAME); \
@@ -86,7 +117,7 @@ chnroute_dl:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -d $(CHNROUTE_DIR) ];then \
 		mkdir -p $(CHNROUTE_DIR) && cd $(CHNROUTE_DIR) && \
-		wget -t8 -4 --timeout=8 -U Mozilla -O route.txt.tmp '$(CHNROUTE_URL)' && sed -i '/\*/d' route.txt.tmp && \
+		wget -t8 -4 --timeout=20 --no-check-certificate -U Mozilla -O route.txt.tmp '$(CHNROUTE_URL)' && sed -i '/\*/d' route.txt.tmp && \
 		awk -F\| '/CN\|ipv4/ { printf("%s/%d\n", $$4, 32-log($$5)/log(2)) }' < route.txt.tmp > chnroute.txt && \
 		rm -f route.txt.tmp && tar jcf chnroute.bz2 chnroute.txt ; \
 	fi )
@@ -96,7 +127,7 @@ chnlist_dl:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -d $(CHNLIST_DIR) ];then \
 		mkdir -p $(CHNLIST_DIR) && cd $(CHNLIST_DIR) && \
-		wget -t8 -4 --timeout=8 -O chnlist.txt.tmp --no-check-certificate '$(CHNLIST_URL)' && \
+		wget -t8 -4 --timeout=8 -O chnlist.txt.tmp '$(CHNLIST_URL)' && \
 		awk -F/ '{print $2}' < chnlist.txt.tmp > $(CHNLIST_NAME) && \
 		rm -f chnlist.txt.tmp && tar jcf chnlist.bz2 $(CHNLIST_NAME) ; \
 	else \
@@ -108,7 +139,7 @@ gfwlist_dl:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -d $(GFWLIST_DIR) ]; then \
 		mkdir -p $(GFWLIST_DIR) && cd $(GFWLIST_DIR) && \
-		wget -q -t5 --timeout=20 --no-check-certificate $(GFWLIST_URL) && \
+		wget -t8 -4 --timeout=8 $(GFWLIST_URL) && \
 		tar jcf gfwlist.bz2 $(GFWLIST_NAME); \
 	else \
 		cd $(GFWLIST_DIR) && tar jcf gfwlist.bz2 $(GFWLIST_NAME); \
@@ -116,9 +147,19 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 endif
 
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-extract_test: extract_v2rayplugin extract_v2ray extract_hysteria2 extract_ipt_test extract_sdns_test extract_ssr_test extract_ss_test
+extract_test: extract_naive extract_v2rayplugin extract_v2ray extract_hysteria2 extract_ipt_test extract_sdns_test extract_ssr_test extract_ss_test
 else
 extract_test: extract_ss_test
+endif
+
+extract_naive:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSNAIVE),y)
+	( if [ ! -d $(NAIVE_SRC) ]; then \
+		tar -xf $(NAIVE_TAR); \
+	fi )
+	( if [ ! -e $(NAIVE_BIN) ]; then \
+		mv -f $(NAIVE_SRC)/naive $(NAIVE_BIN); \
+	fi )
 endif
 
 extract_v2rayplugin:
@@ -131,35 +172,35 @@ endif
 extract_v2ray:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
 	( if [ ! -d $(V2RAY_SRC) ]; then \
-		tar -zxf $(V2RAY_TAR); \
+		tar -xf $(V2RAY_TAR); \
 	fi )
 endif
 
 extract_hysteria2:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
 	( if [ ! -d $(HYSTERIA2_SRC) ]; then \
-		tar -zxf $(HYSTERIA2_TAR); \
+		tar -xf $(HYSTERIA2_TAR); \
 	fi )
 endif
 
 extract_ipt_test:
 	( if [ ! -d $(SRC_IPT_NAME) ]; then \
-		tar zxf $(SRC_IPT_NAME).tar.gz ; \
+		tar -xf $(SRC_IPT_NAME).tar.gz; \
 	fi )
 
 extract_sdns_test:
 	( if [ ! -d $(SRC_SDNS_NAME) ]; then \
-		tar -xf $(SRC_SDNS_NAME).tar.gz ; \
+		tar -xf $(SRC_SDNS_NAME).tar.gz; \
 	fi )
 
 extract_ssr_test:
 	( if [ ! -d $(SRC_SSR_NAME) ]; then \
-		unzip -qq $(ARCHIVE_SSR_NAME).zip ; \
+		unzip -qq $(ARCHIVE_SSR_NAME).zip; \
 	fi )
 
 extract_ss_test:
 	( if [ ! -d $(SRC_SS_NAME) ]; then \
-		tar xf $(SRC_SS_NAME).tar.gz ; \
+		tar -xf $(SRC_SS_NAME).tar.gz; \
 	fi )
 
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
@@ -260,10 +301,18 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
 	fi )
 endif
 
-clean: clean_v2rayplugin clean_v2ray clean_hysteria2 clean_sdns clean_ipt clean_ssr clean_ss
+clean: clean_naive clean_v2rayplugin clean_v2ray clean_hysteria2 clean_sdns clean_ipt clean_ssr clean_ss
 	rm -f ssr_config_done ss_config_done ipt_config_done
 	rm -rf $(CACERT_DIR)
 	rm -rf $(CHNROUTE_DIR)
+
+clean_naive:
+	( if [ -e $(NAIVE_BIN) ]; then \
+		rm -rf $(NAIVE_BIN); \
+	fi )
+	( if [ -d $(NAIVE_SRC) ]; then \
+		rm -rf $(NAIVE_SRC); \
+	fi )
 
 clean_v2rayplugin:
 	( if [ -e $(V2RAYPLUGIN_BIN) ]; then \
@@ -290,23 +339,23 @@ clean_hysteria2:
 	fi )
 
 clean_sdns:
-	( if [ -f $(SRC_SDNS_NAME)/Makefile ] ; then \
-		$(MAKE) -C $(SRC_SDNS_NAME) clean ; \
+	( if [ -f $(SRC_SDNS_NAME)/Makefile ]; then \
+		$(MAKE) -C $(SRC_SDNS_NAME) clean; \
 	fi )
 
 clean_ipt:
-	( if [ -f $(SRC_IPT_NAME)/Makefile ] ; then \
-		$(MAKE) -C $(SRC_IPT_NAME) clean ; \
+	( if [ -f $(SRC_IPT_NAME)/Makefile ]; then \
+		$(MAKE) -C $(SRC_IPT_NAME) clean; \
 	fi )
 
 clean_ssr:
-	( if [ -f $(SRC_SSR_NAME)/Makefile ] ; then \
-		$(MAKE) -C $(SRC_SSR_NAME) clean ; \
+	( if [ -f $(SRC_SSR_NAME)/Makefile ]; then \
+		$(MAKE) -C $(SRC_SSR_NAME) clean; \
 	fi )
 
 clean_ss:
-	( if [ -f $(SRC_SS_NAME)/Makefile ] ; then \
-		$(MAKE) -C $(SRC_SS_NAME) distclean ; \
+	( if [ -f $(SRC_SS_NAME)/Makefile ]; then \
+		$(MAKE) -C $(SRC_SS_NAME) distclean; \
 	fi )
 
 romfs:
@@ -342,7 +391,7 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
 	$(ROMFSINST) -p +x $(V2RAY_BIN) /usr/bin/v2ray
 endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSNAIVE),y)
-	$(ROMFSINST) -p +x $(THISDIR)/naive /usr/bin/naive
+	$(ROMFSINST) -p +x $(NAIVE_BIN) /usr/bin/naive
 endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
 	$(ROMFSINST) -p +x $(HYSTERIA2_BIN) /usr/bin/hysteria2

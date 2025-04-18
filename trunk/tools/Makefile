@@ -22,7 +22,7 @@ GO_DIR  = go
 
 -include $(LINUX_CONFIG)
 
-all: golang
+all: golang upx
 	make -C mkimage
 	mkdir -p sstrip
 	make -C $(SSTRIP_NAME)
@@ -37,10 +37,20 @@ golang:
 	fi )
 	( if [ ! -d $(GO_DIR) ]; then \
 		mkdir -p $(GO_DIR) && \
-		tar -zxf $(GO_TAR) -C $(THISDIR); \
+		tar -xf $(GO_TAR) -C $(THISDIR); \
 	fi )
 
-clean: clean_golang
+upx:
+	( if [ ! -e $(THISDIR)/upx-4.2.4-amd64_linux.tar.xz ]; then \
+		wget -t8 -4 --timeout=8 https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz; \
+	fi )
+	( if [ ! -e $(THISDIR)/upx ]; then \
+		tar -xf upx-4.2.4-amd64_linux.tar.xz && \
+		mv -f $(THISDIR)/upx-4.2.4-amd64_linux/upx $(THISDIR)/upx && \
+		rm -rf $(THISDIR)/upx-4.2.4-amd64_linux; \
+	fi )
+
+clean: clean_golang clean_upx
 	if [ -f $(SSTRIP_NAME)/Makefile ] ; then \
 		make -C $(SSTRIP_NAME) clean ; \
 	fi ;
@@ -52,4 +62,9 @@ clean: clean_golang
 clean_golang:
 	( if [ -d $(GO_DIR) ]; then \
 		rm -rf $(GO_DIR); \
+	fi )
+
+clean_upx:
+	( if [ -e $(THISDIR)/upx ]; then \
+		rm -rf $(THISDIR)/upx
 	fi )

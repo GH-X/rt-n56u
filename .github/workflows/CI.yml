@@ -137,6 +137,7 @@ jobs:
           SP "CONFIG_FIRMWARE_INCLUDE_TUNSAFE"                   "n" "设置VPN客户端tunsafe(WireGuard协议)"
           SP "CONFIG_FIRMWARE_INCLUDE_WIREGUARD"                 "n" "设置VPN客户端WireGuard(WireGuard协议)"
           SP "CONFIG_FIRMWARE_INCLUDE_SFE"                       "y" "设置SFE(shortcut-fe)软件加速"
+          SP "CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS"               "y" "使用UPX压缩可执行程序"
           SP "CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS"               "y" "设置SSP代理基础程序"
           SP "CONFIG_FIRMWARE_INCLUDE_TROJAN"                    "n" "设置SSP代理Trojan可执行程序"
           SP "CONFIG_FIRMWARE_INCLUDE_SSVMESS"                   "n" "设置SSP代理VMess可执行程序"

@@ -9,6 +9,10 @@ CXXFLAGS := $(COPTS)
 
 all: download_test extract_test config_test
 	$(MAKE) -j$(HOST_NCPU) -C $(SRC_NAME)/build
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
+	chmod +x $(THISDIR)/$(SRC_NAME)/build/trojan
+	upx --best --lzma $(THISDIR)/$(SRC_NAME)/build/trojan
+endif
 
 download_test:
 	( if [ ! -f $(THISDIR)/$(SRC_NAME).tar.gz ]; then \
