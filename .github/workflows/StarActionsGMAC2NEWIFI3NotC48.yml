@@ -11,9 +11,6 @@ on:
 
 env:
       images_dir: /opt/images
-      cac_branch: ConfigAndCustom
-      cac_git: https://github.com/${{ github.repository }}.git
-      cac_tmp: /opt/cac
 
 jobs:
   build:
@@ -36,9 +33,6 @@ jobs:
           sudo apt install libtool-bin gperf python3-docutils autopoint gettext help2man
       - name: Config and Custom
         run: |
-          # git clone -b ${cac_branch} ${cac_git} ${cac_tmp}
-          # cd ${GITHUB_WORKSPACE}
-          # cp -rf ${cac_tmp}/* ${GITHUB_WORKSPACE} && rm -rf ${cac_tmp}
           cd ${GITHUB_WORKSPACE}/trunk
           sed -i '/FIRMWARE_BUILDS_VER=/d' versions.inc
           sed -i '/FIRMWARE_BUILDS_REV=/d' versions.inc
@@ -61,84 +55,6 @@ jobs:
           cat kernel-3.4.x.config | grep "CONFIG_GE2_INTERNAL_GMAC_P5" || exit 1
           sed -i 's/# CONFIG_RAETH_BOTH_GMAC is not set/CONFIG_RAETH_BOTH_GMAC=y/g' kernel-3.4.x.config
           cat kernel-3.4.x.config | grep "CONFIG_RAETH_BOTH_GMAC" || exit 1
-          done
-          cd ${GITHUB_WORKSPACE}/trunk/configs/templates
-          for m in $targets; do
-          $(cat "$m.config" | grep -q "CONFIG_FIRMWARE_ENABLE_USB=y") && EUSB="y" || EUSB="n"
-          [ "$EUSB" = "y" ] && echo "$m 启用 USB" || echo "$m 禁用 USB"
-          SP(){
-          $(cat "$m.config" | grep -q "$1") && \
-          sed -i 's/.*'$1'=.*/'$1'='$2'/g' "$m.config" || echo "$1=$2" >> "$m.config"
-          $(cat "$m.config" | grep -q "$1=$2") && echo "$m $3 $1=$2" || echo "$m $1=$2 $3 发生错误!!!"
-          }
-          ######################################################################################################
-          # 可选编译插件
-          # SP "CONFIG_FIRMWARE_"     "y" "编译插件"
-          # SP "CONFIG_FIRMWARE_"     "n" "不编译插件"
-          # SP "CONFIG_FIRMWARE_" "$EUSB" "根据USB支持状况自动选择是否编译插件"
-          ######################################################################################################
-          SP "CONFIG_FIRMWARE_ENABLE_USB"                    "$EUSB" "设置USB支持"
-          SP "CONFIG_FIRMWARE_INCLUDE_UVC"                       "n" "设置UVC摄像头"
-          SP "CONFIG_FIRMWARE_INCLUDE_SERIAL"                    "n" "设置USB转串口"
-          SP "CONFIG_FIRMWARE_INCLUDE_AUDIO"                     "n" "设置USB音频"
-          SP "CONFIG_FIRMWARE_INCLUDE_U2EC"                      "n" "设置USB打印"
-          SP "CONFIG_FIRMWARE_INCLUDE_HDPARM"                    "n" "设置HDparm硬盘高级电源管理"
-          SP "CONFIG_FIRMWARE_INCLUDE_PARTED"                    "n" "设置Parted磁盘分区工具"
-          SP "CONFIG_FIRMWARE_ENABLE_UFSD"                       "n" "设置NTFS文件系统"
-          SP "CONFIG_FIRMWARE_ENABLE_EXFAT"                  "$EUSB" "设置exFAT文件系统"
-          SP "CONFIG_FIRMWARE_ENABLE_FAT"                    "$EUSB" "设置FAT(含FAT32)文件系统"
-          SP "CONFIG_FIRMWARE_ENABLE_XFS"                        "n" "设置XFS文件系统"
-          SP "CONFIG_FIRMWARE_INCLUDE_NFSD"                      "n" "设置NFS服务"
-          SP "CONFIG_FIRMWARE_INCLUDE_NFSC"                      "n" "设置NFS客户端"
-          SP "CONFIG_FIRMWARE_INCLUDE_MINIDLNA"                  "n" "设置MiniDlna多媒体共享"
-          SP "CONFIG_FIRMWARE_INCLUDE_FIREFLY"                   "n" "设置Firefly多媒体服务器"
-          SP "CONFIG_FIRMWARE_INCLUDE_FFMPEG_NEW"                "n" "设置FFMPEG多媒体解码库"
-          SP "CONFIG_FIRMWARE_INCLUDE_SMBD"                  "$EUSB" "设置SMB局域网文件共享(含WINS)"
-          SP "CONFIG_FIRMWARE_INCLUDE_SMBD36"                "$EUSB" "设置Samba3.6局域网文件共享"
-          SP "CONFIG_FIRMWARE_INCLUDE_SMBD_SYSLOG"               "n" "设置SMB日志"
-          SP "CONFIG_FIRMWARE_INCLUDE_FTPD"                      "n" "设置FTP文件传输协议"
-          SP "CONFIG_FIRMWARE_INCLUDE_SFTP"                      "n" "设置SFTP安全文件传输协议"
-          SP "CONFIG_FIRMWARE_INCLUDE_ARIA"                  "$EUSB" "设置Aria2下载工具"
-          SP "CONFIG_FIRMWARE_INCLUDE_ARIA_WEB_CONTROL"      "$EUSB" "设置Aria2下载工具网页界面"
-          SP "CONFIG_FIRMWARE_INCLUDE_TRANSMISSION"              "n" "设置BT工具Transmission"
-          SP "CONFIG_FIRMWARE_INCLUDE_TRANSMISSION_WEB_CONTROL"  "n" "设置BT工具Transmission网页界面" 
-          ######################################################################################################
-          SP "CONFIG_FIRMWARE_CPU_SLEEP"                         "n" "设置CPU休眠模式"
-          SP "CONFIG_FIRMWARE_ENABLE_SWAP"                       "y" "设置zRAM和SWAP文件/分区支持"
-          SP "CONFIG_FIRMWARE_INCLUDE_HTTPS"                     "n" "设置网页界面HTTPS支持"
-          SP "CONFIG_FIRMWARE_ENABLE_FUSE"                       "n" "设置FUSE用户空间文件系统"
-          SP "CONFIG_FIRMWARE_INCLUDE_LPRD"                      "n" "设置LPR打印"
-          SP "CONFIG_FIRMWARE_INCLUDE_TCPDUMP"                   "n" "设置TCPdump网络抓包工具"
-          SP "CONFIG_FIRMWARE_INCLUDE_TTYD"                      "y" "设置ttyd网页版远程终端"
-          SP "CONFIG_FIRMWARE_INCLUDE_LRZSZ"                     "n" "设置lrzsz文件传输工具"
-          SP "CONFIG_FIRMWARE_INCLUDE_HTOP"                      "n" "设置Htop系统监控与进程管理"
-          SP "CONFIG_FIRMWARE_INCLUDE_NANO"                      "n" "设置nano文本编辑器命令行工具"
-          SP "CONFIG_FIRMWARE_INCLUDE_IPERF3"                    "n" "设置Iperf3网络性能测试工具"
-          SP "CONFIG_FIRMWARE_INCLUDE_DUMP1090"                  "n" "设置Dump1090飞行轨迹"
-          SP "CONFIG_FIRMWARE_INCLUDE_RTL_SDR"                   "n" "设置RTL-SDR软件无线电"
-          SP "CONFIG_FIRMWARE_INCLUDE_MTR"                       "n" "设置Mtr网络诊断工具"
-          SP "CONFIG_FIRMWARE_INCLUDE_SOCAT"                     "n" "设置Socat多功能的网络工具"
-          SP "CONFIG_FIRMWARE_INCLUDE_SRELAY"                    "n" "设置socks5代理工具srelay"
-          SP "CONFIG_FIRMWARE_INCLUDE_FRPC"                      "n" "设置frp内网穿透客户端frpc"
-          SP "CONFIG_FIRMWARE_INCLUDE_FRPS"                      "n" "设置frp内网穿透服务器frps"
-          SP "CONFIG_FIRMWARE_INCLUDE_MINIEAP"                   "n" "设置MiniEAP锐捷认证"
-          SP "CONFIG_FIRMWARE_INCLUDE_MENTOHUST"                 "n" "设置mentohust锐捷认证"
-          SP "CONFIG_FIRMWARE_INCLUDE_NJIT_CLIENT"               "n" "设置inode校园网认证njit-client"
-          SP "CONFIG_FIRMWARE_INCLUDE_DOGCOM"                    "n" "设置dogcom校园网"
-          SP "CONFIG_FIRMWARE_INCLUDE_SCUTCLIENT"                "n" "设置scutclient校园网"
-          SP "CONFIG_FIRMWARE_INCLUDE_TUNSAFE"                   "n" "设置VPN客户端tunsafe(WireGuard协议)"
-          SP "CONFIG_FIRMWARE_INCLUDE_WIREGUARD"                 "n" "设置VPN客户端WireGuard(WireGuard协议)"
-          SP "CONFIG_FIRMWARE_INCLUDE_SFE"                       "y" "设置SFE(shortcut-fe)软件加速"
-          SP "CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS"               "y" "使用UPX压缩可执行程序"
-          SP "CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS"               "y" "设置SSP代理基础程序"
-          SP "CONFIG_FIRMWARE_INCLUDE_TROJAN"                    "y" "设置SSP代理Trojan可执行程序"
-          SP "CONFIG_FIRMWARE_INCLUDE_SSVMESS"                   "y" "设置SSP代理VMess可执行程序"
-          SP "CONFIG_FIRMWARE_INCLUDE_SSNAIVE"                   "y" "设置SSP代理Naive可执行程序"
-          SP "CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2"               "y" "设置SSP代理Hysteria2可执行程序"
-          SP "CONFIG_FIRMWARE_INCLUDE_SSV2RP"                    "n" "设置SSP代理SS插件v2ray-plugin可执行程序"
-          ######################################################################################################
-          SP "CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE"               "n" "设置OpenSSL可执行程序"
-          ######################################################################################################
           done
       - name: Run shellcheck
         run: sh ./trunk/tools/shellcheck.sh

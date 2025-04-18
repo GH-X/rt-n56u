@@ -17,9 +17,6 @@ on:
 
 env:
       images_dir: /opt/images
-      cac_branch: ConfigAndCustom
-      cac_git: https://github.com/${{ github.repository }}.git
-      cac_tmp: /opt/cac
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -51,9 +48,6 @@ jobs:
           sudo apt install libtool-bin gperf python3-docutils autopoint gettext help2man
       - name: Config and Custom
         run: |
-          # git clone -b ${cac_branch} ${cac_git} ${cac_tmp}
-          # cd ${GITHUB_WORKSPACE}
-          # cp -rf ${cac_tmp}/* ${GITHUB_WORKSPACE} && rm -rf ${cac_tmp}
           cd ${GITHUB_WORKSPACE}/trunk
           sed -i '/FIRMWARE_BUILDS_VER=/d' versions.inc
           sed -i '/FIRMWARE_BUILDS_REV=/d' versions.inc
@@ -71,6 +65,7 @@ jobs:
           $(cat "$m.config" | grep -q "CONFIG_FIRMWARE_ENABLE_USB=y") && EUSB="y" || EUSB="n"
           [ "$EUSB" = "y" ] && echo "$m 启用 USB" || echo "$m 禁用 USB"
           SP(){
+          [ "$m" != "NEWIFI3" ] || return 0
           $(cat "$m.config" | grep -q "$1") && \
           sed -i 's/.*'$1'=.*/'$1'='$2'/g' "$m.config" || echo "$1=$2" >> "$m.config"
           $(cat "$m.config" | grep -q "$1=$2") && echo "$m $3 $1=$2" || echo "$m $1=$2 $3 发生错误!!!"
@@ -94,16 +89,17 @@ jobs:
           SP "CONFIG_FIRMWARE_INCLUDE_PARTED"                    "n" "设置Parted磁盘分区工具"
           SP "CONFIG_FIRMWARE_ENABLE_UFSD"                       "n" "设置NTFS文件系统"
           SP "CONFIG_FIRMWARE_ENABLE_EXFAT"                  "$EUSB" "设置exFAT文件系统"
-          SP "CONFIG_FIRMWARE_ENABLE_FAT"                    "$EUSB" "设置FAT(含FAT32)文件系统"
+          SP "CONFIG_FIRMWARE_ENABLE_FAT"                    "$EUSB" "设置FAT/FAT32文件系统"
           SP "CONFIG_FIRMWARE_ENABLE_XFS"                        "n" "设置XFS文件系统"
           SP "CONFIG_FIRMWARE_INCLUDE_NFSD"                      "n" "设置NFS服务"
           SP "CONFIG_FIRMWARE_INCLUDE_NFSC"                      "n" "设置NFS客户端"
           SP "CONFIG_FIRMWARE_INCLUDE_MINIDLNA"                  "n" "设置MiniDlna多媒体共享"
           SP "CONFIG_FIRMWARE_INCLUDE_FIREFLY"                   "n" "设置Firefly多媒体服务器"
           SP "CONFIG_FIRMWARE_INCLUDE_FFMPEG_NEW"                "n" "设置FFMPEG多媒体解码库"
-          SP "CONFIG_FIRMWARE_INCLUDE_SMBD"                  "$EUSB" "设置SMB局域网文件共享(含WINS)"
-          SP "CONFIG_FIRMWARE_INCLUDE_SMBD36"                "$EUSB" "设置Samba3.6局域网文件共享"
-          SP "CONFIG_FIRMWARE_INCLUDE_SMBD_SYSLOG"               "n" "设置SMB日志"
+          SP "CONFIG_FIRMWARE_INCLUDE_WINS"                      "n" "设置WINS微软网络名称转换服务器"
+          SP "CONFIG_FIRMWARE_INCLUDE_SMBD"                  "$EUSB" "设置SMB网络文件共享3.0版本"
+          SP "CONFIG_FIRMWARE_INCLUDE_SMBD36"                "$EUSB" "设置SMB网络文件共享3.6版本"
+          SP "CONFIG_FIRMWARE_INCLUDE_SMBD_SYSLOG"               "n" "设置SMB网络文件共享系统日志"
           SP "CONFIG_FIRMWARE_INCLUDE_FTPD"                      "n" "设置FTP文件传输协议"
           SP "CONFIG_FIRMWARE_INCLUDE_SFTP"                      "n" "设置SFTP安全文件传输协议"
           SP "CONFIG_FIRMWARE_INCLUDE_ARIA"                  "$EUSB" "设置Aria2下载工具"
@@ -140,7 +136,7 @@ jobs:
           SP "CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS"               "y" "使用UPX压缩可执行程序"
           SP "CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS"               "y" "设置SSP代理基础程序"
           SP "CONFIG_FIRMWARE_INCLUDE_TROJAN"                    "n" "设置SSP代理Trojan可执行程序"
-          SP "CONFIG_FIRMWARE_INCLUDE_SSVMESS"                   "n" "设置SSP代理VMess可执行程序"
+          SP "CONFIG_FIRMWARE_INCLUDE_SSVMESS"                   "n" "设置SSP代理VMess(V2Ray)可执行程序"
           SP "CONFIG_FIRMWARE_INCLUDE_SSNAIVE"                   "n" "设置SSP代理Naive可执行程序"
           SP "CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2"               "n" "设置SSP代理Hysteria2可执行程序"
           SP "CONFIG_FIRMWARE_INCLUDE_SSV2RP"                    "n" "设置SSP代理SS插件v2ray-plugin可执行程序"
