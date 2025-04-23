@@ -228,6 +228,7 @@ function fill_ss_socks_status(status_code){
                                                     <option value="0" <% nvram_match_x("","ss_type", "0", "selected"); %>>SS</option>
                                                     <option value="1" <% nvram_match_x("","ss_type", "1", "selected"); %>>SSR</option>
                                                     <option value="3" <% nvram_match_x("","ss_type", "3", "selected"); %>>VMess</option>
+                                                    <option value="6" <% nvram_match_x("","ss_type", "6", "selected"); %>>VLESS</option>
                                                     <option value="8" <% nvram_match_x("","ss_type", "8", "selected"); %>><#CustomConf#></option>
                                                 </select>
                                             </td>

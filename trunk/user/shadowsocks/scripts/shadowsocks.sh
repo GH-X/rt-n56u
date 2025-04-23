@@ -24,6 +24,7 @@ local_link="/var/ss-local"
 #$SYSB_DIR/ss-redir(ss-local) -> /var/ss-redir(ss-local) -> $EXTB_DIR/v2ray or $SYSB_DIR/v2ray
 #$SYSB_DIR/ss-redir(ss-local) -> /var/ss-redir(ss-local) -> $EXTB_DIR/naive or $SYSB_DIR/naive
 #$SYSB_DIR/ss-redir(ss-local) -> /var/ss-redir(ss-local) -> $EXTB_DIR/hysteria2 or $SYSB_DIR/hysteria2
+#$SYSB_DIR/ss-redir(ss-local) -> /var/ss-redir(ss-local) -> $EXTB_DIR/xray or $SYSB_DIR/xray
 v2rp_bin="v2ray-plugin"
 v2rp_link="/var/v2ray-plugin"
 #$SYSB_DIR/v2ray-plugin -> /var/v2ray-plugin -> $EXTB_DIR/v2ray-plugin or $SYSB_DIR/ss-v2ray-plugin
@@ -41,7 +42,7 @@ aid_dns=$(nvram get smartdns_enable)
 autorec=$(nvram get ss_watchcat_autorec)
 ss_enable=$(nvram get ss_enable)
 ss_type=$(nvram get ss_type)
-ssp_type=${ss_type:0} # 0=ss 1=ssr 2=trojan 3=vmess 8=custom 9=auto
+ssp_type=${ss_type:0} # 0=ss 1=ssr 2=trojan 3=vmess 4=naive 5=hysteria2 6=vless 8=custom 9=auto
 ss_mode=$(nvram get ss_mode) # 0=global 1=chnroute 21=gfwlist(diversion rate: Keen) 22=gfwlist(diversion rate: True)
 ss_socks=$(nvram get ss_socks)
 ss_local_port=$(nvram get ss_local_port)
@@ -73,6 +74,7 @@ dnsmasqc="$ETCS_DIR/dnsmasq/dnsmasq.conf"
 [ "$ssp_type" == "3" ] && bin_type="VMess"
 [ "$ssp_type" == "4" ] && bin_type="Naive"
 [ "$ssp_type" == "5" ] && bin_type="Hysteria2"
+[ "$ssp_type" == "6" ] && bin_type="VLESS"
 [ "$ssp_type" == "8" ] && bin_type="Custom"
 [ "$ssp_type" == "9" ] && bin_type="Auto"
 [ "$ss_socks" == "1" ] && ssp_ubin="$local_bin" || ssp_ubin="$redir_bin"
@@ -81,6 +83,7 @@ dnsmasqc="$ETCS_DIR/dnsmasq/dnsmasq.conf"
 [ -e "$EXTB_DIR/trojan" ] && chmod +x $EXTB_DIR/trojan && ssp_trojan="$EXTB_DIR/trojan" || ssp_trojan="$SYSB_DIR/trojan"
 [ -e "$EXTB_DIR/naive" ] && chmod +x $EXTB_DIR/naive && ssp_naive="$EXTB_DIR/naive" || ssp_naive="$SYSB_DIR/naive"
 [ -e "$EXTB_DIR/hysteria2" ] && chmod +x $EXTB_DIR/hysteria2 && ssp_hysteria2="$EXTB_DIR/hysteria2" || ssp_hysteria2="$SYSB_DIR/hysteria2"
+[ -e "$EXTB_DIR/xray" ] && chmod +x $EXTB_DIR/xray && ssp_xray="$EXTB_DIR/xray" || ssp_xray="$SYSB_DIR/xray"
 [ -e "$EXTB_DIR/v2ray" ] && chmod +x $EXTB_DIR/v2ray && ssp_v2ray="$EXTB_DIR/v2ray" || ssp_v2ray="$SYSB_DIR/v2ray"
 [ -e "$EXTB_DIR/v2ray-plugin" ] && chmod +x $EXTB_DIR/v2ray-plugin && ssp_v2rp="$EXTB_DIR/v2ray-plugin" || ssp_v2rp="$SYSB_DIR/ss-v2ray-plugin"
 [ -L $ETCS_DIR/chinadns/chnroute.txt ] && [ ! -e $EXTB_DIR/chnroute.txt ] && \
@@ -309,16 +312,16 @@ turn_json_file()
 [ -e "$CONF_DIR/ssp_custom.md5" ] && md5sum -c -s $CONF_DIR/ssp_custom.md5 || return 1
 [ -e "$CONF_DIR/Nodes-list.md5" ] && rm -rf $CONF_DIR/Nodes-list && for i in $(seq 1 $nodesnum); do
   j=$(expr $i - 1)
-  node_type=$(nvram get ss_server_type_x$j)      # 0  1   2      3     4     5
-  server_addr=$(nvram get ss_server_addr_x$j)    # SS SSR Trojan VMess Naive hysteria2
-  server_port=$(nvram get ss_server_port_x$j)    # SS SSR Trojan VMess Naive hysteria2
-  server_key=$(nvram get ss_server_key_x$j)      # SS SSR Trojan VMess Naive hysteria2
-  server_sni=$(nvram get ss_server_sni_x$j)      #        Trojan VMess       hysteria2
-  ss_method=$(nvram get ss_method_x$j)           # SS SSR        VMess
-  ss_protocol=$(nvram get ss_protocol_x$j)       #    SSR        VMess Naive hysteria2
-  ss_proto_param=$(nvram get ss_proto_param_x$j) #    SSR        VMess
-  ss_obfs=$(nvram get ss_obfs_x$j)               # SS SSR        VMess       hysteria2
-  ss_obfs_param=$(nvram get ss_obfs_param_x$j)   # SS SSR        VMess       hysteria2
+  node_type=$(nvram get ss_server_type_x$j)      # 0  1   2      3     4     5         6
+  server_addr=$(nvram get ss_server_addr_x$j)    # SS SSR Trojan VMess Naive hysteria2 VLESS
+  server_port=$(nvram get ss_server_port_x$j)    # SS SSR Trojan VMess Naive hysteria2 VLESS
+  server_key=$(nvram get ss_server_key_x$j)      # SS SSR Trojan VMess Naive hysteria2 VLESS
+  server_sni=$(nvram get ss_server_sni_x$j)      #        Trojan VMess       hysteria2 VLESS
+  ss_method=$(nvram get ss_method_x$j)           # SS SSR        VMess                 VLESS
+  ss_protocol=$(nvram get ss_protocol_x$j)       #    SSR        VMess Naive hysteria2 VLESS
+  ss_proto_param=$(nvram get ss_proto_param_x$j) #    SSR        VMess                 VLESS
+  ss_obfs=$(nvram get ss_obfs_x$j)               # SS SSR        VMess       hysteria2 VLESS
+  ss_obfs_param=$(nvram get ss_obfs_param_x$j)   # SS SSR        VMess       hysteria2 VLESS
   echo "$i#$node_type#$server_addr#$server_port#$server_key#$server_sni#$ss_method#$ss_protocol#$ss_proto_param#$ss_obfs#$ss_obfs_param" >> $CONF_DIR/Nodes-list
 done && md5sum -c -s $CONF_DIR/Nodes-list.md5 || return 1
 [ "$(cat $CONF_DIR/$bin_type-jsonlist | wc -l)" != "1" ] || return 0
@@ -354,16 +357,16 @@ if [ ! -e "$CONF_DIR/Nodes-list.md5" ]; then
   logger -st "SSP[$$]$bin_type" "创建配置文件"
   for i in $(seq 1 $nodesnum); do
     j=$(expr $i - 1)
-    node_type=$(nvram get ss_server_type_x$j)      # 0  1   2      3     4     5
-    server_addr=$(nvram get ss_server_addr_x$j)    # SS SSR Trojan VMess Naive hysteria2
-    server_port=$(nvram get ss_server_port_x$j)    # SS SSR Trojan VMess Naive hysteria2
-    server_key=$(nvram get ss_server_key_x$j)      # SS SSR Trojan VMess Naive hysteria2
-    server_sni=$(nvram get ss_server_sni_x$j)      #        Trojan VMess       hysteria2
-    ss_method=$(nvram get ss_method_x$j)           # SS SSR        VMess
-    ss_protocol=$(nvram get ss_protocol_x$j)       #    SSR        VMess Naive hysteria2
-    ss_proto_param=$(nvram get ss_proto_param_x$j) #    SSR        VMess
-    ss_obfs=$(nvram get ss_obfs_x$j)               # SS SSR        VMess       hysteria2
-    ss_obfs_param=$(nvram get ss_obfs_param_x$j)   # SS SSR        VMess       hysteria2
+    node_type=$(nvram get ss_server_type_x$j)      # 0  1   2      3     4     5         6
+    server_addr=$(nvram get ss_server_addr_x$j)    # SS SSR Trojan VMess Naive hysteria2 VLESS
+    server_port=$(nvram get ss_server_port_x$j)    # SS SSR Trojan VMess Naive hysteria2 VLESS
+    server_key=$(nvram get ss_server_key_x$j)      # SS SSR Trojan VMess Naive hysteria2 VLESS
+    server_sni=$(nvram get ss_server_sni_x$j)      #        Trojan VMess       hysteria2 VLESS
+    ss_method=$(nvram get ss_method_x$j)           # SS SSR        VMess                 VLESS
+    ss_protocol=$(nvram get ss_protocol_x$j)       #    SSR        VMess Naive hysteria2 VLESS
+    ss_proto_param=$(nvram get ss_proto_param_x$j) #    SSR        VMess                 VLESS
+    ss_obfs=$(nvram get ss_obfs_x$j)               # SS SSR        VMess       hysteria2 VLESS
+    ss_obfs_param=$(nvram get ss_obfs_param_x$j)   # SS SSR        VMess       hysteria2 VLESS
     addr_isip_noip $server_addr
     echo "$i#$node_type#$server_addr#$server_port#$server_key#$server_sni#$ss_method#$ss_protocol#$ss_proto_param#$ss_obfs#$ss_obfs_param" >> $CONF_DIR/Nodes-list
     [ "$node_type" == "0" ] && server_type="SS"
@@ -372,6 +375,7 @@ if [ ! -e "$CONF_DIR/Nodes-list.md5" ]; then
     [ "$node_type" == "3" ] && server_type="VMess"
     [ "$node_type" == "4" ] && server_type="Naive"
     [ "$node_type" == "5" ] && server_type="Hysteria2"
+    [ "$node_type" == "6" ] && server_type="VLESS"
     if [ "$server_type" == "SS" ]; then
       if [ "$ss_obfs" == "v2ray_plugin_websocket" ]; then
         ss_pm="v2rp-WEBS" && ss_plugin="$v2rp_bin"
@@ -565,6 +569,135 @@ EOF
       cat >> "$CONF_DIR/$l_json_file" << EOF
 [socks5]
 listen = "0.0.0.0:$ss_local_port"
+
+EOF
+    elif [ "$server_type" == "VLESS" ]; then
+      [ "$ss_method" != "empty" ] || ss_method=""
+      [ "$ss_obfs" != "empty" ] || ss_obfs=""
+      r_json_file="$i-$server_type-redir.json"
+      l_json_file="$i-$server_type-local.json"
+      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/VLESS-jsonlist
+      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/Auto-jsonlist
+      cat > "$CONF_DIR/$r_json_file" << EOF
+{
+  "log": {
+    "loglevel": "warning"
+  },
+  "inbounds": [
+    {
+      "tag": "redir",
+      "port": $ss_local_port,
+      "listen": "0.0.0.0",
+      "protocol": "dokodemo-door",
+      "settings": {
+        "network": "tcp",
+        "followRedirect": true
+      },
+      "streamSettings": {
+        "sockopt": {
+          "tcpFastOpen": false,
+          "tproxy": "redirect"
+        }
+      },
+      "sniffing": {
+        "enabled": false,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
+      }
+    }
+  ],
+EOF
+      cat > "$CONF_DIR/$l_json_file" << EOF
+{
+  "log": {
+    "loglevel": "warning"
+  },
+  "inbounds": [
+    {
+      "tag": "socks",
+      "port": $ss_local_port,
+      "listen": "0.0.0.0",
+      "protocol": "socks",
+      "settings": {
+        "auth": "noauth",
+        "udp": true
+      },
+      "streamSettings": {
+        "sockopt": {
+          "tcpFastOpen": false,
+          "tproxy": "redirect"
+        }
+      },
+      "sniffing": {
+        "enabled": false,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
+      }
+    }
+  ],
+EOF
+      tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+  "outbounds": [
+    {
+      "tag": "proxy",
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "$server_addr",
+            "port": $server_port,
+            "users": [
+              {
+                "id": "$server_key",
+                "encryption": "none",
+                "flow": "$ss_method"
+              }
+            ]
+          }
+        ]
+      },
+EOF
+      if [ "$ss_protocol" == "raw_tls" ]; then
+        [ "$server_sni" != "" ] && allow_insecure="false" || allow_insecure="true"
+        tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+      "streamSettings": {
+        "network": "raw",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "$server_sni",
+          "allowInsecure": $allow_insecure,
+          "fingerprint": "$ss_obfs"
+        }
+      },
+EOF
+      elif [ "$ss_protocol" == "raw_reality" ]; then
+        tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+      "streamSettings": {
+        "network": "raw",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "serverName": "$server_sni",
+          "fingerprint": "$ss_obfs",
+          "shortId": "$ss_proto_param",
+          "publicKey": "$ss_obfs_param",
+          "spiderX": ""
+        }
+      },
+EOF
+      fi
+      tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+      "mux": {
+        "enabled": true,
+        "concurrency": 1
+      }
+    }
+  ]
+}
 
 EOF
     elif [ "$server_type" == "VMess" ]; then
@@ -896,8 +1029,15 @@ elif [ "$ssp_server_type" == "Hysteria2" ]; then
   $([ -x "$ssp_hysteria2" ] && ln -sf $ssp_hysteria2 $redir_link && ln -sf $ssp_hysteria2 $local_link) || \
   $(stop_ssp "请上传 hysteria2 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
 elif [ "$ssp_server_type" == "VMess" ]; then
-  $([ -x "$ssp_v2ray" ] && ln -sf $ssp_v2ray $redir_link && ln -sf $ssp_v2ray $local_link) || \
-  $(stop_ssp "请上传 v2ray 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
+  if [ -x "$ssp_xray" ] && [ ! -x "$ssp_v2ray" ]; then
+    ln -sf $ssp_xray $redir_link && ln -sf $ssp_xray $local_link
+  else
+    $([ -x "$ssp_v2ray" ] && ln -sf $ssp_v2ray $redir_link && ln -sf $ssp_v2ray $local_link) || \
+    $(stop_ssp "请上传 v2ray 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
+  fi
+elif [ "$ssp_server_type" == "VLESS" ]; then
+  $([ -x "$ssp_xray" ] && ln -sf $ssp_xray $redir_link && ln -sf $ssp_xray $local_link) || \
+  $(stop_ssp "请上传 xray 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
 elif [ "$ssp_server_type" == "Custom" ]; then
   $([ -x "$ssp_custom" ] && ln -sf $ssp_custom $redir_link && ln -sf $ssp_custom $local_link) || \
   $(stop_ssp "请上传 $sspbinname 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
@@ -974,7 +1114,7 @@ if [ "$ssp_server_type" == "Custom" ] && [ "$confoptarg" != "" ]; then
   echo " $confoptarg"
 elif [ "$ssp_server_type" == "Naive" ]; then
   echo " $(conffile)"
-elif [ "$ssp_server_type" == "VMess" ]; then
+elif [ "$ssp_server_type" == "VMess" ] || [ "$ssp_server_type" == "VLESS" ]; then
   echo " run -c $(conffile)"
 else
   echo " -c $(conffile)"

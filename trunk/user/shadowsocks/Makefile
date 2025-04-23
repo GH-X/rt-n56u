@@ -25,6 +25,13 @@ V2RAY_BIN=$(THISDIR)/v2ray
 V2RAY_TAR=$(V2RAY_SRC).tar.gz
 V2RAY_URL=https://codeload.github.com/v2fly/v2ray-core/tar.gz/refs/tags/v$(V2RAY_VER)
 
+XRAY_VER=25.3.31
+XRAY_SRC=Xray-core-$(XRAY_VER)
+XRAY_DIR=$(XRAY_SRC)/main
+XRAY_BIN=$(THISDIR)/xray
+XRAY_TAR=$(XRAY_SRC).tar.gz
+XRAY_URL=https://codeload.github.com/XTLS/Xray-core/tar.gz/refs/tags/v$(XRAY_VER)
+
 HYSTERIA2_VER=v2.6.1
 HYSTERIA2_SRC=hysteria-app-$(HYSTERIA2_VER)
 HYSTERIA2_DIR=$(HYSTERIA2_SRC)/app
@@ -66,13 +73,17 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
 	chmod +x $(V2RAY_BIN)
 	upx --best --lzma $(V2RAY_BIN)
 endif
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVLESS),y)
+	chmod +x $(XRAY_BIN)
+	upx --best --lzma $(XRAY_BIN)
+endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
 	chmod +x $(HYSTERIA2_BIN)
 	upx --best --lzma $(HYSTERIA2_BIN)
 endif
 endif
 
-download_test: naive_dl v2rayplugin_dl v2ray_dl hysteria2_dl cacert_dl chnroute_dl chnlist_dl gfwlist_dl
+download_test: naive_dl v2rayplugin_dl v2ray_dl xray_dl hysteria2_dl cacert_dl chnroute_dl chnlist_dl gfwlist_dl
 
 naive_dl:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSNAIVE),y)
@@ -92,6 +103,13 @@ v2ray_dl:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
 	( if [ ! -e $(V2RAY_TAR) ]; then \
 		wget -t8 -4 --timeout=8 -O $(V2RAY_TAR) $(V2RAY_URL); \
+	fi )
+endif
+
+xray_dl:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVLESS),y)
+	( if [ ! -e $(XRAY_TAR) ]; then \
+		wget -t8 -4 --timeout=8 -O $(XRAY_TAR) $(XRAY_URL); \
 	fi )
 endif
 
@@ -147,7 +165,7 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 endif
 
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-extract_test: extract_naive extract_v2rayplugin extract_v2ray extract_hysteria2 extract_ipt_test extract_sdns_test extract_ssr_test extract_ss_test
+extract_test: extract_naive extract_v2rayplugin extract_v2ray extract_xray extract_hysteria2 extract_ipt_test extract_sdns_test extract_ssr_test extract_ss_test
 else
 extract_test: extract_ss_test
 endif
@@ -173,6 +191,13 @@ extract_v2ray:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
 	( if [ ! -d $(V2RAY_SRC) ]; then \
 		tar -xf $(V2RAY_TAR); \
+	fi )
+endif
+
+extract_xray:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVLESS),y)
+	( if [ ! -d $(XRAY_SRC) ]; then \
+		tar -xf $(XRAY_TAR); \
 	fi )
 endif
 
@@ -275,7 +300,7 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 endif
 	$(MAKE) -j$(HOST_NCPU) -C $(SRC_SS_NAME)
 
-build_go: build_v2rayplugin build_v2ray build_hysteria2
+build_go: build_v2rayplugin build_v2ray build_xray build_hysteria2
 
 build_v2rayplugin:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSV2RP),y)
@@ -293,6 +318,14 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
 	fi )
 endif
 
+build_xray:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVLESS),y)
+	( if [ ! -e $(XRAY_BIN) ]; then \
+		cd $(XRAY_DIR) && \
+		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(XRAY_BIN); \
+	fi )
+endif
+
 build_hysteria2:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
 	( if [ ! -e $(HYSTERIA2_BIN) ]; then \
@@ -301,7 +334,7 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
 	fi )
 endif
 
-clean: clean_naive clean_v2rayplugin clean_v2ray clean_hysteria2 clean_sdns clean_ipt clean_ssr clean_ss
+clean: clean_naive clean_v2rayplugin clean_v2ray clean_xray clean_hysteria2 clean_sdns clean_ipt clean_ssr clean_ss
 	rm -f ssr_config_done ss_config_done ipt_config_done
 	rm -rf $(CACERT_DIR)
 	rm -rf $(CHNROUTE_DIR)
@@ -328,6 +361,14 @@ clean_v2ray:
 	fi )
 	( if [ -d $(V2RAY_SRC) ]; then \
 		rm -rf $(V2RAY_SRC); \
+	fi )
+
+clean_xray:
+	( if [ -e $(XRAY_BIN) ]; then \
+		rm -rf $(XRAY_BIN); \
+	fi )
+	( if [ -d $(XRAY_SRC) ]; then \
+		rm -rf $(XRAY_SRC); \
 	fi )
 
 clean_hysteria2:
@@ -395,5 +436,8 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSNAIVE),y)
 endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
 	$(ROMFSINST) -p +x $(HYSTERIA2_BIN) /usr/bin/hysteria2
+endif
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVLESS),y)
+	$(ROMFSINST) -p +x $(XRAY_BIN) /usr/bin/xray
 endif
 
