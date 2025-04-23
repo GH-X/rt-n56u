@@ -66,5 +66,5 @@ clean_golang:
 
 clean_upx:
 	( if [ -e $(THISDIR)/upx ]; then \
-		rm -rf $(THISDIR)/upx
+		rm -rf $(THISDIR)/upx; \
 	fi )

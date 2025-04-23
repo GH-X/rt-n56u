@@ -1,18 +1,14 @@
 SRC_NAME = trojan-1.16.0
 SRC_URL = https://github.com/trojan-gfw/trojan/archive/v1.16.0.tar.gz
 THISDIR = $(shell pwd)
+SRC_BIN = $(THISDIR)/$(SRC_NAME)/build/trojan
 
 LDFLAGS += -static-libstdc++
 COPTS = -O3 $(filter-out -O%,$(CXXFLAGS))
 CFLAGS := $(COPTS)
 CXXFLAGS := $(COPTS)
 
-all: download_test extract_test config_test
-	$(MAKE) -j$(HOST_NCPU) -C $(SRC_NAME)/build
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
-	chmod +x $(THISDIR)/$(SRC_NAME)/build/trojan
-	upx --best --lzma $(THISDIR)/$(SRC_NAME)/build/trojan
-endif
+all: download_test extract_test config_test build_test
 
 download_test:
 	( if [ ! -f $(THISDIR)/$(SRC_NAME).tar.gz ]; then \
@@ -42,10 +38,22 @@ configure:
 			.. ; \
 	)
 
+build_test:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
+	( if [ ! -e $(SRC_BIN) ]; then \
+		$(MAKE) -j$(HOST_NCPU) -C $(SRC_NAME)/build && \
+		chmod +x $(SRC_BIN) && upx --best --lzma $(SRC_BIN); \
+	fi )
+else
+	( if [ ! -e $(SRC_BIN) ]; then \
+		$(MAKE) -j$(HOST_NCPU) -C $(SRC_NAME)/build; \
+	fi )
+endif
+
 clean:
 	rm -rf $(SRC_NAME)/build
 	rm -f config_done
 
 romfs:
-	$(ROMFSINST) $(THISDIR)/$(SRC_NAME)/build/trojan /usr/bin/trojan
+	$(ROMFSINST) $(SRC_BIN) /usr/bin/trojan
 

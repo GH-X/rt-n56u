@@ -60,28 +60,6 @@ GFWLIST_URL=$(GFWLIST_PURL)/$(GFWLIST_NAME)
 GFWLIST_DIR=gfwlist
 
 all: download_test extract_test config_test build_test
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSNAIVE),y)
-	chmod +x $(NAIVE_BIN)
-	upx --best --lzma $(NAIVE_BIN)
-endif
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSV2RP),y)
-	chmod +x $(V2RAYPLUGIN_BIN)
-	upx --best --lzma $(V2RAYPLUGIN_BIN)
-endif
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
-	chmod +x $(V2RAY_BIN)
-	upx --best --lzma $(V2RAY_BIN)
-endif
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVLESS),y)
-	chmod +x $(XRAY_BIN)
-	upx --best --lzma $(XRAY_BIN)
-endif
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
-	chmod +x $(HYSTERIA2_BIN)
-	upx --best --lzma $(HYSTERIA2_BIN)
-endif
-endif
 
 download_test: naive_dl v2rayplugin_dl v2ray_dl xray_dl hysteria2_dl cacert_dl chnroute_dl chnlist_dl gfwlist_dl
 
@@ -175,9 +153,16 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSNAIVE),y)
 	( if [ ! -d $(NAIVE_SRC) ]; then \
 		tar -xf $(NAIVE_TAR); \
 	fi )
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
+	( if [ ! -e $(NAIVE_BIN) ]; then \
+		mv -f $(NAIVE_SRC)/naive $(NAIVE_BIN) && \
+		chmod +x $(NAIVE_BIN) && upx --best --lzma $(NAIVE_BIN); \
+	fi )
+else
 	( if [ ! -e $(NAIVE_BIN) ]; then \
 		mv -f $(NAIVE_SRC)/naive $(NAIVE_BIN); \
 	fi )
+endif
 endif
 
 extract_v2rayplugin:
@@ -304,34 +289,66 @@ build_go: build_v2rayplugin build_v2ray build_xray build_hysteria2
 
 build_v2rayplugin:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSV2RP),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
+	( if [ ! -e $(V2RAYPLUGIN_BIN) ]; then \
+		cd $(V2RAYPLUGIN_SRC) && \
+		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(V2RAYPLUGIN_BIN) && \
+		chmod +x $(V2RAYPLUGIN_BIN) && upx --best --lzma $(V2RAYPLUGIN_BIN); \
+	fi )
+else
 	( if [ ! -e $(V2RAYPLUGIN_BIN) ]; then \
 		cd $(V2RAYPLUGIN_SRC) && \
 		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(V2RAYPLUGIN_BIN); \
 	fi )
 endif
+endif
 
 build_v2ray:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
+	( if [ ! -e $(V2RAY_BIN) ]; then \
+		cd $(V2RAY_DIR) && \
+		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(V2RAY_BIN) && \
+		chmod +x $(V2RAY_BIN) && upx --best --lzma $(V2RAY_BIN); \
+	fi )
+else
 	( if [ ! -e $(V2RAY_BIN) ]; then \
 		cd $(V2RAY_DIR) && \
 		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(V2RAY_BIN); \
 	fi )
 endif
+endif
 
 build_xray:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVLESS),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
+	( if [ ! -e $(XRAY_BIN) ]; then \
+		cd $(XRAY_DIR) && \
+		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(XRAY_BIN) && \
+		chmod +x $(XRAY_BIN) && upx --best --lzma $(XRAY_BIN); \
+	fi )
+else
 	( if [ ! -e $(XRAY_BIN) ]; then \
 		cd $(XRAY_DIR) && \
 		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(XRAY_BIN); \
 	fi )
 endif
+endif
 
 build_hysteria2:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
+	( if [ ! -e $(HYSTERIA2_BIN) ]; then \
+		cd $(HYSTERIA2_DIR) && \
+		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(HYSTERIA2_BIN) && \
+		chmod +x $(HYSTERIA2_BIN) && upx --best --lzma $(HYSTERIA2_BIN); \
+	fi )
+else
 	( if [ ! -e $(HYSTERIA2_BIN) ]; then \
 		cd $(HYSTERIA2_DIR) && \
 		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(HYSTERIA2_BIN); \
 	fi )
+endif
 endif
 
 clean: clean_naive clean_v2rayplugin clean_v2ray clean_xray clean_hysteria2 clean_sdns clean_ipt clean_ssr clean_ss
