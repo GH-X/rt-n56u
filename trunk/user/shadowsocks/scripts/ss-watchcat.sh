@@ -19,6 +19,10 @@ extbpid=$(expr 100000 + $$)
 logmark=${extbpid:1}
 [ "$(nvram get ss_socks)" == "1" ] && sspubin="ss-local" || sspubin="ss-redir"
 
+loger(){
+	sed -i '1i\'$(date "+%Y-%m-%d_%H:%M:%S")'_'$logmark''$1'' $ssp_log_file
+}
+
 count(){
 	nvram_value_temp=$(nvram get $1)
 	nvram_value=${nvram_value_temp:0}
@@ -41,34 +45,35 @@ infor(){
 	echo "$serverinfor──$(count link_times)" || echo "snum──type──addr:port──time"
 }
 
-loger(){
-	sed -i '1i\'$(date "+%Y-%m-%d_%H:%M:%S")'_'$logmark''$1'' $ssp_log_file
-}
-
 score(){
-	[ "$(infor)" != "snum──type──addr:port──time" ] || return 0
-	inforserver=$(infor | awk -F── 'BEGIN{OFS="──"}{print $1,$2,$3}')
-	$(grep -q "$inforserver" $scoresfile) && sed -i '/^'$inforserver'/d' $scoresfile && \
-	log_scores="0" || log_scores="1"
-	echo "$(infor)" >> $scoresfile
+	infor=$(infor) && [ "$infor" != "snum──type──addr:port──time" ] || return 0
+	infornode=$(echo "$infor" | awk -F── 'BEGIN{OFS="──"}{print $1,$2,$3}')
+	infortime=$(echo "$infor" | awk -F── '{print $4}')
+	if $(grep -q "$infornode" $scoresfile); then
+		scoretime=$(grep "$infornode" $scoresfile | awk -F── '{print $4}')
+		[ "$infortime" == "" ] && infortime="$scoretime" && count link_times +- $infortime
+		[ $scoretime -ge $infortime ] && lognode="1" || lognode="0"
+		sed -i '/^'$infornode'/d' $scoresfile
+	else
+		lognode="1"
+	fi
+	echo "$infornode──$infortime" >> $scoresfile
 	sort -u -n -r $scoresfile > $CONF_DIR/scoresfile.tmp && mv -f $CONF_DIR/scoresfile.tmp $scoresfile
-	[ "$log_scores" == "1" ] && while read line
+	[ "$lognode" == "1" ] && while read line
 	do
-		nodeinfor=$(echo "$line" | awk -F── 'BEGIN{OFS="──"}{print $1,$2,$3}')
-		nodeisnum=$(echo "$line" | awk -F── '{print $1}')
-		nodeitype=$(echo "$line" | awk -F── '{print $2}')
-		nodeiarpt=$(echo "$line" | awk -F── '{print $3}')
-		nodetimes=$(echo "$line" | awk -F── '{print $4}')
-		nodeiaddr=$(echo "$nodeiarpt" | awk -F: '{print $1}')
-		nodeiport=$(echo "$nodeiarpt" | awk -F: '{print $2}')
-		loger "├────连接时长:$nodetimes"
-		loger "├────节点端口:$nodeiport"
-		loger "├────节点地址:$nodeiaddr"
-		loger "├────节点类型:$nodeitype"
-		[ "$nodeinfor" == "$inforserver" ] && \
-		loger "├──当前节点:$nodeisnum" || loger "├──历史节点:$nodeisnum"
+		scorenode=$(echo "$line" | awk -F── 'BEGIN{OFS="──"}{print $1,$2,$3}')
+		node_snum=$(echo "$line" | awk -F── '{print $1}')
+		node_type=$(echo "$line" | awk -F── '{print $2}')
+		node_addr=$(echo "$line" | awk -F── '{print $3}' | awk -F: '{print $1}')
+		node_port=$(echo "$line" | awk -F── '{print $3}' | awk -F: '{print $2}')
+		node_time=$(echo "$line" | awk -F── '{print $4}')
+		loger "├────连接时长:$node_time"
+		loger "├────节点端口:$node_port"
+		loger "├────节点地址:$node_addr"
+		loger "├────节点类型:$node_type"
+		[ "$scorenode" == "$infornode" ] && \
+		loger "├──当前节点:$node_snum" || loger "├──历史节点:$node_snum"
 	done < $scoresfile
-	log_scores="0" && return 0
 }
 
 godet(){
@@ -79,7 +84,6 @@ godet(){
 	[ $sspubinRUNOUT -ge 3 ] && count wait_times ++ 1 5 && count turn_json_file +- 1
 	[ $(count wait_times) -le 0 ] && score
 	nvram set watchcat_state=stopped
-	return 0
 }
 
 goout(){
@@ -220,7 +224,6 @@ check_cat_sole(){
 	for watchcatPID in $(pidof ss-watchcat.sh); do
 		[ "$watchcatPID" != "$$" ] && kill -9 $watchcatPID
 	done
-	return 0
 }
 
 check(){

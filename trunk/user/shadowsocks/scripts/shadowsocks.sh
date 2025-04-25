@@ -106,11 +106,11 @@ stop_watchcat()
 nvram set watchcat_state=stop_watchcat
 sed -i '/ss-watchcat.sh/d' $CRON_CONF && restart_crond
 stopp ss-watchcat.sh
-nvram set link_error=0
 nvram set wait_times=0
+nvram set link_times=0
+nvram set link_error=0
 nvram set server_infor=snum──type──addr:port
 nvram set watchcat_state=stopped
-return 0
 }
 
 stop_socks()
@@ -238,7 +238,6 @@ sed -i 's/^### gfwlist related.*/### gfwlist related resolve by '$1' '$2'/g' $dn
 sed -i 's/^#min-cache-ttl=/min-cache-ttl=/g' $dnsmasqc
 sed -i 's/^#max-cache-ttl=/max-cache-ttl=/g' $dnsmasqc
 [ -e "$dnslistc" ] && sed -i 's:^#conf-dir='$CONF_DIR'/gfwlist:conf-dir='$CONF_DIR'/gfwlist:g' $dnsmasqc
-return 0
 }
 
 gen_dns_conf()
@@ -255,8 +254,8 @@ restart_dhcpd
 del_json_file()
 {
 logger -st "SSP[$$]$bin_type" "清除配置文件"
-nvram set link_times=0
 nvram set turn_json_file=0
+nvram set link_times=0
 rm -rf $scoresfile
 rm -rf $CONF_DIR/*.md5
 rm -rf $CONF_DIR/*.toml
@@ -265,7 +264,6 @@ rm -rf $CONF_DIR/*-jsonlist
 rm -rf $CONF_DIR/Nodes-list
 rm -rf $serveraddrisip
 rm -rf $serveraddrnoip
-return 0
 }
 
 stop_redir()
@@ -1185,7 +1183,6 @@ scron()
 {
 ncron $1 || dcron $1
 [ "$?" == "0" ] && restart_crond
-return 0
 }
 
 start_ssp()
