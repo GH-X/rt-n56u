@@ -7,6 +7,13 @@ SRC_SSR_NAME=shadowsocksr-libev-master
 ARCHIVE_SSR_NAME=shadowsocksr-libev-master-e2373d7
 #https://github.com/shadowsocksr-backup/shadowsocksr-libev.git
 
+MIERU_VER=3.14.1
+MIERU_SRC=mieru-$(MIERU_VER)
+MIERU_DIR=./cmd/mieru/
+MIERU_BIN=$(THISDIR)/mieru
+MIERU_TAR=$(MIERU_SRC).tar.gz
+MIERU_URL=https://codeload.github.com/enfein/mieru/tar.gz/refs/tags/v$(MIERU_VER)
+
 NAIVE_VER=v135.0.7049.38-2
 NAIVE_SRC=naiveproxy-$(NAIVE_VER)-openwrt-mipsel_24kc-static
 NAIVE_BIN=$(THISDIR)/naive
@@ -14,27 +21,28 @@ NAIVE_TAR=$(NAIVE_SRC).tar.xz
 NAIVE_URL=https://github.com/klzgrad/naiveproxy/releases/download/$(NAIVE_VER)/$(NAIVE_TAR)
 
 V2RAYPLUGIN_SRC=v2ray-plugin-master
+V2RAYPLUGIN_DIR=./
 V2RAYPLUGIN_BIN=$(THISDIR)/ss-v2ray-plugin
 V2RAYPLUGIN_ZIP=$(V2RAYPLUGIN_SRC).zip
 V2RAYPLUGIN_URL=https://codeload.github.com/shadowsocks/v2ray-plugin/zip/refs/heads/master
 
 V2RAY_VER=5.30.0
 V2RAY_SRC=v2ray-core-$(V2RAY_VER)
-V2RAY_DIR=$(V2RAY_SRC)/main
+V2RAY_DIR=./main/
 V2RAY_BIN=$(THISDIR)/v2ray
 V2RAY_TAR=$(V2RAY_SRC).tar.gz
 V2RAY_URL=https://codeload.github.com/v2fly/v2ray-core/tar.gz/refs/tags/v$(V2RAY_VER)
 
 XRAY_VER=25.3.31
 XRAY_SRC=Xray-core-$(XRAY_VER)
-XRAY_DIR=$(XRAY_SRC)/main
+XRAY_DIR=./main/
 XRAY_BIN=$(THISDIR)/xray
 XRAY_TAR=$(XRAY_SRC).tar.gz
 XRAY_URL=https://codeload.github.com/XTLS/Xray-core/tar.gz/refs/tags/v$(XRAY_VER)
 
 HYSTERIA2_VER=v2.6.1
 HYSTERIA2_SRC=hysteria-app-$(HYSTERIA2_VER)
-HYSTERIA2_DIR=$(HYSTERIA2_SRC)/app
+HYSTERIA2_DIR=./app/
 HYSTERIA2_BIN=$(THISDIR)/hysteria2
 HYSTERIA2_TAR=$(HYSTERIA2_SRC).tar.gz
 HYSTERIA2_URL=https://codeload.github.com/apernet/hysteria/tar.gz/refs/tags/app/$(HYSTERIA2_VER)
@@ -61,7 +69,14 @@ GFWLIST_DIR=gfwlist
 
 all: download_test extract_test config_test build_test
 
-download_test: naive_dl v2rayplugin_dl v2ray_dl xray_dl hysteria2_dl cacert_dl chnroute_dl chnlist_dl gfwlist_dl
+download_test: mieru_dl naive_dl v2rayplugin_dl v2ray_dl xray_dl hysteria2_dl cacert_dl chnroute_dl chnlist_dl gfwlist_dl
+
+mieru_dl:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSMIERU),y)
+	( if [ ! -e $(MIERU_TAR) ]; then \
+		wget -t8 -4 --timeout=8 -O $(MIERU_TAR) $(MIERU_URL); \
+	fi )
+endif
 
 naive_dl:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSNAIVE),y)
@@ -143,9 +158,16 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 endif
 
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-extract_test: extract_naive extract_v2rayplugin extract_v2ray extract_xray extract_hysteria2 extract_ipt_test extract_sdns_test extract_ssr_test extract_ss_test
+extract_test: extract_mieru extract_naive extract_v2rayplugin extract_v2ray extract_xray extract_hysteria2 extract_ipt_test extract_sdns_test extract_ssr_test extract_ss_test
 else
 extract_test: extract_ss_test
+endif
+
+extract_mieru:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSMIERU),y)
+	( if [ ! -d $(MIERU_SRC) ]; then \
+		tar -xf $(MIERU_TAR); \
+	fi )
 endif
 
 extract_naive:
@@ -285,20 +307,36 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 endif
 	$(MAKE) -j$(HOST_NCPU) -C $(SRC_SS_NAME)
 
-build_go: build_v2rayplugin build_v2ray build_xray build_hysteria2
+build_go: build_mieru build_v2rayplugin build_v2ray build_xray build_hysteria2
+
+build_mieru:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSMIERU),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
+	( if [ ! -e $(MIERU_BIN) ]; then \
+		cd $(MIERU_SRC) && \
+		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(MIERU_BIN) $(MIERU_DIR) && \
+		chmod +x $(MIERU_BIN) && upx --best --lzma $(MIERU_BIN); \
+	fi )
+else
+	( if [ ! -e $(MIERU_BIN) ]; then \
+		cd $(MIERU_SRC) && \
+		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(MIERU_BIN) $(MIERU_DIR); \
+	fi )
+endif
+endif
 
 build_v2rayplugin:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSV2RP),y)
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(V2RAYPLUGIN_BIN) ]; then \
 		cd $(V2RAYPLUGIN_SRC) && \
-		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(V2RAYPLUGIN_BIN) && \
+		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(V2RAYPLUGIN_BIN) $(V2RAYPLUGIN_DIR) && \
 		chmod +x $(V2RAYPLUGIN_BIN) && upx --best --lzma $(V2RAYPLUGIN_BIN); \
 	fi )
 else
 	( if [ ! -e $(V2RAYPLUGIN_BIN) ]; then \
 		cd $(V2RAYPLUGIN_SRC) && \
-		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(V2RAYPLUGIN_BIN); \
+		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(V2RAYPLUGIN_BIN) $(V2RAYPLUGIN_DIR); \
 	fi )
 endif
 endif
@@ -307,14 +345,14 @@ build_v2ray:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(V2RAY_BIN) ]; then \
-		cd $(V2RAY_DIR) && \
-		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(V2RAY_BIN) && \
+		cd $(V2RAY_SRC) && \
+		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(V2RAY_BIN) $(V2RAY_DIR) && \
 		chmod +x $(V2RAY_BIN) && upx --best --lzma $(V2RAY_BIN); \
 	fi )
 else
 	( if [ ! -e $(V2RAY_BIN) ]; then \
-		cd $(V2RAY_DIR) && \
-		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(V2RAY_BIN); \
+		cd $(V2RAY_SRC) && \
+		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(V2RAY_BIN) $(V2RAY_DIR); \
 	fi )
 endif
 endif
@@ -323,14 +361,14 @@ build_xray:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVLESS),y)
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(XRAY_BIN) ]; then \
-		cd $(XRAY_DIR) && \
-		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(XRAY_BIN) && \
+		cd $(XRAY_SRC) && \
+		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(XRAY_BIN) $(XRAY_DIR) && \
 		chmod +x $(XRAY_BIN) && upx --best --lzma $(XRAY_BIN); \
 	fi )
 else
 	( if [ ! -e $(XRAY_BIN) ]; then \
-		cd $(XRAY_DIR) && \
-		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(XRAY_BIN); \
+		cd $(XRAY_SRC) && \
+		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(XRAY_BIN) $(XRAY_DIR); \
 	fi )
 endif
 endif
@@ -339,22 +377,30 @@ build_hysteria2:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(HYSTERIA2_BIN) ]; then \
-		cd $(HYSTERIA2_DIR) && \
-		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(HYSTERIA2_BIN) && \
+		cd $(HYSTERIA2_SRC) && \
+		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(HYSTERIA2_BIN) $(HYSTERIA2_DIR) && \
 		chmod +x $(HYSTERIA2_BIN) && upx --best --lzma $(HYSTERIA2_BIN); \
 	fi )
 else
 	( if [ ! -e $(HYSTERIA2_BIN) ]; then \
-		cd $(HYSTERIA2_DIR) && \
-		GOOS=linux GOARCH=mipsle go build -ldflags "-w -s" -o $(HYSTERIA2_BIN); \
+		cd $(HYSTERIA2_SRC) && \
+		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(HYSTERIA2_BIN) $(HYSTERIA2_DIR); \
 	fi )
 endif
 endif
 
-clean: clean_naive clean_v2rayplugin clean_v2ray clean_xray clean_hysteria2 clean_sdns clean_ipt clean_ssr clean_ss
+clean: clean_mieru clean_naive clean_v2rayplugin clean_v2ray clean_xray clean_hysteria2 clean_sdns clean_ipt clean_ssr clean_ss
 	rm -f ssr_config_done ss_config_done ipt_config_done
 	rm -rf $(CACERT_DIR)
 	rm -rf $(CHNROUTE_DIR)
+
+clean_mieru:
+	( if [ -e $(MIERU_BIN) ]; then \
+		rm -rf $(MIERU_BIN); \
+	fi )
+	( if [ -d $(MIERU_SRC) ]; then \
+		rm -rf $(MIERU_SRC); \
+	fi )
 
 clean_naive:
 	( if [ -e $(NAIVE_BIN) ]; then \
@@ -456,5 +502,8 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
 endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVLESS),y)
 	$(ROMFSINST) -p +x $(XRAY_BIN) /usr/bin/xray
+endif
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSMIERU),y)
+	$(ROMFSINST) -p +x $(MIERU_BIN) /usr/bin/mieru
 endif
 

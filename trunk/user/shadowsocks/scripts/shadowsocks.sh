@@ -25,6 +25,7 @@ local_link="/var/ss-local"
 #$SYSB_DIR/ss-redir(ss-local) -> /var/ss-redir(ss-local) -> $EXTB_DIR/naive or $SYSB_DIR/naive
 #$SYSB_DIR/ss-redir(ss-local) -> /var/ss-redir(ss-local) -> $EXTB_DIR/hysteria2 or $SYSB_DIR/hysteria2
 #$SYSB_DIR/ss-redir(ss-local) -> /var/ss-redir(ss-local) -> $EXTB_DIR/xray or $SYSB_DIR/xray
+#$SYSB_DIR/ss-redir(ss-local) -> /var/ss-redir(ss-local) -> $EXTB_DIR/mieru or $SYSB_DIR/mieru
 v2rp_bin="v2ray-plugin"
 v2rp_link="/var/v2ray-plugin"
 #$SYSB_DIR/v2ray-plugin -> /var/v2ray-plugin -> $EXTB_DIR/v2ray-plugin or $SYSB_DIR/ss-v2ray-plugin
@@ -42,7 +43,8 @@ aid_dns=$(nvram get smartdns_enable)
 autorec=$(nvram get ss_watchcat_autorec)
 ss_enable=$(nvram get ss_enable)
 ss_type=$(nvram get ss_type)
-ssp_type=${ss_type:0} # 0=ss 1=ssr 2=trojan 3=vmess 4=naive 5=hysteria2 6=vless 8=custom 9=auto
+ssp_type=${ss_type:0} # 0=ss 1=ssr 2=trojan 3=vmess 4=naive 5=hysteria2 6=vless 7=mieru 8=custom 9=auto
+[ "$ssp_type" == "7" -o "$ssp_type" == "9" ] && [ "$(nvram get ss_socks)" != "1" ] && nvram set ss_socks=1
 ss_mode=$(nvram get ss_mode) # 0=global 1=chnroute 21=gfwlist(diversion rate: Keen) 22=gfwlist(diversion rate: True)
 ss_socks=$(nvram get ss_socks)
 ss_local_port=$(nvram get ss_local_port)
@@ -75,6 +77,7 @@ dnsmasqc="$ETCS_DIR/dnsmasq/dnsmasq.conf"
 [ "$ssp_type" == "4" ] && bin_type="Naive"
 [ "$ssp_type" == "5" ] && bin_type="Hysteria2"
 [ "$ssp_type" == "6" ] && bin_type="VLESS"
+[ "$ssp_type" == "7" ] && bin_type="Mieru"
 [ "$ssp_type" == "8" ] && bin_type="Custom"
 [ "$ssp_type" == "9" ] && bin_type="Auto"
 [ "$ss_socks" == "1" ] && ssp_ubin="$local_bin" || ssp_ubin="$redir_bin"
@@ -83,6 +86,7 @@ dnsmasqc="$ETCS_DIR/dnsmasq/dnsmasq.conf"
 [ -e "$EXTB_DIR/trojan" ] && chmod +x $EXTB_DIR/trojan && ssp_trojan="$EXTB_DIR/trojan" || ssp_trojan="$SYSB_DIR/trojan"
 [ -e "$EXTB_DIR/naive" ] && chmod +x $EXTB_DIR/naive && ssp_naive="$EXTB_DIR/naive" || ssp_naive="$SYSB_DIR/naive"
 [ -e "$EXTB_DIR/hysteria2" ] && chmod +x $EXTB_DIR/hysteria2 && ssp_hysteria2="$EXTB_DIR/hysteria2" || ssp_hysteria2="$SYSB_DIR/hysteria2"
+[ -e "$EXTB_DIR/mieru" ] && chmod +x $EXTB_DIR/mieru && ssp_mieru="$EXTB_DIR/mieru" || ssp_mieru="$SYSB_DIR/mieru"
 [ -e "$EXTB_DIR/xray" ] && chmod +x $EXTB_DIR/xray && ssp_xray="$EXTB_DIR/xray" || ssp_xray="$SYSB_DIR/xray"
 [ -e "$EXTB_DIR/v2ray" ] && chmod +x $EXTB_DIR/v2ray && ssp_v2ray="$EXTB_DIR/v2ray" || ssp_v2ray="$SYSB_DIR/v2ray"
 [ -e "$EXTB_DIR/v2ray-plugin" ] && chmod +x $EXTB_DIR/v2ray-plugin && ssp_v2rp="$EXTB_DIR/v2ray-plugin" || ssp_v2rp="$SYSB_DIR/ss-v2ray-plugin"
@@ -310,14 +314,14 @@ turn_json_file()
 [ -e "$CONF_DIR/ssp_custom.md5" ] && md5sum -c -s $CONF_DIR/ssp_custom.md5 || return 1
 [ -e "$CONF_DIR/Nodes-list.md5" ] && rm -rf $CONF_DIR/Nodes-list && for i in $(seq 1 $nodesnum); do
   j=$(expr $i - 1)
-  node_type=$(nvram get ss_server_type_x$j)      # 0  1   2      3     4     5         6
-  server_addr=$(nvram get ss_server_addr_x$j)    # SS SSR Trojan VMess Naive hysteria2 VLESS
-  server_port=$(nvram get ss_server_port_x$j)    # SS SSR Trojan VMess Naive hysteria2 VLESS
-  server_key=$(nvram get ss_server_key_x$j)      # SS SSR Trojan VMess Naive hysteria2 VLESS
-  server_sni=$(nvram get ss_server_sni_x$j)      #        Trojan VMess       hysteria2 VLESS
+  node_type=$(nvram get ss_server_type_x$j)      # 0  1   2      3     4     5         6     7
+  server_addr=$(nvram get ss_server_addr_x$j)    # SS SSR Trojan VMess Naive hysteria2 VLESS Mieru
+  server_port=$(nvram get ss_server_port_x$j)    # SS SSR Trojan VMess Naive hysteria2 VLESS Mieru
+  server_key=$(nvram get ss_server_key_x$j)      # SS SSR Trojan VMess Naive hysteria2 VLESS Mieru
+  server_sni=$(nvram get ss_server_sni_x$j)      #        Trojan VMess       hysteria2 VLESS Mieru
   ss_method=$(nvram get ss_method_x$j)           # SS SSR        VMess                 VLESS
-  ss_protocol=$(nvram get ss_protocol_x$j)       #    SSR        VMess Naive hysteria2 VLESS
-  ss_proto_param=$(nvram get ss_proto_param_x$j) #    SSR        VMess                 VLESS
+  ss_protocol=$(nvram get ss_protocol_x$j)       #    SSR        VMess Naive hysteria2 VLESS Mieru
+  ss_proto_param=$(nvram get ss_proto_param_x$j) #    SSR        VMess                 VLESS Mieru
   ss_obfs=$(nvram get ss_obfs_x$j)               # SS SSR        VMess       hysteria2 VLESS
   ss_obfs_param=$(nvram get ss_obfs_param_x$j)   # SS SSR        VMess       hysteria2 VLESS
   echo "$i#$node_type#$server_addr#$server_port#$server_key#$server_sni#$ss_method#$ss_protocol#$ss_proto_param#$ss_obfs#$ss_obfs_param" >> $CONF_DIR/Nodes-list
@@ -355,14 +359,14 @@ if [ ! -e "$CONF_DIR/Nodes-list.md5" ]; then
   logger -st "SSP[$$]$bin_type" "创建配置文件"
   for i in $(seq 1 $nodesnum); do
     j=$(expr $i - 1)
-    node_type=$(nvram get ss_server_type_x$j)      # 0  1   2      3     4     5         6
-    server_addr=$(nvram get ss_server_addr_x$j)    # SS SSR Trojan VMess Naive hysteria2 VLESS
-    server_port=$(nvram get ss_server_port_x$j)    # SS SSR Trojan VMess Naive hysteria2 VLESS
-    server_key=$(nvram get ss_server_key_x$j)      # SS SSR Trojan VMess Naive hysteria2 VLESS
-    server_sni=$(nvram get ss_server_sni_x$j)      #        Trojan VMess       hysteria2 VLESS
+    node_type=$(nvram get ss_server_type_x$j)      # 0  1   2      3     4     5         6     7
+    server_addr=$(nvram get ss_server_addr_x$j)    # SS SSR Trojan VMess Naive hysteria2 VLESS Mieru
+    server_port=$(nvram get ss_server_port_x$j)    # SS SSR Trojan VMess Naive hysteria2 VLESS Mieru
+    server_key=$(nvram get ss_server_key_x$j)      # SS SSR Trojan VMess Naive hysteria2 VLESS Mieru
+    server_sni=$(nvram get ss_server_sni_x$j)      #        Trojan VMess       hysteria2 VLESS Mieru
     ss_method=$(nvram get ss_method_x$j)           # SS SSR        VMess                 VLESS
-    ss_protocol=$(nvram get ss_protocol_x$j)       #    SSR        VMess Naive hysteria2 VLESS
-    ss_proto_param=$(nvram get ss_proto_param_x$j) #    SSR        VMess                 VLESS
+    ss_protocol=$(nvram get ss_protocol_x$j)       #    SSR        VMess Naive hysteria2 VLESS Mieru
+    ss_proto_param=$(nvram get ss_proto_param_x$j) #    SSR        VMess                 VLESS Mieru
     ss_obfs=$(nvram get ss_obfs_x$j)               # SS SSR        VMess       hysteria2 VLESS
     ss_obfs_param=$(nvram get ss_obfs_param_x$j)   # SS SSR        VMess       hysteria2 VLESS
     addr_isip_noip $server_addr
@@ -374,6 +378,7 @@ if [ ! -e "$CONF_DIR/Nodes-list.md5" ]; then
     [ "$node_type" == "4" ] && server_type="Naive"
     [ "$node_type" == "5" ] && server_type="Hysteria2"
     [ "$node_type" == "6" ] && server_type="VLESS"
+    [ "$node_type" == "7" ] && server_type="Mieru"
     if [ "$server_type" == "SS" ]; then
       if [ "$ss_obfs" == "v2ray_plugin_websocket" ]; then
         ss_pm="v2rp-WEBS" && ss_plugin="$v2rp_bin"
@@ -433,6 +438,52 @@ EOF
     "local_address": "0.0.0.0",
     "local_port": $ss_local_port,
     "mtu": $ss_mtu
+}
+
+EOF
+    elif [ "$server_type" == "Mieru" ]; then
+      mieru_mtu="$ss_mtu"
+      [ $mieru_mtu -le 1280 ] && mieru_mtu="1280"
+      [ $mieru_mtu -ge 1400 ] && mieru_mtu="1400"
+      [ "$ss_protocol" == "tcp" ] && ss_protocol="TCP"
+      [ "$ss_protocol" == "udp" ] && ss_protocol="UDP"
+      $(echo "$server_port" | grep -q "-") && server_port="\"$server_port\"" && mieru_port="portRange" || mieru_port="port"
+      l_json_file="$i-$server_type-local.json"
+      r_json_file="$l_json_file"
+      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/Mieru-jsonlist
+      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/Auto-jsonlist
+      cat > "$CONF_DIR/$l_json_file" << EOF
+{
+    "profiles": [
+        {
+            "profileName": "default",
+            "user": {
+                "name": "$ss_proto_param",
+                "password": "$server_key"
+            },
+            "servers": [
+                {
+                    "ipAddress": "$server_addr",
+                    "domainName": "$server_sni",
+                    "portBindings": [
+                        {
+                            "$mieru_port": $server_port,
+                            "protocol": "$ss_protocol"
+                        }
+                    ]
+                }
+            ],
+            "mtu": $mieru_mtu,
+            "multiplexing": {
+                "level": "MULTIPLEXING_HIGH"
+            }
+        }
+    ],
+    "activeProfile": "default",
+    "rpcPort": 8964,
+    "socks5Port": $ss_local_port,
+    "loggingLevel": "INFO",
+    "socks5ListenLAN": true
 }
 
 EOF
@@ -998,6 +1049,7 @@ EOF
 fi
 [ "$bin_type" == "Custom" ] || [ "$bin_type" == "Auto" ] || \
 $(grep -q "$bin_type-redir" $CONF_DIR/$bin_type-jsonlist) || \
+$(grep -q "$bin_type-local" $CONF_DIR/$bin_type-jsonlist) || \
 $(stop_ssp "请到[节点设置]添加 $bin_type 节点" && return 1) || exit 1
 ssp_server_addr=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $1}')
 ssp_server_port=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $2}')
@@ -1036,6 +1088,9 @@ elif [ "$ssp_server_type" == "VMess" ]; then
 elif [ "$ssp_server_type" == "VLESS" ]; then
   $([ -x "$ssp_xray" ] && ln -sf $ssp_xray $redir_link && ln -sf $ssp_xray $local_link) || \
   $(stop_ssp "请上传 xray 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
+elif [ "$ssp_server_type" == "Mieru" ]; then
+  $([ -x "$ssp_mieru" ] && ln -sf $ssp_mieru $redir_link && ln -sf $ssp_mieru $local_link) || \
+  $(stop_ssp "请上传 mieru 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
 elif [ "$ssp_server_type" == "Custom" ]; then
   $([ -x "$ssp_custom" ] && ln -sf $ssp_custom $redir_link && ln -sf $ssp_custom $local_link) || \
   $(stop_ssp "请上传 $sspbinname 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
@@ -1110,6 +1165,8 @@ opt_arg()
 {
 if [ "$ssp_server_type" == "Custom" ] && [ "$confoptarg" != "" ]; then
   echo " $confoptarg"
+elif [ "$ssp_server_type" == "Mieru" ]; then
+  echo " run"
 elif [ "$ssp_server_type" == "Naive" ]; then
   echo " $(conffile)"
 elif [ "$ssp_server_type" == "VMess" ] || [ "$ssp_server_type" == "VLESS" ]; then
@@ -1157,6 +1214,7 @@ cat > "$redirstart" << EOF
 #!/bin/sh
 
 conffile="$(conffile)"
+export MIERU_CONFIG_JSON_FILE=$(conffile)
 export SSL_CERT_FILE='$ETCS_DIR/cacerts/cacert.pem'
 nohup $ssp_ubin$(opt_arg)$(udp_ext) &>$ubin_log_file &
 EOF

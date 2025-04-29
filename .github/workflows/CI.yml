@@ -134,13 +134,14 @@ jobs:
           SP "CONFIG_FIRMWARE_INCLUDE_WIREGUARD"                 "n" "设置VPN客户端WireGuard(WireGuard协议)"
           SP "CONFIG_FIRMWARE_INCLUDE_SFE"                       "y" "设置SFE(shortcut-fe)软件加速"
           SP "CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS"               "y" "使用UPX压缩可执行程序"
-          SP "CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS"               "y" "设置SSP代理基础程序"
+          SP "CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS"               "y" "设置SSP代理基础程序(包含SS和SSR)"
+          SP "CONFIG_FIRMWARE_INCLUDE_SSV2RP"                    "n" "设置SSP代理SS插件v2ray-plugin可执行程序"
           SP "CONFIG_FIRMWARE_INCLUDE_TROJAN"                    "n" "设置SSP代理Trojan可执行程序"
+          SP "CONFIG_FIRMWARE_INCLUDE_SSNAIVE"                   "n" "设置SSP代理Naive可执行程序"
           SP "CONFIG_FIRMWARE_INCLUDE_SSVLESS"                   "n" "设置SSP代理XRay(VLESS/VMess)可执行程序"
           SP "CONFIG_FIRMWARE_INCLUDE_SSVMESS"                   "n" "设置SSP代理V2Ray(VMess)可执行程序"
-          SP "CONFIG_FIRMWARE_INCLUDE_SSNAIVE"                   "n" "设置SSP代理Naive可执行程序"
           SP "CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2"               "n" "设置SSP代理Hysteria2可执行程序"
-          SP "CONFIG_FIRMWARE_INCLUDE_SSV2RP"                    "n" "设置SSP代理SS插件v2ray-plugin可执行程序"
+          SP "CONFIG_FIRMWARE_INCLUDE_SSMIERU"                   "n" "设置SSP代理Mieru可执行程序"
           ######################################################################################################
           SP "CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE"               "n" "设置OpenSSL可执行程序"
           ######################################################################################################
