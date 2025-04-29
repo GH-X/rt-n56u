@@ -1213,9 +1213,15 @@ start_redir()
 cat > "$redirstart" << EOF
 #!/bin/sh
 
+MemFree=\$(cat /proc/meminfo | grep 'MemFree' | sed 's/[[:space:]]//g' | sed 's/kB//g' | awk -F: '{print \$2}')
+ulimit -n 32768
+ulimit -v \$MemFree
+ulimit -m \$MemFree
 conffile="$(conffile)"
-export MIERU_CONFIG_JSON_FILE=$(conffile)
+export MIERU_CONFIG_JSON_FILE=\$conffile
 export SSL_CERT_FILE='$ETCS_DIR/cacerts/cacert.pem'
+export GOMAXPROCS=1
+
 nohup $ssp_ubin$(opt_arg)$(udp_ext) &>$ubin_log_file &
 EOF
 chmod +x $redirstart && logger -st "SSP[$$]$bin_type" "启动代理进程" && $redirstart
@@ -1245,7 +1251,6 @@ ncron $1 || dcron $1
 
 start_ssp()
 {
-ulimit -n 65536
 [ "$(nvram get wait_times)" -ge "1" ] && scron 1 && exit 0
 $(nvram get watchcat_state | grep -q 'watchcat_start_ssp') || stop_watchcat
 gen_json_file
