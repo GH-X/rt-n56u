@@ -563,7 +563,6 @@ struct nvram_pair router_defaults[] = {
 	{ "ss_enable", "0" },
 	{ "ss_type", "9" }, 	//0=ss 1=ssr 2=trojan 3=vmess 4=naive 5=hysteria2 6=vless 7=mieru 8=custom 9=auto
 	{ "ss_mode", "1" }, 	//0=global 1=chnroute 21=gfwlist(diversion rate: Keen) 22=gfwlist(diversion rate: True)
-	{ "ss_socks", "1" },
 	{ "ss_local_port", "1080" },
 	{ "ss_mtu", "1400" },
 

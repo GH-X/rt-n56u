@@ -845,7 +845,6 @@ menu5_16_UpdateURLChnDomainList=自定义白名单域名更新地址 (留空则�
 menu5_16_UpdateURLGfwDomainList=自定义黑名单域名更新地址 (留空则使用默认更新地址)
 menu5_16_UpdateNow=立即更新
 menu5_16_OtherSettings=其它设置
-menu5_16_EnableLocalAgent=启用本地代理
 menu5_16_LocalProxyPort=本地代理端口:
 menu5_16_ProxyMTU=代理MTU (SS/SSR/Mieru):
 menu5_16_Empty=空

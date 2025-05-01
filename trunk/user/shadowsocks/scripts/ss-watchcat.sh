@@ -5,19 +5,19 @@ ETCS_DIR="/etc/storage"
 CRON_CONF="$ETCS_DIR/cron/crontabs/$(nvram get http_username)"
 aiderstart="$CONF_DIR/aiderstart"
 socksstart="$CONF_DIR/socksstart"
-redirstart="$CONF_DIR/redirstart"
+localstart="$CONF_DIR/localstart"
 scoresfile="$CONF_DIR/scoresfile"
 ssp_log_file="/tmp/ss-watchcat.log"
-ubin_log_file="/tmp/ss-redir.log"
+local_log_file="/tmp/ss-local.log"
 max_log_bytes="100000"
-sspubinRUNOUT="0"
+local_RUNOUT="0"
+local_bin="ss-local"
 
 tl_timeout=$(nvram get di_timeout)
 timeslimit=$(expr $tl_timeout \* 3)
 autorec=$(nvram get ss_watchcat_autorec)
 extbpid=$(expr 100000 + $$)
 logmark=${extbpid:1}
-[ "$(nvram get ss_socks)" == "1" ] && sspubin="ss-local" || sspubin="ss-redir"
 
 loger(){
 	sed -i '1i\'$(date "+%Y-%m-%d_%H:%M:%S")'_'$logmark''$1'' $ssp_log_file
@@ -81,7 +81,7 @@ godet(){
 	!(ipset list -n | grep -q 'gfwlist') || !(ipset list -n | grep -q 'chnlist'); then
 		count wait_times ++ 1 5 && count turn_json_file +- 0 && count start_rules +- 1
 	fi
-	[ $sspubinRUNOUT -ge 3 ] && count wait_times ++ 1 5 && count turn_json_file +- 1
+	[ $local_RUNOUT -ge 3 ] && count wait_times ++ 1 5 && count turn_json_file +- 1
 	[ $(count wait_times) -le 0 ] && score
 	nvram set watchcat_state=stopped
 }
@@ -106,9 +106,9 @@ dndet(){
 	$(pidof dnsmasq &>/dev/null) || $(pidof dnsmasq &>/dev/null) || \
 	$(pidof dnsmasq &>/dev/null) || $(pidof dnsmasq &>/dev/null) || \
 	!(restart_dhcpd && loger "├──解析进程中止!!!启动进程")
-	$(pidof $sspubin &>/dev/null) || $(pidof $sspubin &>/dev/null) || \
-	$(pidof $sspubin &>/dev/null) || $(pidof $sspubin &>/dev/null) || \
-	!($redirstart && loger "├──代理进程中止!!!启动进程") || sspubinRUNOUT=$(($sspubinRUNOUT+1))
+	$(pidof $local_bin &>/dev/null) || $(pidof $local_bin &>/dev/null) || \
+	$(pidof $local_bin &>/dev/null) || $(pidof $local_bin &>/dev/null) || \
+	!($localstart && loger "├──代理进程中止!!!启动进程") || local_RUNOUT=$((local_RUNOUT+1))
 }
 
 daten(){
@@ -144,7 +144,7 @@ watchcat_start_ssp(){
 	notify_detect_internet && sleeptime $timeslimit 0 && [ "$(count link_internet)" == "1" ] || return 1
 	count wait_times -- 1 0 && [ $(count wait_times) -le 0 ] || return 1
 	[ "$(count ss_enable)" == "1" ] || /usr/bin/shadowsocks.sh stop &>/dev/null
-	!(pidof $sspubin &>/dev/null) || /usr/bin/shadowsocks.sh stop &>/dev/null
+	!(pidof $local_bin &>/dev/null) || /usr/bin/shadowsocks.sh stop &>/dev/null
 	STA_LOG="恢复正常!!!重新启动代理" && loger "├──$STA_LOG" && logger -st "SSP[$$]WARNING" "$STA_LOG"
 	count link_error +- 0 && count wait_times +- 0 && nvram set watchcat_state=watchcat_start_ssp
 	/usr/bin/shadowsocks.sh start &>/dev/null || return 1
@@ -206,14 +206,14 @@ check_cat_file(){
 	$([ -e $ssp_log_file ] && loger "└──$(infor)") || \
 	echo "$(date "+%Y-%m-%d_%H:%M:%S")_$logmark└──$(infor)" > $ssp_log_file
 	[ ! -s $ssp_log_file ] && count wait_times +- 2 && count turn_json_file +- 0
-	touch $ubin_log_file
+	touch $local_log_file
 	[ ! -e $scoresfile ] && score
 	[ $(daten -l) -ge $(expr $timeslimit \* 2 + 9) ] || return 1
 	while [ $(stat -c %s $ssp_log_file) -gt $max_log_bytes ]; do
 		sed -i '/'$(tail -n 1 $ssp_log_file | awk -F: '{print $1":"$2}')'/d' $ssp_log_file
 	done
-	while [ $(stat -c %s $ubin_log_file) -gt $max_log_bytes ]; do
-		sed -i '9d' $ubin_log_file
+	while [ $(stat -c %s $local_log_file) -gt $max_log_bytes ]; do
+		sed -i '9d' $local_log_file
 	done
 	[ "$cronboot" == "1" ] && return 0 || return 1
 }

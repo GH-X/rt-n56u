@@ -10,32 +10,30 @@ CRON_CONF="$ETCS_DIR/cron/crontabs/$(nvram get http_username)"
 ([ "$EXTB_DIR" == "$USBB_DIR" ] && echo "$(date "+%Y-%m-%d_%H:%M:%S")" > $EXTB_DIR/SSPUSBDIR)&
 wait
 
-#$SYSB_DIR/ss-redir -> /var/ss-redir -> $SYSB_DIR/ss-orig-redir or $SYSB_DIR/ssr-redir
-ss_redir_bin="$SYSB_DIR/ss-orig-redir"
-ssr_redir_bin="$SYSB_DIR/ssr-redir"
-redir_bin="ss-redir"
-redir_link="/var/ss-redir"
 #$SYSB_DIR/ss-local -> /var/ss-local -> $SYSB_DIR/ss-orig-local or $SYSB_DIR/ssr-local
 ss_local_bin="$SYSB_DIR/ss-orig-local"
 ssr_local_bin="$SYSB_DIR/ssr-local"
 local_bin="ss-local"
 local_link="/var/ss-local"
-#$SYSB_DIR/ss-redir(ss-local) -> /var/ss-redir(ss-local) -> $EXTB_DIR/trojan or $SYSB_DIR/trojan
-#$SYSB_DIR/ss-redir(ss-local) -> /var/ss-redir(ss-local) -> $EXTB_DIR/v2ray or $SYSB_DIR/v2ray
-#$SYSB_DIR/ss-redir(ss-local) -> /var/ss-redir(ss-local) -> $EXTB_DIR/naive or $SYSB_DIR/naive
-#$SYSB_DIR/ss-redir(ss-local) -> /var/ss-redir(ss-local) -> $EXTB_DIR/hysteria2 or $SYSB_DIR/hysteria2
-#$SYSB_DIR/ss-redir(ss-local) -> /var/ss-redir(ss-local) -> $EXTB_DIR/xray or $SYSB_DIR/xray
-#$SYSB_DIR/ss-redir(ss-local) -> /var/ss-redir(ss-local) -> $EXTB_DIR/mieru or $SYSB_DIR/mieru
+#$SYSB_DIR/ss-local -> /var/ss-local -> $EXTB_DIR/trojan or $SYSB_DIR/trojan
+#$SYSB_DIR/ss-local -> /var/ss-local -> $EXTB_DIR/v2ray or $SYSB_DIR/v2ray
+#$SYSB_DIR/ss-local -> /var/ss-local -> $EXTB_DIR/naive or $SYSB_DIR/naive
+#$SYSB_DIR/ss-local -> /var/ss-local -> $EXTB_DIR/hysteria2 or $SYSB_DIR/hysteria2
+#$SYSB_DIR/ss-local -> /var/ss-local -> $EXTB_DIR/xray or $SYSB_DIR/xray
+#$SYSB_DIR/ss-local -> /var/ss-local -> $EXTB_DIR/mieru or $SYSB_DIR/mieru
+ss_v2rp_bin="ss-v2ray-plugin"
 v2rp_bin="v2ray-plugin"
 v2rp_link="/var/v2ray-plugin"
-#$SYSB_DIR/v2ray-plugin -> /var/v2ray-plugin -> $EXTB_DIR/v2ray-plugin or $SYSB_DIR/ss-v2ray-plugin
+#$SYSB_DIR/v2ray-plugin -> /var/v2ray-plugin -> $EXTB_DIR/ss-v2ray-plugin or $SYSB_DIR/ss-v2ray-plugin
+
+nofile="32768"
 
 aiderstart="$CONF_DIR/aiderstart"
 socksstart="$CONF_DIR/socksstart"
 rulesstart="$CONF_DIR/rulesstart"
-redirstart="$CONF_DIR/redirstart"
+localstart="$CONF_DIR/localstart"
 scoresfile="$CONF_DIR/scoresfile"
-ubin_log_file="/tmp/ss-redir.log"
+local_log_file="/tmp/ss-local.log"
 ssp_custom_conf="$ETCS_DIR/ssp_custom.conf"
 
 sspbinname=$(grep '^sspbinname' $ssp_custom_conf | awk -F\| '{print $2}')
@@ -44,9 +42,7 @@ autorec=$(nvram get ss_watchcat_autorec)
 ss_enable=$(nvram get ss_enable)
 ss_type=$(nvram get ss_type)
 ssp_type=${ss_type:0} # 0=ss 1=ssr 2=trojan 3=vmess 4=naive 5=hysteria2 6=vless 7=mieru 8=custom 9=auto
-[ "$ssp_type" == "7" -o "$ssp_type" == "9" ] && [ "$(nvram get ss_socks)" != "1" ] && nvram set ss_socks=1
 ss_mode=$(nvram get ss_mode) # 0=global 1=chnroute 21=gfwlist(diversion rate: Keen) 22=gfwlist(diversion rate: True)
-ss_socks=$(nvram get ss_socks)
 ss_local_port=$(nvram get ss_local_port)
 ss_redir_port=$(expr $ss_local_port + 1)
 ss_mtu=$(nvram get ss_mtu)
@@ -80,7 +76,6 @@ dnsmasqc="$ETCS_DIR/dnsmasq/dnsmasq.conf"
 [ "$ssp_type" == "7" ] && bin_type="Mieru"
 [ "$ssp_type" == "8" ] && bin_type="Custom"
 [ "$ssp_type" == "9" ] && bin_type="Auto"
-[ "$ss_socks" == "1" ] && ssp_ubin="$local_bin" || ssp_ubin="$redir_bin"
 [ ! -d "$CONF_DIR/gfwlist" ] && mkdir -p "$CONF_DIR/gfwlist" && nvram set wait_times=3 && nvram set turn_json_file=0
 [ -e "$EXTB_DIR/$sspbinname" ] && chmod +x $EXTB_DIR/$sspbinname && ssp_custom="$EXTB_DIR/$sspbinname" || ssp_custom="$SYSB_DIR/$sspbinname"
 [ -e "$EXTB_DIR/trojan" ] && chmod +x $EXTB_DIR/trojan && ssp_trojan="$EXTB_DIR/trojan" || ssp_trojan="$SYSB_DIR/trojan"
@@ -89,7 +84,7 @@ dnsmasqc="$ETCS_DIR/dnsmasq/dnsmasq.conf"
 [ -e "$EXTB_DIR/mieru" ] && chmod +x $EXTB_DIR/mieru && ssp_mieru="$EXTB_DIR/mieru" || ssp_mieru="$SYSB_DIR/mieru"
 [ -e "$EXTB_DIR/xray" ] && chmod +x $EXTB_DIR/xray && ssp_xray="$EXTB_DIR/xray" || ssp_xray="$SYSB_DIR/xray"
 [ -e "$EXTB_DIR/v2ray" ] && chmod +x $EXTB_DIR/v2ray && ssp_v2ray="$EXTB_DIR/v2ray" || ssp_v2ray="$SYSB_DIR/v2ray"
-[ -e "$EXTB_DIR/v2ray-plugin" ] && chmod +x $EXTB_DIR/v2ray-plugin && ssp_v2rp="$EXTB_DIR/v2ray-plugin" || ssp_v2rp="$SYSB_DIR/ss-v2ray-plugin"
+[ -e "$EXTB_DIR/$ss_v2rp_bin" ] && chmod +x $EXTB_DIR/$ss_v2rp_bin && ssp_v2rp="$EXTB_DIR/$ss_v2rp_bin" || ssp_v2rp="$SYSB_DIR/$ss_v2rp_bin"
 [ -L $ETCS_DIR/chinadns/chnroute.txt ] && [ ! -e $EXTB_DIR/chnroute.txt ] && \
 rm -rf $ETCS_DIR/chinadns/chnroute.txt && tar jxf /etc_ro/chnroute.bz2 -C $ETCS_DIR/chinadns
 [ -e $EXTB_DIR/chnroute.txt ] && [ $(cat $ETCS_DIR/chinadns/chnroute.txt | wc -l) -ne $(cat $EXTB_DIR/chnroute.txt | wc -l) ] && \
@@ -270,12 +265,11 @@ rm -rf $serveraddrisip
 rm -rf $serveraddrnoip
 }
 
-stop_redir()
+stop_local()
 {
-(stopp $redir_bin && logger -st "SSP[$$]$bin_type" "关闭代理进程")&
 (stopp $local_bin && logger -st "SSP[$$]$bin_type" "关闭代理进程")&
 (stopp $v2rp_bin && logger -st "SSP[$$]$bin_type" "关闭插件进程")&
-(rm -rf $redirstart)&
+(rm -rf $localstart)&
 wait
 return 0
 }
@@ -304,7 +298,7 @@ elif [ "$(nvram get link_internet)" == "0" ]; then
 else
   $(nvram get watchcat_state | grep -q 'watchcat_stop_ssp') || stop_watchcat
 fi
-stop_redir
+stop_local
 notify_detect_internet
 return 0
 }
@@ -399,11 +393,10 @@ if [ ! -e "$CONF_DIR/Nodes-list.md5" ]; then
           ss_pargs=""
         fi
       fi
-      r_json_file="$i-$server_type-redir.json"
-      l_json_file="$r_json_file"
-      echo "$server_addr#$server_port#$r_json_file#$l_json_file#$ss_pm" >> $CONF_DIR/SS-jsonlist
-      echo "$server_addr#$server_port#$r_json_file#$l_json_file#$ss_pm" >> $CONF_DIR/Auto-jsonlist
-	    cat > "$CONF_DIR/$r_json_file" << EOF
+      l_json_file="$i-$server_type-local.json"
+      echo "$server_addr#$server_port#$l_json_file#$ss_pm" >> $CONF_DIR/SS-jsonlist
+      echo "$server_addr#$server_port#$l_json_file#$ss_pm" >> $CONF_DIR/Auto-jsonlist
+	    cat > "$CONF_DIR/$l_json_file" << EOF
 {
     "server": "$server_addr",
     "server_port": $server_port,
@@ -420,11 +413,10 @@ if [ ! -e "$CONF_DIR/Nodes-list.md5" ]; then
 
 EOF
     elif [ "$server_type" == "SSR" ]; then
-      r_json_file="$i-$server_type-redir.json"
-      l_json_file="$r_json_file"
-      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/SSR-jsonlist
-      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/Auto-jsonlist
-	    cat > "$CONF_DIR/$r_json_file" << EOF
+      l_json_file="$i-$server_type-local.json"
+      echo "$server_addr#$server_port#$l_json_file#null" >> $CONF_DIR/SSR-jsonlist
+      echo "$server_addr#$server_port#$l_json_file#null" >> $CONF_DIR/Auto-jsonlist
+	    cat > "$CONF_DIR/$l_json_file" << EOF
 {
     "server": "$server_addr",
     "server_port": $server_port,
@@ -449,9 +441,8 @@ EOF
       [ "$ss_protocol" == "udp" ] && ss_protocol="UDP"
       $(echo "$server_port" | grep -q "-") && server_port="\"$server_port\"" && mieru_port="portRange" || mieru_port="port"
       l_json_file="$i-$server_type-local.json"
-      r_json_file="$l_json_file"
-      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/Mieru-jsonlist
-      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/Auto-jsonlist
+      echo "$server_addr#$server_port#$l_json_file#null" >> $CONF_DIR/Mieru-jsonlist
+      echo "$server_addr#$server_port#$l_json_file#null" >> $CONF_DIR/Auto-jsonlist
       cat > "$CONF_DIR/$l_json_file" << EOF
 {
     "profiles": [
@@ -489,29 +480,9 @@ EOF
 EOF
     elif [ "$server_type" == "Trojan" ]; then
       [ "$server_sni" == "" ] && verifyhostname="false" || verifyhostname="true"
-      r_json_file="$i-$server_type-redir.json"
       l_json_file="$i-$server_type-local.json"
-      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/Trojan-jsonlist
-      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/Auto-jsonlist
-      cat > "$CONF_DIR/$r_json_file" << EOF
-{
-    "run_type": "nat",
-    "local_addr": "0.0.0.0",
-    "local_port": $ss_local_port,
-    "remote_addr": "$server_addr",
-    "remote_port": $server_port,
-    "password": [
-        "$server_key"
-    ],
-    "log_level": 2,
-    "ssl": {
-        "verify": $verifyhostname,
-        "verify_hostname": $verifyhostname,
-        "sni": "$server_sni"
-    }
-}
-
-EOF
+      echo "$server_addr#$server_port#$l_json_file#null" >> $CONF_DIR/Trojan-jsonlist
+      echo "$server_addr#$server_port#$l_json_file#null" >> $CONF_DIR/Auto-jsonlist
       cat > "$CONF_DIR/$l_json_file" << EOF
 {
     "run_type": "client",
@@ -532,65 +503,23 @@ EOF
 
 EOF
     elif [ "$server_type" == "Naive" ]; then
-      r_json_file="$i-$server_type-redir.json"
       l_json_file="$i-$server_type-local.json"
-      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/Naive-jsonlist
-      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/Auto-jsonlist
-      cat > "$CONF_DIR/$r_json_file" << EOF
-{
-  "listen": "redir://0.0.0.0:$ss_local_port",
-  "proxy": "$ss_protocol://$server_key@$server_addr:$server_port",
-  "log": "$ubin_log_file"
-}
-
-EOF
+      echo "$server_addr#$server_port#$l_json_file#null" >> $CONF_DIR/Naive-jsonlist
+      echo "$server_addr#$server_port#$l_json_file#null" >> $CONF_DIR/Auto-jsonlist
       cat > "$CONF_DIR/$l_json_file" << EOF
 {
   "listen": "socks://0.0.0.0:$ss_local_port",
   "proxy": "$ss_protocol://$server_key@$server_addr:$server_port",
-  "log": "$ubin_log_file"
+  "log": "$local_log_file"
 }
 
 EOF
     elif [ "$server_type" == "Hysteria2" ]; then
       [ "$server_sni" == "" ] && verifyhostname="false" || verifyhostname="true"
-      r_json_file="$i-$server_type-redir.toml"
       l_json_file="$i-$server_type-local.toml"
-      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/Hysteria2-jsonlist
-      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/Auto-jsonlist
-      # redir
-      cat >> "$CONF_DIR/$r_json_file" << EOF
-server = "$server_addr:$server_port"
-auth = "$server_key"
-
-[tls]
-sni = "$server_sni"
-insecure = $verifyhostname
-
-EOF
-      [ "$ss_protocol" == "udp" ] && cat >> "$CONF_DIR/$r_json_file" << EOF
-[transport]
-type = "$ss_protocol"
-
-  [transport.$ss_protocol]
-  hopInterval = "30s"
-
-EOF
-      [ "$ss_obfs" == "salamander" ] && cat >> "$CONF_DIR/$r_json_file" << EOF
-[obfs]
-type = "$ss_obfs"
-
-  [obfs.$ss_obfs]
-  password = "$ss_obfs_param"
-
-EOF
-      cat >> "$CONF_DIR/$r_json_file" << EOF
-[tcpRedirect]
-listen = "0.0.0.0:$ss_local_port"
-
-EOF
-      # local
-      cat >> "$CONF_DIR/$l_json_file" << EOF
+      echo "$server_addr#$server_port#$l_json_file#null" >> $CONF_DIR/Hysteria2-jsonlist
+      echo "$server_addr#$server_port#$l_json_file#null" >> $CONF_DIR/Auto-jsonlist
+      cat > "$CONF_DIR/$l_json_file" << EOF
 server = "$server_addr:$server_port"
 auth = "$server_key"
 
@@ -623,41 +552,9 @@ EOF
     elif [ "$server_type" == "VLESS" ]; then
       [ "$ss_method" != "empty" ] || ss_method=""
       [ "$ss_obfs" != "empty" ] || ss_obfs=""
-      r_json_file="$i-$server_type-redir.json"
       l_json_file="$i-$server_type-local.json"
-      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/VLESS-jsonlist
-      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/Auto-jsonlist
-      cat > "$CONF_DIR/$r_json_file" << EOF
-{
-  "log": {
-    "loglevel": "warning"
-  },
-  "inbounds": [
-    {
-      "tag": "redir",
-      "port": $ss_local_port,
-      "listen": "0.0.0.0",
-      "protocol": "dokodemo-door",
-      "settings": {
-        "network": "tcp",
-        "followRedirect": true
-      },
-      "streamSettings": {
-        "sockopt": {
-          "tcpFastOpen": false,
-          "tproxy": "redirect"
-        }
-      },
-      "sniffing": {
-        "enabled": false,
-        "destOverride": [
-          "http",
-          "tls"
-        ]
-      }
-    }
-  ],
-EOF
+      echo "$server_addr#$server_port#$l_json_file#null" >> $CONF_DIR/VLESS-jsonlist
+      echo "$server_addr#$server_port#$l_json_file#null" >> $CONF_DIR/Auto-jsonlist
       cat > "$CONF_DIR/$l_json_file" << EOF
 {
   "log": {
@@ -689,7 +586,7 @@ EOF
     }
   ],
 EOF
-      tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+      cat >> "$CONF_DIR/$l_json_file" << EOF
   "outbounds": [
     {
       "tag": "proxy",
@@ -712,7 +609,7 @@ EOF
 EOF
       if [ "$ss_protocol" == "raw_tls" ]; then
         [ "$server_sni" != "" ] && allow_insecure="false" || allow_insecure="true"
-        tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+        cat >> "$CONF_DIR/$l_json_file" << EOF
       "streamSettings": {
         "network": "raw",
         "security": "tls",
@@ -724,7 +621,7 @@ EOF
       },
 EOF
       elif [ "$ss_protocol" == "raw_reality" ]; then
-        tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+        cat >> "$CONF_DIR/$l_json_file" << EOF
       "streamSettings": {
         "network": "raw",
         "security": "reality",
@@ -739,7 +636,7 @@ EOF
       },
 EOF
       fi
-      tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+      cat >> "$CONF_DIR/$l_json_file" << EOF
       "mux": {
         "enabled": true,
         "concurrency": 1
@@ -757,41 +654,9 @@ EOF
         server_uid="$server_key"
         server_aid="0"
       fi
-      r_json_file="$i-$server_type-redir.json"
       l_json_file="$i-$server_type-local.json"
-      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/VMess-jsonlist
-      echo "$server_addr#$server_port#$r_json_file#$l_json_file#null" >> $CONF_DIR/Auto-jsonlist
-      cat > "$CONF_DIR/$r_json_file" << EOF
-{
-  "log": {
-    "loglevel": "warning"
-  },
-  "inbounds": [
-    {
-      "tag": "redir",
-      "port": $ss_local_port,
-      "listen": "0.0.0.0",
-      "protocol": "dokodemo-door",
-      "settings": {
-        "network": "tcp",
-        "followRedirect": true
-      },
-      "streamSettings": {
-        "sockopt": {
-          "tcpFastOpen": false,
-          "tproxy": "redirect"
-        }
-      },
-      "sniffing": {
-        "enabled": false,
-        "destOverride": [
-          "http",
-          "tls"
-        ]
-      }
-    }
-  ],
-EOF
+      echo "$server_addr#$server_port#$l_json_file#null" >> $CONF_DIR/VMess-jsonlist
+      echo "$server_addr#$server_port#$l_json_file#null" >> $CONF_DIR/Auto-jsonlist
       cat > "$CONF_DIR/$l_json_file" << EOF
 {
   "log": {
@@ -823,7 +688,7 @@ EOF
     }
   ],
 EOF
-      tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+      cat >> "$CONF_DIR/$l_json_file" << EOF
   "outbounds": [
     {
       "tag": "proxy",
@@ -845,13 +710,13 @@ EOF
       },
 EOF
       if [ "$ss_protocol" == "tcp" ] && [ "$ss_obfs" == "none" ]; then
-        tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+        cat >> "$CONF_DIR/$l_json_file" << EOF
       "streamSettings": {
         "network": "tcp"
       },
 EOF
       elif [ "$ss_protocol" == "tcp" ] && [ "$ss_obfs" == "http" ]; then
-        tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+        cat >> "$CONF_DIR/$l_json_file" << EOF
       "streamSettings": {
         "network": "tcp",
         "tcpSettings": {
@@ -868,20 +733,20 @@ EOF
         if $(echo "$ss_obfs_param" | grep -q ","); then
           host1=$(echo "$ss_obfs_param" | awk -F, '{print $1}')
           host2=$(echo "$ss_obfs_param" | awk -F, '{print $2}')
-          tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+          cat >> "$CONF_DIR/$l_json_file" << EOF
                 "Host": [
                   "$host1",
                   "$host2"
                 ],
 EOF
         else
-          tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+          cat >> "$CONF_DIR/$l_json_file" << EOF
                 "Host": [
                   "$ss_obfs_param"
                 ],
 EOF
         fi
-        tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+        cat >> "$CONF_DIR/$l_json_file" << EOF
                 "User-Agent": [
                   "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.75 Safari/537.36",
                   "Mozilla/5.0 (iPhone; CPU iPhone OS 10_0_2 like Mac OS X) AppleWebKit/601.1 (KHTML, like Gecko) CriOS/53.0.2785.109 Mobile/14A456 Safari/601.1.46"
@@ -908,14 +773,14 @@ EOF
           allow_insecure="true"
         fi
         if [ "$ss_obfs_param" == "" ]; then
-          tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+          cat >> "$CONF_DIR/$l_json_file" << EOF
       "streamSettings": {
         "network": "tcp",
         "security": "tls"
       },
 EOF
         elif [ "$ss_obfs_param" != "" ]; then
-          tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+          cat >> "$CONF_DIR/$l_json_file" << EOF
       "streamSettings": {
         "network": "tcp",
         "security": "tls",
@@ -928,13 +793,13 @@ EOF
         fi
       elif [ "$ss_protocol" == "ws" ]; then
         if [ "$ss_proto_param" == "" ] && [ "$ss_obfs_param" == "" ]; then
-          tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+          cat >> "$CONF_DIR/$l_json_file" << EOF
       "streamSettings": {
         "network": "ws"
       },
 EOF
         elif [ "$ss_proto_param" != "" ] && [ "$ss_obfs_param" == "" ]; then
-          tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+          cat >> "$CONF_DIR/$l_json_file" << EOF
       "streamSettings": {
         "network": "ws",
         "wsSettings": {
@@ -943,7 +808,7 @@ EOF
       },
 EOF
         elif [ "$ss_proto_param" == "" ] && [ "$ss_obfs_param" != "" ]; then
-          tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+          cat >> "$CONF_DIR/$l_json_file" << EOF
       "streamSettings": {
         "network": "ws",
         "wsSettings": {
@@ -954,7 +819,7 @@ EOF
       },
 EOF
         elif [ "$ss_proto_param" != "" ] && [ "$ss_obfs_param" != "" ]; then
-          tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+          cat >> "$CONF_DIR/$l_json_file" << EOF
       "streamSettings": {
         "network": "ws",
         "wsSettings": {
@@ -975,14 +840,14 @@ EOF
           allow_insecure="true"
         fi
         if [ "$ss_proto_param" == "" ] && [ "$ss_obfs_param" == "" ]; then
-          tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+          cat >> "$CONF_DIR/$l_json_file" << EOF
       "streamSettings": {
         "network": "ws",
         "security": "tls"
       },
 EOF
         elif [ "$ss_proto_param" != "" ] && [ "$ss_obfs_param" == "" ]; then
-          tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+          cat >> "$CONF_DIR/$l_json_file" << EOF
       "streamSettings": {
         "network": "ws",
         "security": "tls",
@@ -992,7 +857,7 @@ EOF
       },
 EOF
         elif [ "$ss_proto_param" == "" ] && [ "$ss_obfs_param" != "" ]; then
-          tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+          cat >> "$CONF_DIR/$l_json_file" << EOF
       "streamSettings": {
         "network": "ws",
         "security": "tls",
@@ -1008,7 +873,7 @@ EOF
       },
 EOF
         elif [ "$ss_proto_param" != "" ] && [ "$ss_obfs_param" != "" ]; then
-          tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+          cat >> "$CONF_DIR/$l_json_file" << EOF
       "streamSettings": {
         "network": "ws",
         "security": "tls",
@@ -1026,7 +891,7 @@ EOF
 EOF
         fi
       fi
-      tee -a -i "$CONF_DIR/$r_json_file" "$CONF_DIR/$l_json_file" << EOF
+      cat >> "$CONF_DIR/$l_json_file" << EOF
       "mux": {
         "enabled": true,
         "concurrency": 1
@@ -1039,75 +904,70 @@ EOF
     fi
   done
   addr_isip_noip $serveraddr
-  r_json_file="0-$sspbinname-redir.json"
-  l_json_file="$r_json_file"
+  l_json_file="0-$sspbinname-local.json"
   grep -v '^#' $ssp_custom_conf | grep -v '^sspbinname' | grep -v '^confoptarg' | \
-  grep -v '^serveraddr' | grep -v '^serverport' >> $CONF_DIR/$r_json_file
-  echo "$serveraddr#$serverport#$r_json_file#$l_json_file#null" > $CONF_DIR/Custom-jsonlist
+  grep -v '^serveraddr' | grep -v '^serverport' >> $CONF_DIR/$l_json_file
+  echo "$serveraddr#$serverport#$l_json_file#null" > $CONF_DIR/Custom-jsonlist
   md5sum $ssp_custom_conf > $CONF_DIR/ssp_custom.md5
   md5sum $CONF_DIR/Nodes-list > $CONF_DIR/Nodes-list.md5
 fi
 [ "$bin_type" == "Custom" ] || [ "$bin_type" == "Auto" ] || \
-$(grep -q "$bin_type-redir" $CONF_DIR/$bin_type-jsonlist) || \
 $(grep -q "$bin_type-local" $CONF_DIR/$bin_type-jsonlist) || \
 $(stop_ssp "请到[节点设置]添加 $bin_type 节点" && return 1) || exit 1
 ssp_server_addr=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $1}')
 ssp_server_port=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $2}')
-redir_json_file=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $3}')
-local_json_file=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $4}')
-ssp_plugin_mode=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $5}')
-ssp_server_snum=$(echo "$redir_json_file" | awk -F- '{print $1}')
+local_json_file=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $3}')
+ssp_plugin_mode=$(tail -n 1 $CONF_DIR/$bin_type-jsonlist | awk -F# '{print $4}')
+ssp_server_snum=$(echo "$local_json_file" | awk -F- '{print $1}')
 [ "$bin_type" == "Custom" ] && ssp_server_type="Custom" || \
-ssp_server_type=$(echo "$redir_json_file" | awk -F- '{print $2}')
+ssp_server_type=$(echo "$local_json_file" | awk -F- '{print $2}')
 if [ "$ssp_server_type" == "SS" ]; then
   if [ "$ssp_plugin_mode" != "null" ]; then
     $([ -x "$ssp_v2rp" ] && ln -sf $ssp_v2rp $v2rp_link) || \
-    $(stop_ssp "请上传 v2ray-plugin 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
+    $(stop_ssp "请上传 $ss_v2rp_bin 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
   fi
-  ln -sf $ss_redir_bin $redir_link
   ln -sf $ss_local_bin $local_link
 elif [ "$ssp_server_type" == "SSR" ]; then
-  ln -sf $ssr_redir_bin $redir_link
   ln -sf $ssr_local_bin $local_link
 elif [ "$ssp_server_type" == "Trojan" ]; then
-  $([ -x "$ssp_trojan" ] && ln -sf $ssp_trojan $redir_link && ln -sf $ssp_trojan $local_link) || \
+  $([ -x "$ssp_trojan" ] && ln -sf $ssp_trojan $local_link) || \
   $(stop_ssp "请上传 trojan 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
 elif [ "$ssp_server_type" == "Naive" ]; then
-  $([ -x "$ssp_naive" ] && ln -sf $ssp_naive $redir_link && ln -sf $ssp_naive $local_link) || \
+  $([ -x "$ssp_naive" ] && ln -sf $ssp_naive $local_link) || \
   $(stop_ssp "请上传 naive 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
 elif [ "$ssp_server_type" == "Hysteria2" ]; then
-  $([ -x "$ssp_hysteria2" ] && ln -sf $ssp_hysteria2 $redir_link && ln -sf $ssp_hysteria2 $local_link) || \
+  $([ -x "$ssp_hysteria2" ] && ln -sf $ssp_hysteria2 $local_link) || \
   $(stop_ssp "请上传 hysteria2 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
 elif [ "$ssp_server_type" == "VMess" ]; then
   if [ -x "$ssp_xray" ] && [ ! -x "$ssp_v2ray" ]; then
-    ln -sf $ssp_xray $redir_link && ln -sf $ssp_xray $local_link
+    ln -sf $ssp_xray $local_link
   else
-    $([ -x "$ssp_v2ray" ] && ln -sf $ssp_v2ray $redir_link && ln -sf $ssp_v2ray $local_link) || \
+    $([ -x "$ssp_v2ray" ] && ln -sf $ssp_v2ray $local_link) || \
     $(stop_ssp "请上传 v2ray 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
   fi
 elif [ "$ssp_server_type" == "VLESS" ]; then
-  $([ -x "$ssp_xray" ] && ln -sf $ssp_xray $redir_link && ln -sf $ssp_xray $local_link) || \
+  $([ -x "$ssp_xray" ] && ln -sf $ssp_xray $local_link) || \
   $(stop_ssp "请上传 xray 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
 elif [ "$ssp_server_type" == "Mieru" ]; then
-  $([ -x "$ssp_mieru" ] && ln -sf $ssp_mieru $redir_link && ln -sf $ssp_mieru $local_link) || \
+  $([ -x "$ssp_mieru" ] && ln -sf $ssp_mieru $local_link) || \
   $(stop_ssp "请上传 mieru 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
 elif [ "$ssp_server_type" == "Custom" ]; then
-  $([ -x "$ssp_custom" ] && ln -sf $ssp_custom $redir_link && ln -sf $ssp_custom $local_link) || \
+  $([ -x "$ssp_custom" ] && ln -sf $ssp_custom $local_link) || \
   $(stop_ssp "请上传 $sspbinname 可执行文件到 $EXTB_DIR/" && return 1) || exit 1
 fi
 $([ -n "$ssp_server_snum" ] && [ -n "$ssp_server_type" ] && \
 [ -n "$ssp_server_addr" ] && [ -n "$ssp_server_port" ] && \
-[ -n "$redir_json_file" ] && return 0) || $(stop_ssp "创建配置文件出错" && return 1) || exit 1
+[ -n "$local_json_file" ] && return 0) || $(stop_ssp "创建配置文件出错" && return 1) || exit 1
 }
 
 start_socks()
 {
-[ "$ssp_ubin" == "$local_bin" ] || return 1
 [ ! -e "$socksstart" ] || return 0
 cat > "$socksstart" << EOF
 #!/bin/sh
 
-start-stop-daemon -S -b -N 0 -x ipt2socks -- -s 0.0.0.0 -p $ss_local_port -b 0.0.0.0 -l $ss_redir_port -R
+ulimit -n $nofile
+start-stop-daemon -S -b -N 0 -x ipt2socks -- -n $nofile -s 0.0.0.0 -p $ss_local_port -b 0.0.0.0 -l $ss_redir_port -R
 EOF
 chmod +x $socksstart && logger -st "SSP[$$]$bin_type" "开启本地代理" && $socksstart
 }
@@ -1119,7 +979,7 @@ sip_addr()
 
 sip_port()
 {
-[ "$ssp_ubin" == "$local_bin" ] && echo " -i $ss_redir_port" || echo " -i $ss_local_port"
+echo " -i $ss_redir_port"
 }
 
 chn_list()
@@ -1158,7 +1018,7 @@ echo " -t"
 
 conffile()
 {
-[ "$ssp_ubin" == "$local_bin" ] && echo "$CONF_DIR/$local_json_file" || echo "$CONF_DIR/$redir_json_file"
+echo "$CONF_DIR/$local_json_file"
 }
 
 opt_arg()
@@ -1178,7 +1038,7 @@ fi
 
 udp_ext()
 {
-if [ "$ssp_ubin" == "$local_bin" ] && [ "$ssp_server_type" == "SS" -o "$ssp_server_type" == "SSR" ]; then
+if [ "$ssp_server_type" == "SS" -o "$ssp_server_type" == "SSR" ]; then
   echo " -u"
 else
   echo ""
@@ -1208,13 +1068,13 @@ $([ "$SREC" == "1" ] && restart_firewall && gen_dns_conf && return 0) || \
 $(nvram set start_rules=1 && return $SREC)
 }
 
-start_redir()
+start_local()
 {
-cat > "$redirstart" << EOF
+cat > "$localstart" << EOF
 #!/bin/sh
 
 MemFree=\$(cat /proc/meminfo | grep 'MemFree' | sed 's/[[:space:]]//g' | sed 's/kB//g' | awk -F: '{print \$2}')
-ulimit -n 32768
+ulimit -n $nofile
 ulimit -v \$MemFree
 ulimit -m \$MemFree
 conffile="$(conffile)"
@@ -1222,10 +1082,10 @@ export MIERU_CONFIG_JSON_FILE=\$conffile
 export SSL_CERT_FILE='$ETCS_DIR/cacerts/cacert.pem'
 export GOMAXPROCS=1
 
-nohup $ssp_ubin$(opt_arg)$(udp_ext) &>$ubin_log_file &
+nohup $local_bin$(opt_arg)$(udp_ext) &>$local_log_file &
 EOF
-chmod +x $redirstart && logger -st "SSP[$$]$bin_type" "启动代理进程" && $redirstart
-$(sleep 1 && pidof $ssp_ubin &>/dev/null) || $(sleep 1 && pidof $ssp_ubin &>/dev/null)
+chmod +x $localstart && logger -st "SSP[$$]$bin_type" "启动代理进程" && $localstart
+$(sleep 1 && pidof $local_bin &>/dev/null) || $(sleep 1 && pidof $local_bin &>/dev/null)
 [ "$?" == "1" ] && nvram set turn_json_file=1 && return 1 || return 0
 }
 
@@ -1254,8 +1114,8 @@ start_ssp()
 [ "$(nvram get wait_times)" -ge "1" ] && scron 1 && exit 0
 $(nvram get watchcat_state | grep -q 'watchcat_start_ssp') || stop_watchcat
 gen_json_file
-start_socks || stop_socks
-start_redir || $(nvram set wait_times=1 && logger -st "SSP[$$]WARNING" "启动代理进程出错")
+start_socks
+start_local || $(nvram set wait_times=1 && logger -st "SSP[$$]WARNING" "启动代理进程出错")
 start_rules || $(nvram set wait_times=1 && logger -st "SSP[$$]WARNING" "开启透明代理出错")
 nvram set server_infor=$ssp_server_snum──$ssp_server_type──$ssp_server_addr:$ssp_server_port
 [ "$(nvram get wait_times)" -ge "1" ] && scron 1 && exit 0

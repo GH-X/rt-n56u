@@ -830,7 +830,6 @@ menu5_16_UpdateURLChnDomainList=Custom Update URL Of CHN Domain List (Leave blan
 menu5_16_UpdateURLGfwDomainList=Custom Update URL Of GFW Domain List (Leave blank to use the default update URL)
 menu5_16_UpdateNow=Update Now
 menu5_16_OtherSettings=Other Settings
-menu5_16_EnableLocalAgent=Enable Local Agent
 menu5_16_LocalProxyPort=Local Proxy Port:
 menu5_16_ProxyMTU=Proxy MTU (SS/SSR/Mieru):
 menu5_16_Empty=Empty

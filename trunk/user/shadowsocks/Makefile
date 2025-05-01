@@ -477,11 +477,8 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	$(ROMFSINST) $(THISDIR)/cacerts/cacerts.bz2 /etc_ro/cacerts.bz2
 	$(ROMFSINST) -p +x $(THISDIR)/$(SRC_IPT_NAME)/ipt2socks /usr/bin/ipt2socks
 	$(ROMFSINST) -p +x $(THISDIR)/$(SRC_SDNS_NAME)/src/smartdns /usr/bin/smartdns
-	$(ROMFSINST) -p +x $(THISDIR)/$(SRC_SSR_NAME)/src/ss-redir /usr/bin/ssr-redir
 	$(ROMFSINST) -p +x $(THISDIR)/$(SRC_SSR_NAME)/src/ss-local /usr/bin/ssr-local
-	$(ROMFSINST) -p +x $(THISDIR)/$(SRC_SS_NAME)/src/ss-redir /usr/bin/ss-orig-redir
 	$(ROMFSINST) -p +x $(THISDIR)/$(SRC_SS_NAME)/src/ss-local /usr/bin/ss-orig-local
-	ln -sf /var/ss-redir $(ROMFSDIR)/usr/bin/ss-redir
 	ln -sf /var/ss-local $(ROMFSDIR)/usr/bin/ss-local
 	ln -sf /var/v2ray-plugin $(ROMFSDIR)/usr/bin/v2ray-plugin
 endif

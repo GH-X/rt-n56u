@@ -2015,13 +2015,8 @@ static int shadowsocks_action_hook(int eid, webs_t wp, int argc, char **argv)
 
 static int shadowsocks_status_hook(int eid, webs_t wp, int argc, char **argv)
 {
-	int ss_redir_status_code = pids("ss-redir");
 	int ss_local_status_code = pids("ss-local");
-	if (ss_redir_status_code || ss_local_status_code) {
-		websWrite(wp, "function ss_status() { return %d;}\n", 1);
-	} else {
-		websWrite(wp, "function ss_status() { return %d;}\n", 0);
-	}
+	websWrite(wp, "function local_status() { return %d;}\n", ss_local_status_code);
 	int ss_aiddns_status_code = pids("smartdns");
 	websWrite(wp, "function aiddns_status() { return %d;}\n", ss_aiddns_status_code);
 	int ss_socks_status_code = pids("ipt2socks");

@@ -31,7 +31,6 @@ $j(document).ready(function(){
 	init_itoggle('ss_enable');
 	init_itoggle('ss_type');
 	init_itoggle('ss_mode');
-	init_itoggle('ss_socks');
 	init_itoggle('ss_local_port');
 	init_itoggle('ss_mtu');
 	init_itoggle('ss_watchcat_autorec');
@@ -54,7 +53,7 @@ function initial(){
 	show_menu(5,11,1);
 	show_footer();
 	change_ss_type();
-	fill_ss_status(ss_status());
+	fill_ss_local_status(local_status());
 	fill_ss_aiddns_status(aiddns_status());
 	fill_ss_socks_status(socks_status());
 	$("chnroute_count").innerHTML = '<#menu5_16_NumberOfRules#>&nbsp;&nbsp;' + chnroute_count() ;
@@ -84,13 +83,13 @@ function submitInternet(v){
 	document.Shadowsocks_action.submit();
 }
 
-function fill_ss_status(status_code){
+function fill_ss_local_status(status_code){
 	var stext = "Unknown";
 	if (status_code == 0)
 		stext = "<#Stopped#>";
 	else if (status_code == 1)
 		stext = "<#Running#>";
-	$("ss_status").innerHTML = '<span class="label label-' + (status_code != 0 ? 'success' : 'warning') + '">' + stext + '</span>';
+	$("local_status").innerHTML = '<span class="label label-' + (status_code != 0 ? 'success' : 'warning') + '">' + stext + '</span>';
 }
 
 function fill_ss_aiddns_status(status_code){
@@ -187,7 +186,7 @@ function fill_ss_socks_status(status_code){
                                                     <input type="radio" value="0" name="ss_enable" id="ss_enable_0" <% nvram_match_x("", "ss_enable", "0", "checked"); %>><#checkbox_No#>
                                                 </div>
                                             </td>
-                                            <td colspan="1" id="ss_status"></td>
+                                            <td colspan="1" id="local_status"></td>
                                         </tr>
 
                                         <tr> <th colspan="4"><#menu5_16_AutoReconnect#></th>
@@ -393,26 +392,11 @@ function fill_ss_socks_status(status_code){
 
                                         <tr> <th colspan="6" style="background-color: #E3E3E3;"><#menu5_16_OtherSettings#></th> </tr>
 
-                                        <tr> <th colspan="4"><#menu5_16_EnableLocalAgent#></th>
-                                            <td colspan="1">
-                                                <div class="main_itoggle">
-                                                    <div id="ss_socks_on_of">
-                                                        <input type="checkbox" id="ss_socks_fake" <% nvram_match_x("", "ss_socks", "1", "value=1 checked"); %><% nvram_match_x("", "ss_socks", "0", "value=0"); %>>
-                                                    </div>
-                                                </div>
-                                                <div style="position: absolute; margin-left: -10000px;">
-                                                    <input type="radio" value="1" name="ss_socks" id="ss_socks_1" <% nvram_match_x("", "ss_socks", "1", "checked"); %>><#checkbox_Yes#>
-                                                    <input type="radio" value="0" name="ss_socks" id="ss_socks_0" <% nvram_match_x("", "ss_socks", "0", "checked"); %>><#checkbox_No#>
-                                                </div>
-                                            </td>
-                                            <td colspan="1" id="socks_status"></td>
-                                        </tr>
-
                                         <tr> <th colspan="4"><#menu5_16_LocalProxyPort#></th>
                                             <td colspan="1">
                                                 <input type="text" maxlength="6" class="input" size="6" name="ss_local_port" style="width: 83px" placeholder="1080" value="<% nvram_get_x("", "ss_local_port"); %>">
                                             </td>
-                                            <td colspan="1"></td>
+                                            <td colspan="1" id="socks_status"></td>
                                         </tr>
 
                                         <tr> <th colspan="4"><#menu5_16_ProxyMTU#></th>
