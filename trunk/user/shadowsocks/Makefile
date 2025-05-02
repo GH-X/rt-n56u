@@ -14,7 +14,7 @@ MIERU_BIN=$(THISDIR)/mieru
 MIERU_TAR=$(MIERU_SRC).tar.gz
 MIERU_URL=https://codeload.github.com/enfein/mieru/tar.gz/refs/tags/v$(MIERU_VER)
 
-NAIVE_VER=v135.0.7049.38-2
+NAIVE_VER=v136.0.7103.44-1
 NAIVE_SRC=naiveproxy-$(NAIVE_VER)-openwrt-mipsel_24kc-static
 NAIVE_BIN=$(THISDIR)/naive
 NAIVE_TAR=$(NAIVE_SRC).tar.xz
@@ -33,7 +33,7 @@ V2RAY_BIN=$(THISDIR)/v2ray
 V2RAY_TAR=$(V2RAY_SRC).tar.gz
 V2RAY_URL=https://codeload.github.com/v2fly/v2ray-core/tar.gz/refs/tags/v$(V2RAY_VER)
 
-XRAY_VER=25.3.31
+XRAY_VER=25.4.30
 XRAY_SRC=Xray-core-$(XRAY_VER)
 XRAY_DIR=./main/
 XRAY_BIN=$(THISDIR)/xray
