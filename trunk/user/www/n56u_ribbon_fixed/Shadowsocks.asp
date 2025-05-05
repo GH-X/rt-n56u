@@ -68,19 +68,11 @@ function change_ss_type(){
 	showhide_div('row_custom_conf', (v == 8));
 }
 
-function applyRule(){
-	showLoading();
-	document.form.action_mode.value = " Restart ";
-	document.form.current_page.value = "/Shadowsocks.asp";
+function applyRule(v){
+	document.form.action_mode.value = v;
+	document.form.current_page.value = "Shadowsocks.asp";
 	document.form.next_page.value = "";
 	document.form.submit();
-}
-
-function submitInternet(v){
-	showLoading();
-	document.Shadowsocks_action.action = "/Shadowsocks_action.asp";
-	document.Shadowsocks_action.connect_action.value = v;
-	document.Shadowsocks_action.submit();
 }
 
 function fill_ss_local_status(status_code){
@@ -140,7 +132,6 @@ function fill_ss_socks_status(status_code){
 
     <iframe name="hidden_frame" id="hidden_frame" src="" width="0" height="0" frameborder="0"></iframe>
     <form method="post" name="form" id="ruleForm" action="/start_apply.htm" target="hidden_frame">
-	
     <input type="hidden" name="current_page" value="Shadowsocks.asp">
     <input type="hidden" name="next_page" value="">
     <input type="hidden" name="next_host" value="">
@@ -202,7 +193,7 @@ function fill_ss_socks_status(status_code){
                                                 </div>
                                             </td>
                                             <td colspan="1">
-                                                <input type="button" id="btn_connect_1" class="btn btn-info" value="<#Connect#>" onclick="submitInternet('Reconnect');">
+                                                <input type="button" id="btn_connect_1" class="btn btn-info" value="<#Connect#>" onclick="applyRule('SSP_Reconnect');">
                                             </td>
                                         </tr>
 
@@ -294,7 +285,7 @@ function fill_ss_socks_status(status_code){
                                                 </div>
                                             </td>
                                             <td colspan="1">
-                                                <input type="button" id="btn_connect_2" class="btn btn-info" value="<#menu5_16_UpdateNow#>" onclick="submitInternet('Update_chnroute');">
+                                                <input type="button" id="btn_connect_2" class="btn btn-info" value="<#menu5_16_UpdateNow#>" onclick="applyRule('SSP_Update_chnroute');">
                                             </td>
                                         </tr>
 
@@ -332,7 +323,7 @@ function fill_ss_socks_status(status_code){
                                                 </div>
                                             </td>
                                             <td colspan="1">
-                                                <input type="button" id="btn_connect_3" class="btn btn-info" value="<#menu5_16_UpdateNow#>" onclick="submitInternet('Update_chnlist');">
+                                                <input type="button" id="btn_connect_3" class="btn btn-info" value="<#menu5_16_UpdateNow#>" onclick="applyRule('SSP_Update_chnlist');">
                                             </td>
                                         </tr>
 
@@ -370,7 +361,7 @@ function fill_ss_socks_status(status_code){
                                                 </div>
                                             </td>
                                             <td colspan="1">
-                                                <input type="button" id="btn_connect_4" class="btn btn-info" value="<#menu5_16_UpdateNow#>" onclick="submitInternet('Update_gfwlist');">
+                                                <input type="button" id="btn_connect_4" class="btn btn-info" value="<#menu5_16_UpdateNow#>" onclick="applyRule('SSP_Update_gfwlist');">
                                             </td>
                                         </tr>
 
@@ -403,12 +394,12 @@ function fill_ss_socks_status(status_code){
                                             <td colspan="1">
                                                 <input type="text" maxlength="6" class="input" size="6" name="ss_mtu" style="width: 83px" placeholder="1400" value="<% nvram_get_x("", "ss_mtu"); %>">
                                             </td>
-                                            <td colspan="1">1280..1400..1492</td>
+                                            <td colspan="1">1280.1400.1492</td>
                                         </tr>
 
                                         <tr>
                                             <td colspan="6">
-                                                <center><input class="btn btn-primary" style="width: 217px" type="button" value="<#CTL_apply#>" onclick="submitInternet('subRestart');applyRule();" /></center>
+                                                <center><input class="btn btn-primary" style="width: 217px" type="button" value="<#CTL_apply#>" onclick="applyRule('SSP_Restart');" /></center>
                                             </td>
                                         </tr>
                                     </table>
@@ -423,12 +414,7 @@ function fill_ss_socks_status(status_code){
 </form>
 <div id="footer"></div>
 </div>
-
-<form method="post" name="Shadowsocks_action" action="">
-    <input type="hidden" name="connect_action" value="">
-</form>
-
-
+<form></form>
 </body>
 </html>
 

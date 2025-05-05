@@ -66,7 +66,7 @@
 #define FIX_BOOT_TIME		10
 #endif
 #if defined (APP_SHADOWSOCKS)
-#define FIX_FLASH_TIME	90
+#define FIX_FLASH_TIME	180
 #else
 #define FIX_FLASH_TIME	10
 #endif
@@ -1213,7 +1213,11 @@ update_variables_ex(int eid, webs_t wp, int argc, char **argv)
 						websWrite(wp, "<script>done_validating(\"%s\");</script>\n", action_mode);
 					}
 				}
-				else if (!strcmp(action_mode, " Restart ")) {
+				else if (!strcmp(action_mode, " Restart ")
+#if defined (APP_SHADOWSOCKS)
+				|| !strcmp(action_mode, "SSP_Restart")
+#endif
+				) {
 					struct variable *v;
 					
 					for (v = GetVariables(sid); v->name != NULL; ++v) {
@@ -1238,11 +1242,40 @@ update_variables_ex(int eid, webs_t wp, int argc, char **argv)
 						nvram_clr_group_temp(v);
 					}
 					
-					if (nvram_modified)
+					if (nvram_modified) {
 						websWrite(wp, "<script>done_committing();</script>\n");
+#if defined (APP_SHADOWSOCKS)
+						if (!strcmp(action_mode, "SSP_Restart")) {
+							nvram_set_int_temp("turn_json_file", 0);
+							nvram_set_int_temp("start_rules", 1);
+						}
+#endif
+					}
 					else
 						websWrite(wp, "<script>no_changes_and_no_committing();</script>\n");
 				}
+#if defined (APP_SHADOWSOCKS)
+				else if (!strcmp(action_mode, "SSP_Reconnect")) {
+					nvram_set_int_temp("turn_json_file", 1);
+					nvram_set_int_temp("start_rules", 0);
+					notify_rc(RCN_RESTART_SHADOWSOCKS);
+					websWrite(wp, "<script>done_committing();</script>\n");
+				}
+				else if (!strcmp(action_mode, "SSP_Update_chnroute")) {
+					nvram_set_int_temp("turn_json_file", 0);
+					nvram_set_int_temp("start_rules", 1);
+					notify_rc(RCN_RESTART_CHNROUTE_UPD);
+					websWrite(wp, "<script>done_committing();</script>\n");
+				}
+				else if (!strcmp(action_mode, "SSP_Update_chnlist")) {
+					notify_rc(RCN_RESTART_CHNLIST_UPD);
+					websWrite(wp, "<script>done_committing();</script>\n");
+				}
+				else if (!strcmp(action_mode, "SSP_Update_gfwlist")) {
+					notify_rc(RCN_RESTART_GFWLIST_UPD);
+					websWrite(wp, "<script>done_committing();</script>\n");
+				}
+#endif
 				
 				validate_cgi(wp, sid);	// for some nvram with this group group
 			}
@@ -1983,36 +2016,6 @@ static int mentohust_status_hook(int eid, webs_t wp, int argc, char **argv)
 #endif
 
 #if defined (APP_SHADOWSOCKS)
-static int shadowsocks_action_hook(int eid, webs_t wp, int argc, char **argv)
-{
-	int needed_seconds = 9;
-	char *ss_action = websGetVar(wp, "connect_action", "");
-
-	if (!strcmp(ss_action, "subRestart")) {
-		nvram_set_int_temp("turn_json_file", 0);
-		nvram_set_int_temp("start_rules", 1);
-		needed_seconds = 9;
-	} else if (!strcmp(ss_action, "Reconnect")) {
-		nvram_set_int_temp("turn_json_file", 1);
-		nvram_set_int_temp("start_rules", 0);
-		needed_seconds = 9;
-		notify_rc(RCN_RESTART_SHADOWSOCKS);
-	} else if (!strcmp(ss_action, "Update_chnroute")) {
-		nvram_set_int_temp("turn_json_file", 0);
-		nvram_set_int_temp("start_rules", 1);
-		needed_seconds = 1;
-		notify_rc(RCN_RESTART_CHNROUTE_UPD);
-	} else if (!strcmp(ss_action, "Update_chnlist")) {
-		needed_seconds = 1;
-		notify_rc(RCN_RESTART_CHNLIST_UPD);
-	} else if (!strcmp(ss_action, "Update_gfwlist")) {
-		needed_seconds = 1;
-		notify_rc(RCN_RESTART_GFWLIST_UPD);
-	}
-	websWrite(wp, "<script>restart_needed_time(%d);</script>\n", needed_seconds);
-	return 0;
-}
-
 static int shadowsocks_status_hook(int eid, webs_t wp, int argc, char **argv)
 {
 	int ss_local_status_code = pids("ss-local");
@@ -4190,7 +4193,6 @@ struct ej_handler ej_handlers[] =
 	{ "mentohust_status", mentohust_status_hook},
 #endif
 #if defined (APP_SHADOWSOCKS)
-	{ "shadowsocks_action", shadowsocks_action_hook},
 	{ "shadowsocks_status", shadowsocks_status_hook},
 	{ "rules_count", rules_count_hook},
 #endif

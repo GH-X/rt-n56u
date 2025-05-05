@@ -55,7 +55,14 @@ function redirect(){
 	parent.location.href = prefix+'://'+parent.document.form.lan_ipaddr.value;
 }
 
+function hideLoading(){
+	parent.$("loadingBlock").style.visibility = "hidden";
+	parent.$("Loading").style.width = "10px";
+}
+
 function initial(){
+	if((current_page == "Shadowsocks.asp") && (page_modified == 1))
+		restart_time = 12;
 	if(getflag == "set_language"){
 		if(navigator.appName.indexOf("Microsoft") >= 0)
 			parent.parent.location.reload();
@@ -100,11 +107,6 @@ function initial(){
 		else if(next_page.length > 0)
 			setTimeout("delay_redirect('"+next_page+"');", restart_time*1000);
 	}
-}
-
-function hideLoading(){
-	parent.$("loadingBlock").style.visibility = "hidden";
-	parent.$("Loading").style.width = "10px";
 }
 </script>
 </head>
