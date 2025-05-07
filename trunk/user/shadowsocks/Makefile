@@ -178,7 +178,7 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSNAIVE),y)
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(NAIVE_BIN) ]; then \
 		mv -f $(NAIVE_SRC)/naive $(NAIVE_BIN) && \
-		chmod +x $(NAIVE_BIN) && upx --best --lzma $(NAIVE_BIN); \
+		chmod +x $(NAIVE_BIN) && upx-4.2.4 --best --lzma $(NAIVE_BIN); \
 	fi )
 else
 	( if [ ! -e $(NAIVE_BIN) ]; then \
@@ -315,7 +315,7 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(MIERU_BIN) ]; then \
 		cd $(MIERU_SRC) && \
 		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(MIERU_BIN) $(MIERU_DIR) && \
-		chmod +x $(MIERU_BIN) && upx --best --lzma $(MIERU_BIN); \
+		chmod +x $(MIERU_BIN) && upx-4.2.4 --best --lzma $(MIERU_BIN); \
 	fi )
 else
 	( if [ ! -e $(MIERU_BIN) ]; then \
@@ -331,7 +331,7 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(V2RAYPLUGIN_BIN) ]; then \
 		cd $(V2RAYPLUGIN_SRC) && \
 		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(V2RAYPLUGIN_BIN) $(V2RAYPLUGIN_DIR) && \
-		chmod +x $(V2RAYPLUGIN_BIN) && upx --best --lzma $(V2RAYPLUGIN_BIN); \
+		chmod +x $(V2RAYPLUGIN_BIN) && upx-4.2.4 --best --lzma $(V2RAYPLUGIN_BIN); \
 	fi )
 else
 	( if [ ! -e $(V2RAYPLUGIN_BIN) ]; then \
@@ -347,7 +347,7 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(V2RAY_BIN) ]; then \
 		cd $(V2RAY_SRC) && \
 		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(V2RAY_BIN) $(V2RAY_DIR) && \
-		chmod +x $(V2RAY_BIN) && upx --best --lzma $(V2RAY_BIN); \
+		chmod +x $(V2RAY_BIN) && upx-4.2.4 --best --lzma $(V2RAY_BIN); \
 	fi )
 else
 	( if [ ! -e $(V2RAY_BIN) ]; then \
@@ -363,7 +363,7 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(XRAY_BIN) ]; then \
 		cd $(XRAY_SRC) && \
 		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(XRAY_BIN) $(XRAY_DIR) && \
-		chmod +x $(XRAY_BIN) && upx --best --lzma $(XRAY_BIN); \
+		chmod +x $(XRAY_BIN) && upx-4.2.4 --best --lzma $(XRAY_BIN); \
 	fi )
 else
 	( if [ ! -e $(XRAY_BIN) ]; then \
@@ -379,7 +379,7 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(HYSTERIA2_BIN) ]; then \
 		cd $(HYSTERIA2_SRC) && \
 		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(HYSTERIA2_BIN) $(HYSTERIA2_DIR) && \
-		chmod +x $(HYSTERIA2_BIN) && upx --best --lzma $(HYSTERIA2_BIN); \
+		chmod +x $(HYSTERIA2_BIN) && upx-4.2.4 --best --lzma $(HYSTERIA2_BIN); \
 	fi )
 else
 	( if [ ! -e $(HYSTERIA2_BIN) ]; then \

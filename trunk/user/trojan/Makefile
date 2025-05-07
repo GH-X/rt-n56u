@@ -42,7 +42,7 @@ build_test:
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(SRC_BIN) ]; then \
 		$(MAKE) -j$(HOST_NCPU) -C $(SRC_NAME)/build && \
-		chmod +x $(SRC_BIN) && upx --best --lzma $(SRC_BIN); \
+		chmod +x $(SRC_BIN) && upx-4.2.4 --best --lzma $(SRC_BIN); \
 	fi )
 else
 	( if [ ! -e $(SRC_BIN) ]; then \

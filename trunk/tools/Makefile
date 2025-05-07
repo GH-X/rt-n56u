@@ -47,10 +47,11 @@ upx:
 	( if [ ! -e $(THISDIR)/upx ]; then \
 		tar -xf upx-4.2.4-amd64_linux.tar.xz && \
 		mv -f $(THISDIR)/upx-4.2.4-amd64_linux/upx $(THISDIR)/upx && \
+		ln -sf $(THISDIR)/upx $(THISDIR)/upx-4.2.4 && \
 		rm -rf $(THISDIR)/upx-4.2.4-amd64_linux; \
 	fi )
 
-clean: clean_golang clean_upx
+clean:
 	if [ -f $(SSTRIP_NAME)/Makefile ] ; then \
 		make -C $(SSTRIP_NAME) clean ; \
 	fi ;
@@ -58,13 +59,3 @@ clean: clean_golang clean_upx
 	make -C mkimage clean
 	make -C lzma clean
 	make -C mksquashfs_xz clean
-
-clean_golang:
-	( if [ -d $(GO_DIR) ]; then \
-		rm -rf $(GO_DIR); \
-	fi )
-
-clean_upx:
-	( if [ -e $(THISDIR)/upx ]; then \
-		rm -rf $(THISDIR)/upx; \
-	fi )
