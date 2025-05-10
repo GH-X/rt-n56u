@@ -73,18 +73,21 @@ jobs:
         run: |
           cd trunk
           mkdir -p ${images_dir}
-          for m in $targets; do fakeroot ./build_firmware_ci $m; if [ $? = 0 ]; \
-          then cp -f images/*.trx ${images_dir}/$m.${build_variant}.${{ env.VER }}_${{ env.REV }}.trx; \
-          else exit 1; fi; ./clear_tree_simple >/dev/null 2>&1; done
+          for m in $targets; do fakeroot ./build_firmware_ci $m; \
+          if [ $? = 0 ]; then pack_name="$(ls images | grep ".zip$" | sed 's/.zip$/_'${build_variant}'/g')" && \
+          cp -f images/*.zip ${images_dir}/${pack_name}.zip; else exit 1; fi; \
+          ./clear_tree_simple >/dev/null 2>&1; done
       - name: Create archive
+        if: ${{ github.event_name != 'release' && success() }}
         run: |
           ls -lh ${images_dir}
           build_targets=$(echo "${targets}" | sed 's/ /_/g')
           image_name="${{ env.VER }}${{ env.RMD }}_${build_variant}_${build_targets}"
-          cd ${images_dir}; md5sum *.trx |tee md5sum.txt; 7z a -mx=9 ${image_name}.7z ./*
+          cd ${images_dir}; md5sum *.zip |tee md5sum.txt; 7z a -mx=9 ${image_name}.7z ./*
           echo "image_name=${image_name}" >> $GITHUB_ENV
 # Star编译完成的固件到Artifacts下载
       - name: Upload images to Artifact
+        if: ${{ github.event_name != 'release' && success() }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.image_name }}
@@ -95,7 +98,7 @@ jobs:
         uses: svenstaro/upload-release-action@2.9.0
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ env.images_dir }}/*.trx
+          file: ${{ env.images_dir }}/*.zip
           tag: ${{ github.ref }}
           overwrite: true
           file_glob: true

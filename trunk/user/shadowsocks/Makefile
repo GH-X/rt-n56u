@@ -72,42 +72,42 @@ all: download_test extract_test config_test build_test
 download_test: mieru_dl naive_dl v2rayplugin_dl v2ray_dl xray_dl hysteria2_dl cacert_dl chnroute_dl chnlist_dl gfwlist_dl
 
 mieru_dl:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSMIERU),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -e $(MIERU_TAR) ]; then \
 		wget -t8 -4 --timeout=8 -O $(MIERU_TAR) $(MIERU_URL); \
 	fi )
 endif
 
 naive_dl:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSNAIVE),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -e $(NAIVE_TAR) ]; then \
 		wget -t8 -4 --timeout=8 -O $(NAIVE_TAR) $(NAIVE_URL); \
 	fi )
 endif
 
 v2rayplugin_dl:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSV2RP),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -e $(V2RAYPLUGIN_ZIP) ]; then \
 		wget -t8 -4 --timeout=8 -O $(V2RAYPLUGIN_ZIP) $(V2RAYPLUGIN_URL); \
 	fi )
 endif
 
 v2ray_dl:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -e $(V2RAY_TAR) ]; then \
 		wget -t8 -4 --timeout=8 -O $(V2RAY_TAR) $(V2RAY_URL); \
 	fi )
 endif
 
 xray_dl:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVLESS),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -e $(XRAY_TAR) ]; then \
 		wget -t8 -4 --timeout=8 -O $(XRAY_TAR) $(XRAY_URL); \
 	fi )
 endif
 
 hysteria2_dl:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -e $(HYSTERIA2_TAR) ]; then \
 		wget -t8 -4 --timeout=8 -O $(HYSTERIA2_TAR) $(HYSTERIA2_URL); \
 	fi )
@@ -164,14 +164,14 @@ extract_test: extract_ss_test
 endif
 
 extract_mieru:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSMIERU),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -d $(MIERU_SRC) ]; then \
 		tar -xf $(MIERU_TAR); \
 	fi )
 endif
 
 extract_naive:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSNAIVE),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -d $(NAIVE_SRC) ]; then \
 		tar -xf $(NAIVE_TAR); \
 	fi )
@@ -188,28 +188,28 @@ endif
 endif
 
 extract_v2rayplugin:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSV2RP),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -d $(V2RAYPLUGIN_SRC) ]; then \
 		unzip -qq $(V2RAYPLUGIN_ZIP); \
 	fi )
 endif
 
 extract_v2ray:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -d $(V2RAY_SRC) ]; then \
 		tar -xf $(V2RAY_TAR); \
 	fi )
 endif
 
 extract_xray:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVLESS),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -d $(XRAY_SRC) ]; then \
 		tar -xf $(XRAY_TAR); \
 	fi )
 endif
 
 extract_hysteria2:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -d $(HYSTERIA2_SRC) ]; then \
 		tar -xf $(HYSTERIA2_TAR); \
 	fi )
@@ -310,7 +310,7 @@ endif
 build_go: build_mieru build_v2rayplugin build_v2ray build_xray build_hysteria2
 
 build_mieru:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSMIERU),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(MIERU_BIN) ]; then \
 		cd $(MIERU_SRC) && \
@@ -326,7 +326,7 @@ endif
 endif
 
 build_v2rayplugin:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSV2RP),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(V2RAYPLUGIN_BIN) ]; then \
 		cd $(V2RAYPLUGIN_SRC) && \
@@ -342,7 +342,7 @@ endif
 endif
 
 build_v2ray:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(V2RAY_BIN) ]; then \
 		cd $(V2RAY_SRC) && \
@@ -358,7 +358,7 @@ endif
 endif
 
 build_xray:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVLESS),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(XRAY_BIN) ]; then \
 		cd $(XRAY_SRC) && \
@@ -374,7 +374,7 @@ endif
 endif
 
 build_hysteria2:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(HYSTERIA2_BIN) ]; then \
 		cd $(HYSTERIA2_SRC) && \
@@ -390,7 +390,7 @@ endif
 endif
 
 clean: clean_mieru clean_naive clean_v2rayplugin clean_v2ray clean_xray clean_hysteria2 clean_sdns clean_ipt clean_ssr clean_ss
-	rm -f ssr_config_done ss_config_done ipt_config_done
+	rm -f ssr_config_done ss_config_done ipt_config_done sdns_config_done
 	rm -rf $(CACERT_DIR)
 	rm -rf $(CHNROUTE_DIR)
 
@@ -463,7 +463,11 @@ clean_ss:
 	fi )
 
 romfs:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSSERVER),y)
+	$(ROMFSINST) -p +x $(THISDIR)/$(SRC_SS_NAME)/src/ss-server /usr/bin/ss-server
+endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
+	[ -d $(SSP_DIR) ] || mkdir -p $(SSP_DIR)
 	chmod -R +x scripts/
 	$(ROMFSINST) $(THISDIR)/scripts/shadowsocks.sh /usr/bin/shadowsocks.sh
 	$(ROMFSINST) $(THISDIR)/scripts/ss-rules /usr/bin/ss-rules
@@ -481,26 +485,35 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	$(ROMFSINST) -p +x $(THISDIR)/$(SRC_SS_NAME)/src/ss-local /usr/bin/ss-orig-local
 	ln -sf /var/ss-local $(ROMFSDIR)/usr/bin/ss-local
 	ln -sf /var/v2ray-plugin $(ROMFSDIR)/usr/bin/v2ray-plugin
-endif
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSSERVER),y)
-	$(ROMFSINST) -p +x $(THISDIR)/$(SRC_SS_NAME)/src/ss-server /usr/bin/ss-server
-endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSV2RP),y)
 	$(ROMFSINST) -p +x $(V2RAYPLUGIN_BIN) /usr/bin/ss-v2ray-plugin
+else
+	cp -fp $(V2RAYPLUGIN_BIN) $(SSP_DIR)/
 endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVMESS),y)
 	$(ROMFSINST) -p +x $(V2RAY_BIN) /usr/bin/v2ray
+else
+	cp -fp $(V2RAY_BIN) $(SSP_DIR)/
 endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSNAIVE),y)
 	$(ROMFSINST) -p +x $(NAIVE_BIN) /usr/bin/naive
+else
+	cp -fp $(NAIVE_BIN) $(SSP_DIR)/
 endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSHYSTERIA2),y)
 	$(ROMFSINST) -p +x $(HYSTERIA2_BIN) /usr/bin/hysteria2
+else
+	cp -fp $(HYSTERIA2_BIN) $(SSP_DIR)/
 endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSVLESS),y)
 	$(ROMFSINST) -p +x $(XRAY_BIN) /usr/bin/xray
+else
+	cp -fp $(XRAY_BIN) $(SSP_DIR)/
 endif
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SSMIERU),y)
 	$(ROMFSINST) -p +x $(MIERU_BIN) /usr/bin/mieru
+else
+	cp -fp $(MIERU_BIN) $(SSP_DIR)/
+endif
 endif
 

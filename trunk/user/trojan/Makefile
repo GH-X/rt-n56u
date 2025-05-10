@@ -55,5 +55,10 @@ clean:
 	rm -f config_done
 
 romfs:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_TROJAN),y)
 	$(ROMFSINST) $(SRC_BIN) /usr/bin/trojan
+else
+	[ -d $(SSP_DIR) ] || mkdir -p $(SSP_DIR)
+	cp -fp $(SRC_BIN) $(SSP_DIR)/
+endif
 

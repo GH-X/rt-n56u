@@ -1,6 +1,7 @@
 KERNELZ		= $(IMAGEDIR)/zImage
 RAMDISK		= $(IMAGEDIR)/ramdisk
 IMAGE		= $(IMAGEDIR)/$(CONFIG_FIRMWARE_PRODUCT_ID)_$(FIRMWARE_KERNEL_VER).$(FIRMWARE_ROOTFS_VER)-$(FIRMWARE_BUILDS_VER)_$(FIRMWARE_BUILDS_REV).trx
+IMAGEPACK	= $(CONFIG_FIRMWARE_PRODUCT_ID)_$(FIRMWARE_KERNEL_VER).$(FIRMWARE_ROOTFS_VER)-$(FIRMWARE_BUILDS_VER)_$(FIRMWARE_BUILDS_REV).zip
 BOARD_DIR	= $(ROOTDIR)/configs/boards/$(CONFIG_FIRMWARE_PRODUCT_ID)
 ROMFS_DIR	= $(ROOTDIR)/romfs
 MKIMAGE_DIR	:= $(ROOTDIR)/tools/mkimage
@@ -182,5 +183,15 @@ else
 	KRN_SIZE=`expr $$ISIZE - $$RSIZE + 64` ; \
 	$(MKIMAGE_DIR)/mkimage -A mips -O linux -T kernel -C $(COMP) -a $(LOAD_ADDR) -e $$ENTRY -k $$KRN_SIZE \
 	-n $(CONFIG_FIRMWARE_PRODUCT_ID) -V $(FIRMWARE_KERNEL_VER) $(FIRMWARE_ROOTFS_VER) -d $(KERNELZ).$(COMP) $(IMAGE)
+endif
+	#===========================================
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
+	# Pack SSP's bin and firmware
+	@cd $(IMAGEDIR) && 7z a -mx=9 -tzip $(IMAGEPACK) $(IMAGE) $(SSP_DIR)
+	#===========================================
+else
+	# Pack firmware
+	@cd $(IMAGEDIR) && 7z a -mx=9 -tzip $(IMAGEPACK) $(IMAGE)
+	#===========================================
 endif
 
