@@ -7,14 +7,14 @@ SRC_SSR_NAME=shadowsocksr-libev-master
 ARCHIVE_SSR_NAME=shadowsocksr-libev-master-e2373d7
 #https://github.com/shadowsocksr-backup/shadowsocksr-libev.git
 
-MIERU_VER=3.14.1
+MIERU_VER=3.16.0
 MIERU_SRC=mieru-$(MIERU_VER)
 MIERU_DIR=./cmd/mieru/
 MIERU_BIN=$(THISDIR)/mieru
 MIERU_TAR=$(MIERU_SRC).tar.gz
 MIERU_URL=https://codeload.github.com/enfein/mieru/tar.gz/refs/tags/v$(MIERU_VER)
 
-NAIVE_VER=v136.0.7103.44-1
+NAIVE_VER=v137.0.7151.44-2
 NAIVE_SRC=naiveproxy-$(NAIVE_VER)-openwrt-mipsel_24kc-static
 NAIVE_BIN=$(THISDIR)/naive
 NAIVE_TAR=$(NAIVE_SRC).tar.xz
@@ -26,21 +26,21 @@ V2RAYPLUGIN_BIN=$(THISDIR)/ss-v2ray-plugin
 V2RAYPLUGIN_ZIP=$(V2RAYPLUGIN_SRC).zip
 V2RAYPLUGIN_URL=https://codeload.github.com/shadowsocks/v2ray-plugin/zip/refs/heads/master
 
-V2RAY_VER=5.30.0
+V2RAY_VER=5.33.0
 V2RAY_SRC=v2ray-core-$(V2RAY_VER)
 V2RAY_DIR=./main/
 V2RAY_BIN=$(THISDIR)/v2ray
 V2RAY_TAR=$(V2RAY_SRC).tar.gz
 V2RAY_URL=https://codeload.github.com/v2fly/v2ray-core/tar.gz/refs/tags/v$(V2RAY_VER)
 
-XRAY_VER=25.4.30
+XRAY_VER=25.6.8
 XRAY_SRC=Xray-core-$(XRAY_VER)
 XRAY_DIR=./main/
 XRAY_BIN=$(THISDIR)/xray
 XRAY_TAR=$(XRAY_SRC).tar.gz
 XRAY_URL=https://codeload.github.com/XTLS/Xray-core/tar.gz/refs/tags/v$(XRAY_VER)
 
-HYSTERIA2_VER=v2.6.1
+HYSTERIA2_VER=v2.6.2
 HYSTERIA2_SRC=hysteria-app-$(HYSTERIA2_VER)
 HYSTERIA2_DIR=./app/
 HYSTERIA2_BIN=$(THISDIR)/hysteria2

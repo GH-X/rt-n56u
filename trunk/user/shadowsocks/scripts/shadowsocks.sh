@@ -193,6 +193,7 @@ fi
 cat > "$aiderstart" << EOF
 #!/bin/sh
 
+ulimit -n $nofile
 smartdns -c $smartdns_conf
 EOF
 }

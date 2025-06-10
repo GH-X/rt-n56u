@@ -16,7 +16,7 @@ CFLAGS    = -Wall -O2
 LDFLAGS   =
 
 THISDIR = $(shell pwd)
-GO_TAR  = go1.24.0.linux-amd64.tar.gz
+GO_TAR  = go1.24.4.linux-amd64.tar.gz
 GO_URL  = https://dl.google.com/go/$(GO_TAR)
 GO_DIR  = go
 
