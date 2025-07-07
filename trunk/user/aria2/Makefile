@@ -1,8 +1,9 @@
 SRC_NAME=aria2-1.37.0
 SRC_URL=https://github.com/aria2/aria2/releases/download/release-1.37.0/aria2-1.37.0.tar.xz
 
-SRC_ARIA_NG_NAME=AriaNg-1.3.7-AllInOne
-SRC_ARIA_NG_URL=https://github.com/mayswind/AriaNg/releases/download/1.3.7/AriaNg-1.3.7-AllInOne.zip
+SRC_ARIA_NG_VER=1.3.10
+SRC_ARIA_NG_NAME=AriaNg-$(SRC_ARIA_NG_VER)-AllInOne
+SRC_ARIA_NG_URL=https://github.com/mayswind/AriaNg/releases/download/$(SRC_ARIA_NG_VER)/$(SRC_ARIA_NG_NAME).zip
 
 CFLAGS  += -ffunction-sections -fdata-sections
 CXXFLAGS += -ffunction-sections -fdata-sections
