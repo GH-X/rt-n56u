@@ -611,6 +611,7 @@ EOF
 	done
 	if $(cat "$user_dnsmasq_conf" | grep -q "^### gfwlist related resolve") ; then
 		sed -i 's/^no-resolv/#no-resolv/g' $user_dnsmasq_conf
+		sed -i 's/^server=127.0.0.1#/#server=127.0.0.1#/g' $user_dnsmasq_conf
 		sed -i 's/^server=127.0.0.1~/#server=127.0.0.1~/g' $user_dnsmasq_conf
 		sed -i 's/^min-cache-ttl=/#min-cache-ttl=/g' $user_dnsmasq_conf
 		sed -i 's/^max-cache-ttl=/#max-cache-ttl=/g' $user_dnsmasq_conf
@@ -652,9 +653,6 @@ dhcp-option=252,"\n"
 ### Keep DHCP host name valid at any times
 #dhcp-to-host
 
-### Always perform DNS queries to all servers
-all-servers
-
 EOF
 	if [ -f /usr/bin/vlmcsd ]; then
 		cat >> "$user_dnsmasq_conf" <<EOF
@@ -668,6 +666,8 @@ EOF
 		cat >> "$user_dnsmasq_conf" <<EOF
 ### gfwlist related resolve
 #no-resolv
+all-servers
+#server=127.0.0.1#60
 #server=127.0.0.1~60
 #min-cache-ttl=3600
 #max-cache-ttl=86400

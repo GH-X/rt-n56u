@@ -188,7 +188,8 @@ function change_server_type(){
 			document.form.ss_method_x_0.value = "xtls-rprx-vision";
 		}
 		if((pl != "raw_tls")
-		&& (pl != "raw_reality")){
+		&& (pl != "raw_reality")
+		&& (pl != "xhttp_reality")){
 			document.form.ss_protocol_x_0.value = "raw_tls";
 		}
 		if((os != "chrome")
@@ -266,18 +267,17 @@ function change_server_type(){
 	showhide_div('row_57_p_o_udp', ((st == 5) || (st == 7)));
 	showhide_div('row_6_p_o_rawtls', (st == 6));
 	showhide_div('row_6_p_o_rawreality', (st == 6));
+	showhide_div('row_6_p_o_xhttpreality', (st == 6));
 	showhide_div('row_17_pnote', ((st == 1) || (st == 7)));
 	showhide_div('row_36_pnote', ((st == 3) || (st == 6)));
 	showhide_div('row_4_pnote', (st == 4));
 	showhide_div('row_5_pnote', (st == 5)); //pl ss_protocol end
-	showhide_div('row_1367_pp', ((st == 1) || (st == 3) || ((st == 6) && (pl == "raw_reality")) || (st == 7))); //ss_proto_param start
+	showhide_div('row_1367_pp', ((st == 1) || (st == 3) || ((st == 6) && (pl == "xhttp_reality")) || (st == 7))); //ss_proto_param start
 	showhide_div('row_1_ppmenu', (st == 1));
-	showhide_div('row_3_ppmenu', (st == 3));
-	showhide_div('row_6_ppmenu', (st == 6));
+	showhide_div('row_36_ppmenu', ((st == 3) || ((st == 6) && (pl == "xhttp_reality"))));
 	showhide_div('row_7_ppmenu', (st == 7));
 	showhide_div('row_1_ppnote', (st == 1));
-	showhide_div('row_3_ppnote', (st == 3));
-	showhide_div('row_6_ppnote', (st == 6));
+	showhide_div('row_36_ppnote', ((st == 3) || ((st == 6) && (pl == "xhttp_reality"))));
 	showhide_div('row_7_ppnote', (st == 7)); //ss_proto_param end
 	showhide_div('row_01356_o', ((st != 2) && (st != 4) && (st != 7))); //os ss_obfs start
 	showhide_div('row_0_omenu', (st == 0));
@@ -312,17 +312,17 @@ function change_server_type(){
 	showhide_div('row_15_onote', ((st == 1) || (st == 5)));
 	showhide_div('row_3_onote', (st == 3));
 	showhide_div('row_6_onote', (st == 6)); //os ss_obfs end
-	showhide_div('row_01356_op', (((st == 0) && (os != "none")) || (st == 1) || (st == 3) || ((st == 5) && (os == "salamander")) || ((st == 6) && (pl == "raw_reality")))); //ss_obfs_param start
+	showhide_div('row_01356_op', (((st == 0) && (os != "none")) || (st == 1) || (st == 3) || ((st == 5) && (os == "salamander")) || ((st == 6) && (pl != "raw_tls")))); //ss_obfs_param start
 	showhide_div('row_0_opmenu', ((st == 0) && (os != "none")));
 	showhide_div('row_1_opmenu', (st == 1));
 	showhide_div('row_3_opmenu', (st == 3));
 	showhide_div('row_5s_opmenu', ((st == 5) && (os == "salamander")));
-	showhide_div('row_6_opmenu', (st == 6));
+	showhide_div('row_6_opmenu', ((st == 6) && (pl != "raw_tls")));
 	showhide_div('row_0_opnote', ((st == 0) && (os != "none")));
 	showhide_div('row_1_opnote', (st == 1));
 	showhide_div('row_3_opnote', (st == 3));
 	showhide_div('row_5s_opnote', ((st == 5) && (os == "salamander")));
-	showhide_div('row_6_opnote', (st == 6)); //ss_obfs_param end
+	showhide_div('row_6_opnote', ((st == 6) && (pl != "raw_tls"))); //ss_obfs_param end
 	showhide_div('row_23567_sni', ((st == 2) || ((st == 3) && ((pl == "ws_tls") || (pl == "tcp_tls"))) || (st == 5) || (st == 6) || (st == 7))); //server_sni start
 	showhide_div('row_25_sninote', ((st == 2) || (st == 5)));
 	showhide_div('row_36_sninote', (((st == 3) && ((pl == "ws_tls") || (pl == "tcp_tls"))) || (st == 6)));
@@ -571,6 +571,7 @@ function showMRULESList(){
                                                     <option id="row_57_p_o_udp" style="display:none;" value="udp" <% nvram_match_x("","ss_protocol_x_0", "udp","selected"); %>>udp</option> <!--hysteria2-->
                                                     <option id="row_6_p_o_rawtls" style="display:none;" value="raw_tls" <% nvram_match_x("","ss_protocol_x_0", "raw_tls","selected"); %>>raw+tls</option> <!--vless-->
                                                     <option id="row_6_p_o_rawreality" style="display:none;" value="raw_reality" <% nvram_match_x("","ss_protocol_x_0", "raw_reality","selected"); %>>raw+reality</option> <!--vless-->
+                                                    <option id="row_6_p_o_xhttpreality" style="display:none;" value="xhttp_reality" <% nvram_match_x("","ss_protocol_x_0", "xhttp_reality","selected"); %>>xhttp+reality</option> <!--vless-->
                                                 </select>
                                             </td>
                                             <td width="22%" id="row_17_pnote" style="display:none;">..protocol</td>
@@ -581,15 +582,13 @@ function showMRULESList(){
 
                                         <tr id="row_1367_pp" style="display:none;">
                                             <th width="22%" id="row_1_ppmenu" style="display:none;"><#menu5_16_ProtocolParam#></th>
-                                            <th width="22%" id="row_3_ppmenu" style="display:none;"><#menu5_16_ProtocolPath#></th>
-                                            <th width="22%" id="row_6_ppmenu" style="display:none;"><#menu5_16_ShortId#></th>
+                                            <th width="22%" id="row_36_ppmenu" style="display:none;"><#menu5_16_ProtocolPath#></th>
                                             <th width="22%" id="row_7_ppmenu" style="display:none;"><#menu5_16_UserName#></th>
                                             <td>
                                                 <input type="text" maxlength="64" class="input" size="64" name="ss_proto_param_x_0" style="width: 333px" value="<% nvram_get_x("","ss_proto_param_x_0"); %>">
                                             </td>
                                             <td width="22%" id="row_1_ppnote" style="display:none;">..protocol_param</td>
-                                            <td width="22%" id="row_3_ppnote" style="display:none;">..path</td>
-                                            <td width="22%" id="row_6_ppnote" style="display:none;">..shortId</td>
+                                            <td width="22%" id="row_36_ppnote" style="display:none;">..path</td>
                                             <td width="22%" id="row_7_ppnote" style="display:none;">..name</td>
                                         </tr>
 

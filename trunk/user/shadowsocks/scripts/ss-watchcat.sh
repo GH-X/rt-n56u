@@ -18,6 +18,7 @@ timeslimit=$(expr $tl_timeout \* 3)
 autorec=$(nvram get ss_watchcat_autorec)
 extbpid=$(expr 100000 + $$)
 logmark=${extbpid:1}
+lognode="2"
 
 loger(){
 	sed -i '1i\'$(date "+%Y-%m-%d_%H:%M:%S")'_'$logmark''$1'' $ssp_log_file
@@ -46,13 +47,14 @@ infor(){
 }
 
 score(){
+	[ "$lognode" != "0" ] || return 0
 	infor=$(infor) && [ "$infor" != "snum──type──addr:port──time" ] || return 0
 	infornode=$(echo "$infor" | awk -F── 'BEGIN{OFS="──"}{print $1,$2,$3}')
 	infortime=$(echo "$infor" | awk -F── '{print $4}')
 	if $(grep -q "$infornode" $scoresfile); then
 		scoretime=$(grep "$infornode" $scoresfile | awk -F── '{print $4}')
 		[ "$infortime" == "" ] && infortime="$scoretime" && count link_times +- $infortime
-		[ $scoretime -ge $infortime ] && lognode="1" || lognode="0"
+		[ $scoretime -ge $infortime ] && lognode="1"
 		sed -i '/^'$infornode'/d' $scoresfile
 	else
 		lognode="1"
@@ -67,13 +69,18 @@ score(){
 		node_addr=$(echo "$line" | awk -F── '{print $3}' | awk -F: '{print $1}')
 		node_port=$(echo "$line" | awk -F── '{print $3}' | awk -F: '{print $2}')
 		node_time=$(echo "$line" | awk -F── '{print $4}')
-		loger "├────连接时长:$node_time"
-		loger "├────节点端口:$node_port"
-		loger "├────节点地址:$node_addr"
-		loger "├────节点类型:$node_type"
-		[ "$scorenode" == "$infornode" ] && \
-		loger "├──当前节点:$node_snum" || loger "├──历史节点:$node_snum"
-	done < $scoresfile
+		if [ "$node_snum" == "" ] || [ "$node_type" == "" ] || [ "$node_addr" == "" ] || \
+		   [ "$node_port" == "" ] || [ "$node_time" == "" ]; then
+			sed -i '/'$line'/d' $scoresfile
+		else
+			loger "├────连接时长:$node_time"
+			loger "├────节点端口:$node_port"
+			loger "├────节点地址:$node_addr"
+			loger "├────节点类型:$node_type"
+			[ "$scorenode" == "$infornode" ] && \
+			loger "├──当前节点:$node_snum" || loger "├──历史节点:$node_snum"
+		fi
+	done < $scoresfile && lognode="0"
 }
 
 godet(){

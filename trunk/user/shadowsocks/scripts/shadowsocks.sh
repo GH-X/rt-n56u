@@ -65,6 +65,10 @@ dnsgfwdp="$CONF_DIR/gfwlist_domain.txt"
 dnsgfwdm="$CONF_DIR/gfwlist_domain.md5"
 dnslistc="$CONF_DIR/gfwlist/dnsmasq.conf"
 dnsmasqc="$ETCS_DIR/dnsmasq/dnsmasq.conf"
+dns_chnl="114.114.114.114 114.114.115.115
+          223.5.5.5       223.6.6.6
+          119.28.28.28    119.29.29.29
+          180.184.1.1     180.184.2.2"
 
 [ "$ssp_type" == "0" ] && bin_type="SS"
 [ "$ssp_type" == "1" ] && bin_type="SSR"
@@ -176,15 +180,20 @@ aid_dns()
 cat > "$smartdns_conf" << EOF
 log-num 2
 log-syslog yes
-speed-check-mode tcp:443,tcp:80,ping
-response-mode fastest-ip
+speed-check-mode ping
+response-mode first-ping
+force-AAAA-SOA yes
 dualstack-ip-selection no
 ca-file $ETCS_DIR/cacerts/cacert.pem
+bind $LoopBackAddr:$dns_local_port
 bind-tcp $LoopBackAddr:$dns_local_port
-server-tcp $dns_remote
+server-tcp $dns_remote -exclude-default-group -group fallback
 EOF
 for resolvdns in $(awk '{print $2}' /etc/resolv.conf | grep -v "$LoopBackAddr"); do
   echo "server $resolvdns:53" >> $smartdns_conf
+done
+for chndns in $dns_chnl; do
+  echo "server $chndns:53" >> $smartdns_conf
 done
 if [ "$ss_mode" != "0" ]; then
   echo "ipset chnlist" >> $smartdns_conf
@@ -203,6 +212,7 @@ del_dns_conf()
 logger -st "SSP[$$]$bin_type" "清除解析规则"
 sed -i 's/^### gfwlist related.*/### gfwlist related resolve/g' $dnsmasqc
 sed -i 's/^no-resolv/#no-resolv/g' $dnsmasqc
+sed -i 's/^server='$LoopBackAddr'#.*/#server='$LoopBackAddr'#'$dns_local_port'/g' $dnsmasqc
 sed -i 's/^server='$LoopBackAddr'~.*/#server='$LoopBackAddr'~'$dns_local_port'/g' $dnsmasqc
 sed -i 's/^min-cache-ttl=/#min-cache-ttl=/g' $dnsmasqc
 sed -i 's/^max-cache-ttl=/#max-cache-ttl=/g' $dnsmasqc
@@ -234,6 +244,8 @@ for addgfw in $(nvram get ss_custom_gfwlist | sed 's/,/ /g'); do
 done
 sed -i 's/^### gfwlist related.*/### gfwlist related resolve by '$1' '$2'/g' $dnsmasqc
 [ "$aid_dns" == "1" ] && sed -i 's/^#no-resolv/no-resolv/g' $dnsmasqc
+[ "$aid_dns" == "1" ] && sed -i 's/^#all-servers/all-servers/g' $dnsmasqc
+[ "$aid_dns" == "1" ] && sed -i 's/^#server='$LoopBackAddr'#.*/server='$LoopBackAddr'#'$dns_local_port'/g' $dnsmasqc
 [ "$aid_dns" == "1" ] && sed -i 's/^#server='$LoopBackAddr'~.*/server='$LoopBackAddr'~'$dns_local_port'/g' $dnsmasqc
 sed -i 's/^#min-cache-ttl=/min-cache-ttl=/g' $dnsmasqc
 sed -i 's/^#max-cache-ttl=/max-cache-ttl=/g' $dnsmasqc
@@ -551,6 +563,13 @@ listen = "0.0.0.0:$ss_local_port"
 
 EOF
     elif [ "$server_type" == "VLESS" ]; then
+      if $(echo "$server_key" | grep -q ","); then
+        server_uid=$(echo "$server_key" | awk -F, '{print $1}')
+        server_sid=$(echo "$server_key" | awk -F, '{print $2}')
+      else
+        server_uid="$server_key"
+        server_sid=""
+      fi
       [ "$ss_method" != "empty" ] || ss_method=""
       [ "$ss_obfs" != "empty" ] || ss_obfs=""
       l_json_file="$i-$server_type-local.json"
@@ -599,7 +618,7 @@ EOF
             "port": $server_port,
             "users": [
               {
-                "id": "$server_key",
+                "id": "$server_uid",
                 "encryption": "none",
                 "flow": "$ss_method"
               }
@@ -630,8 +649,26 @@ EOF
           "show": false,
           "serverName": "$server_sni",
           "fingerprint": "$ss_obfs",
-          "shortId": "$ss_proto_param",
           "publicKey": "$ss_obfs_param",
+          "shortId": "$server_sid",
+          "spiderX": ""
+        }
+      },
+EOF
+      elif [ "$ss_protocol" == "xhttp_reality" ]; then
+        cat >> "$CONF_DIR/$l_json_file" << EOF
+      "streamSettings": {
+        "network": "xhttp",
+        "security": "reality",
+        "xhttpSettings": {
+          "path": "$ss_proto_param"
+        },
+        "realitySettings": {
+          "show": false,
+          "serverName": "$server_sni",
+          "fingerprint": "$ss_obfs",
+          "publicKey": "$ss_obfs_param",
+          "shortId": "$server_sid",
           "spiderX": ""
         }
       },
@@ -639,8 +676,8 @@ EOF
       fi
       cat >> "$CONF_DIR/$l_json_file" << EOF
       "mux": {
-        "enabled": true,
-        "concurrency": 1
+        "enabled": false,
+        "concurrency": -1
       }
     }
   ]
