@@ -577,11 +577,11 @@ audible.com
 createspace.com
 awstrust.com
 acmvalidations.com
-acmvalidationsaws.com
 aesworkshops.com
 amplifyapp.com
 amplifyframework.com
 aws-iot-hackathon.com
+aws.com
 awsautopilot.com
 awsautoscaling.com
 awsbraket.com
@@ -603,6 +603,9 @@ cloudfront.net
 containersonaws.com
 elasticbeanstalk.com
 thinkboxsoftware.com
+amzndns.com
+amzndns.net
+amzndns.org
 boxofficemojo.com
 imdb.com
 imdb.to
@@ -625,6 +628,7 @@ spoti.fi
 dailymotion.com
 dm-event.net
 dmcdn.net
+threads.com
 threads.net
 atom.io
 dependabot.com
@@ -703,7 +707,6 @@ sis001.com
 sis001.us
 t66y.com
 :^chatgpt-async-webps-prod-\S+-\d+\.webpubsub\.azure\.com$:
-:.+\.amzndns\.(co\.uk|com|net|org)$:
 :.+\.awsdns-[0-9][0-9]\.(co\.uk|com|net|org)$:
 :^[0-9]+vod-adaptive\.akamaized\.net$:
 :.*google.*:

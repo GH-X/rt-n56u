@@ -7,18 +7,42 @@ SRC_SSR_NAME=shadowsocksr-libev-master
 ARCHIVE_SSR_NAME=shadowsocksr-libev-master-e2373d7
 #https://github.com/shadowsocksr-backup/shadowsocksr-libev.git
 
-MIERU_VER=3.17.1
+SRC_IPT_NAME=ipt2socks-1.1.3
+SRC_SDNS_NAME=smartdns-Release46.1
+
+MIERU_VER=3.20.0
 MIERU_SRC=mieru-$(MIERU_VER)
 MIERU_DIR=./cmd/mieru/
 MIERU_BIN=$(THISDIR)/mieru
 MIERU_TAR=$(MIERU_SRC).tar.gz
 MIERU_URL=https://codeload.github.com/enfein/mieru/tar.gz/refs/tags/v$(MIERU_VER)
 
-NAIVE_VER=v139.0.7258.62-1
+XRAY_VER=25.9.11
+XRAY_SRC=Xray-core-$(XRAY_VER)
+XRAY_DIR=./main/
+XRAY_BIN=$(THISDIR)/xray
+XRAY_TAR=$(XRAY_SRC).tar.gz
+XRAY_URL=https://codeload.github.com/XTLS/Xray-core/tar.gz/refs/tags/v$(XRAY_VER)
+
+HYSTERIA2_VER=v2.6.3
+HYSTERIA2_SRC=hysteria-app-$(HYSTERIA2_VER)
+HYSTERIA2_DIR=./app/
+HYSTERIA2_BIN=$(THISDIR)/hysteria2
+HYSTERIA2_TAR=$(HYSTERIA2_SRC).tar.gz
+HYSTERIA2_URL=https://codeload.github.com/apernet/hysteria/tar.gz/refs/tags/app/$(HYSTERIA2_VER)
+
+NAIVE_VER=v140.0.7339.123-1
 NAIVE_SRC=naiveproxy-$(NAIVE_VER)-openwrt-mipsel_24kc-static
 NAIVE_BIN=$(THISDIR)/naive
 NAIVE_TAR=$(NAIVE_SRC).tar.xz
 NAIVE_URL=https://github.com/klzgrad/naiveproxy/releases/download/$(NAIVE_VER)/$(NAIVE_TAR)
+
+V2RAY_VER=5.39.0
+V2RAY_SRC=v2ray-core-$(V2RAY_VER)
+V2RAY_DIR=./main/
+V2RAY_BIN=$(THISDIR)/v2ray
+V2RAY_TAR=$(V2RAY_SRC).tar.gz
+V2RAY_URL=https://codeload.github.com/v2fly/v2ray-core/tar.gz/refs/tags/v$(V2RAY_VER)
 
 V2RAYPLUGIN_SRC=v2ray-plugin-master
 V2RAYPLUGIN_DIR=./
@@ -26,95 +50,56 @@ V2RAYPLUGIN_BIN=$(THISDIR)/ss-v2ray-plugin
 V2RAYPLUGIN_ZIP=$(V2RAYPLUGIN_SRC).zip
 V2RAYPLUGIN_URL=https://codeload.github.com/shadowsocks/v2ray-plugin/zip/refs/heads/master
 
-V2RAY_VER=5.38.0
-V2RAY_SRC=v2ray-core-$(V2RAY_VER)
-V2RAY_DIR=./main/
-V2RAY_BIN=$(THISDIR)/v2ray
-V2RAY_TAR=$(V2RAY_SRC).tar.gz
-V2RAY_URL=https://codeload.github.com/v2fly/v2ray-core/tar.gz/refs/tags/v$(V2RAY_VER)
-
-XRAY_VER=25.8.3
-XRAY_SRC=Xray-core-$(XRAY_VER)
-XRAY_DIR=./main/
-XRAY_BIN=$(THISDIR)/xray
-XRAY_TAR=$(XRAY_SRC).tar.gz
-XRAY_URL=https://codeload.github.com/XTLS/Xray-core/tar.gz/refs/tags/v$(XRAY_VER)
-
-HYSTERIA2_VER=v2.6.2
-HYSTERIA2_SRC=hysteria-app-$(HYSTERIA2_VER)
-HYSTERIA2_DIR=./app/
-HYSTERIA2_BIN=$(THISDIR)/hysteria2
-HYSTERIA2_TAR=$(HYSTERIA2_SRC).tar.gz
-HYSTERIA2_URL=https://codeload.github.com/apernet/hysteria/tar.gz/refs/tags/app/$(HYSTERIA2_VER)
-
-SRC_IPT_NAME=ipt2socks-1.1.3
-SRC_SDNS_NAME=smartdns-Release46.1
-
 CACERT_NAME=cacert.pem
-CACERT_PURL=https://curl.se/ca
-CACERT_URL=$(CACERT_PURL)/$(CACERT_NAME)
+CACERT_URL=https://curl.se/ca/$(CACERT_NAME)
 CACERT_DIR=cacerts
 
 CHNROUTE_DIR=chnroute
 CHNROUTE_URL=http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest
 
-CHNLIST_NAME=chnlist_domain.txt
-CHNLIST_URL=https://raw.githubusercontent.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf
-CHNLIST_DIR=chnlist
-
-GFWLIST_NAME=gfwlist_domain.txt
-GFWLIST_PURL=https://cokebar.github.io/gfwlist2dnsmasq
-GFWLIST_URL=$(GFWLIST_PURL)/$(GFWLIST_NAME)
-GFWLIST_DIR=gfwlist
+DOMAINLIST_DIR=domain-list-community-master
+DOMAINLIST_ZIP=domain-list-community-master.zip
+DOMAINLIST_URL=https://codeload.github.com/v2fly/domain-list-community/zip/refs/heads/master
 
 all: download_test extract_test config_test build_test
 
-download_test: mieru_dl naive_dl v2rayplugin_dl v2ray_dl xray_dl hysteria2_dl cacert_dl chnroute_dl chnlist_dl gfwlist_dl
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
+download_test: mieru_dl xray_dl hysteria2_dl naive_dl v2ray_dl v2rayplugin_dl cacert_dl chnroute_dl domainlist_dl
+else
+download_test:
+endif
 
 mieru_dl:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -e $(MIERU_TAR) ]; then \
 		wget -t8 -4 --timeout=8 -O $(MIERU_TAR) $(MIERU_URL); \
 	fi )
-endif
-
-naive_dl:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-	( if [ ! -e $(NAIVE_TAR) ]; then \
-		wget -t8 -4 --timeout=8 -O $(NAIVE_TAR) $(NAIVE_URL); \
-	fi )
-endif
-
-v2rayplugin_dl:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-	( if [ ! -e $(V2RAYPLUGIN_ZIP) ]; then \
-		wget -t8 -4 --timeout=8 -O $(V2RAYPLUGIN_ZIP) $(V2RAYPLUGIN_URL); \
-	fi )
-endif
-
-v2ray_dl:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-	( if [ ! -e $(V2RAY_TAR) ]; then \
-		wget -t8 -4 --timeout=8 -O $(V2RAY_TAR) $(V2RAY_URL); \
-	fi )
-endif
 
 xray_dl:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -e $(XRAY_TAR) ]; then \
 		wget -t8 -4 --timeout=8 -O $(XRAY_TAR) $(XRAY_URL); \
 	fi )
-endif
 
 hysteria2_dl:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -e $(HYSTERIA2_TAR) ]; then \
 		wget -t8 -4 --timeout=8 -O $(HYSTERIA2_TAR) $(HYSTERIA2_URL); \
 	fi )
-endif
+
+naive_dl:
+	( if [ ! -e $(NAIVE_TAR) ]; then \
+		wget -t8 -4 --timeout=8 -O $(NAIVE_TAR) $(NAIVE_URL); \
+	fi )
+
+v2ray_dl:
+	( if [ ! -e $(V2RAY_TAR) ]; then \
+		wget -t8 -4 --timeout=8 -O $(V2RAY_TAR) $(V2RAY_URL); \
+	fi )
+
+v2rayplugin_dl:
+	( if [ ! -e $(V2RAYPLUGIN_ZIP) ]; then \
+		wget -t8 -4 --timeout=8 -O $(V2RAYPLUGIN_ZIP) $(V2RAYPLUGIN_URL); \
+	fi )
 
 cacert_dl:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -d $(CACERT_DIR) ]; then \
 		mkdir -p $(CACERT_DIR) && cd $(CACERT_DIR) && \
 		wget -t8 -4 --timeout=8 $(CACERT_URL) && \
@@ -122,56 +107,42 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	else \
 		cd $(CACERT_DIR) && tar jcf cacerts.bz2 $(CACERT_NAME); \
 	fi )
-endif
 
 chnroute_dl:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-	( if [ ! -d $(CHNROUTE_DIR) ];then \
+	( if [ ! -d $(CHNROUTE_DIR) ]; then \
 		mkdir -p $(CHNROUTE_DIR) && cd $(CHNROUTE_DIR) && \
 		wget -t8 -4 --timeout=20 --no-check-certificate -U Mozilla -O route.txt.tmp '$(CHNROUTE_URL)' && sed -i '/\*/d' route.txt.tmp && \
 		awk -F\| '/CN\|ipv4/ { printf("%s/%d\n", $$4, 32-log($$5)/log(2)) }' < route.txt.tmp > chnroute.txt && \
 		rm -f route.txt.tmp && tar jcf chnroute.bz2 chnroute.txt ; \
 	fi )
-endif
 
-chnlist_dl:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-	( if [ ! -d $(CHNLIST_DIR) ];then \
-		mkdir -p $(CHNLIST_DIR) && cd $(CHNLIST_DIR) && \
-		wget -t8 -4 --timeout=8 -O chnlist.txt.tmp '$(CHNLIST_URL)' && \
-		awk -F/ '{print $2}' < chnlist.txt.tmp > $(CHNLIST_NAME) && \
-		rm -f chnlist.txt.tmp && tar jcf chnlist.bz2 $(CHNLIST_NAME) ; \
-	else \
-		cd $(CHNLIST_DIR) && tar jcf chnlist.bz2 $(CHNLIST_NAME); \
+domainlist_dl:
+	( if [ ! -e $(DOMAINLIST_ZIP) ]; then \
+		wget -t8 -4 --timeout=8 -O $(DOMAINLIST_ZIP) $(DOMAINLIST_URL); \
 	fi )
-endif
-
-gfwlist_dl:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-	( if [ ! -d $(GFWLIST_DIR) ]; then \
-		mkdir -p $(GFWLIST_DIR) && cd $(GFWLIST_DIR) && \
-		wget -t8 -4 --timeout=8 $(GFWLIST_URL) && \
-		tar jcf gfwlist.bz2 $(GFWLIST_NAME); \
-	else \
-		cd $(GFWLIST_DIR) && tar jcf gfwlist.bz2 $(GFWLIST_NAME); \
-	fi )
-endif
 
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-extract_test: extract_mieru extract_naive extract_v2rayplugin extract_v2ray extract_xray extract_hysteria2 extract_ipt_test extract_sdns_test extract_ssr_test extract_ss_test
+extract_test: extract_mieru extract_xray extract_hysteria2 extract_naive extract_v2rayplugin extract_v2ray extract_domainlist extract_sdns extract_ipt extract_ssr extract_ss
 else
-extract_test: extract_ss_test
+extract_test: extract_ss
 endif
 
 extract_mieru:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -d $(MIERU_SRC) ]; then \
 		tar -xf $(MIERU_TAR); \
 	fi )
-endif
+
+extract_xray:
+	( if [ ! -d $(XRAY_SRC) ]; then \
+		tar -xf $(XRAY_TAR); \
+	fi )
+
+extract_hysteria2:
+	( if [ ! -d $(HYSTERIA2_SRC) ]; then \
+		tar -xf $(HYSTERIA2_TAR); \
+	fi )
 
 extract_naive:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -d $(NAIVE_SRC) ]; then \
 		tar -xf $(NAIVE_TAR); \
 	fi )
@@ -185,52 +156,38 @@ else
 		mv -f $(NAIVE_SRC)/naive $(NAIVE_BIN); \
 	fi )
 endif
-endif
-
-extract_v2rayplugin:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-	( if [ ! -d $(V2RAYPLUGIN_SRC) ]; then \
-		unzip -qq $(V2RAYPLUGIN_ZIP); \
-	fi )
-endif
 
 extract_v2ray:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	( if [ ! -d $(V2RAY_SRC) ]; then \
 		tar -xf $(V2RAY_TAR); \
 	fi )
-endif
 
-extract_xray:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-	( if [ ! -d $(XRAY_SRC) ]; then \
-		tar -xf $(XRAY_TAR); \
-	fi )
-endif
-
-extract_hysteria2:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-	( if [ ! -d $(HYSTERIA2_SRC) ]; then \
-		tar -xf $(HYSTERIA2_TAR); \
-	fi )
-endif
-
-extract_ipt_test:
-	( if [ ! -d $(SRC_IPT_NAME) ]; then \
-		tar -xf $(SRC_IPT_NAME).tar.gz; \
+extract_v2rayplugin:
+	( if [ ! -d $(V2RAYPLUGIN_SRC) ]; then \
+		unzip -qq $(V2RAYPLUGIN_ZIP); \
 	fi )
 
-extract_sdns_test:
+extract_domainlist:
+	( if [ ! -d $(DOMAINLIST_DIR) ]; then \
+		unzip -qq $(DOMAINLIST_ZIP); \
+	fi )
+
+extract_sdns:
 	( if [ ! -d $(SRC_SDNS_NAME) ]; then \
 		tar -xf $(SRC_SDNS_NAME).tar.gz; \
 	fi )
 
-extract_ssr_test:
+extract_ipt:
+	( if [ ! -d $(SRC_IPT_NAME) ]; then \
+		tar -xf $(SRC_IPT_NAME).tar.gz; \
+	fi )
+
+extract_ssr:
 	( if [ ! -d $(SRC_SSR_NAME) ]; then \
 		unzip -qq $(ARCHIVE_SSR_NAME).zip; \
 	fi )
 
-extract_ss_test:
+extract_ss:
 	( if [ ! -d $(SRC_SS_NAME) ]; then \
 		tar -xf $(SRC_SS_NAME).tar.gz; \
 	fi )
@@ -299,7 +256,7 @@ config_sdns:
 
 configure_sdns:
 
-build_test: build_go
+build_test: build_domainlist build_go
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 	$(MAKE) -j$(HOST_NCPU) -C $(SRC_SSR_NAME)
 	$(MAKE) -j$(HOST_NCPU) -C $(SRC_IPT_NAME) CC="$(CC)"
@@ -307,10 +264,29 @@ ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 endif
 	$(MAKE) -j$(HOST_NCPU) -C $(SRC_SS_NAME)
 
-build_go: build_mieru build_v2rayplugin build_v2ray build_xray build_hysteria2
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
+build_domainlist: build_gfwlist build_chnlist
+else
+build_domainlist:
+endif
+
+build_gfwlist:
+	( if [ ! -e gfwlist/gfwlist.bz2 ]; then \
+		getgfw.sh && cd gfwlist && tar jcf gfwlist.bz2 gfwlist_domain.txt; \
+	fi )
+
+build_chnlist:
+	( if [ ! -e chnlist/chnlist.bz2 ]; then \
+		getchn.sh && cd chnlist && tar jcf chnlist.bz2 chnlist_domain.txt; \
+	fi )
+
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
+build_go: build_mieru build_xray build_hysteria2 build_v2ray build_v2rayplugin
+else
+build_go:
+endif
 
 build_mieru:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(MIERU_BIN) ]; then \
 		cd $(MIERU_SRC) && \
@@ -323,42 +299,8 @@ else
 		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(MIERU_BIN) $(MIERU_DIR); \
 	fi )
 endif
-endif
-
-build_v2rayplugin:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
-	( if [ ! -e $(V2RAYPLUGIN_BIN) ]; then \
-		cd $(V2RAYPLUGIN_SRC) && \
-		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(V2RAYPLUGIN_BIN) $(V2RAYPLUGIN_DIR) && \
-		chmod +x $(V2RAYPLUGIN_BIN) && upx-4.2.4 --best --lzma $(V2RAYPLUGIN_BIN); \
-	fi )
-else
-	( if [ ! -e $(V2RAYPLUGIN_BIN) ]; then \
-		cd $(V2RAYPLUGIN_SRC) && \
-		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(V2RAYPLUGIN_BIN) $(V2RAYPLUGIN_DIR); \
-	fi )
-endif
-endif
-
-build_v2ray:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
-	( if [ ! -e $(V2RAY_BIN) ]; then \
-		cd $(V2RAY_SRC) && \
-		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(V2RAY_BIN) $(V2RAY_DIR) && \
-		chmod +x $(V2RAY_BIN) && upx-4.2.4 --best --lzma $(V2RAY_BIN); \
-	fi )
-else
-	( if [ ! -e $(V2RAY_BIN) ]; then \
-		cd $(V2RAY_SRC) && \
-		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(V2RAY_BIN) $(V2RAY_DIR); \
-	fi )
-endif
-endif
 
 build_xray:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(XRAY_BIN) ]; then \
 		cd $(XRAY_SRC) && \
@@ -371,10 +313,8 @@ else
 		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(XRAY_BIN) $(XRAY_DIR); \
 	fi )
 endif
-endif
 
 build_hysteria2:
-ifeq ($(CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS),y)
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
 	( if [ ! -e $(HYSTERIA2_BIN) ]; then \
 		cd $(HYSTERIA2_SRC) && \
@@ -387,12 +327,42 @@ else
 		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(HYSTERIA2_BIN) $(HYSTERIA2_DIR); \
 	fi )
 endif
+
+build_v2ray:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
+	( if [ ! -e $(V2RAY_BIN) ]; then \
+		cd $(V2RAY_SRC) && \
+		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(V2RAY_BIN) $(V2RAY_DIR) && \
+		chmod +x $(V2RAY_BIN) && upx-4.2.4 --best --lzma $(V2RAY_BIN); \
+	fi )
+else
+	( if [ ! -e $(V2RAY_BIN) ]; then \
+		cd $(V2RAY_SRC) && \
+		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(V2RAY_BIN) $(V2RAY_DIR); \
+	fi )
 endif
 
-clean: clean_mieru clean_naive clean_v2rayplugin clean_v2ray clean_xray clean_hysteria2 clean_sdns clean_ipt clean_ssr clean_ss
+build_v2rayplugin:
+ifeq ($(CONFIG_FIRMWARE_INCLUDE_UPXCOMPRESS),y)
+	( if [ ! -e $(V2RAYPLUGIN_BIN) ]; then \
+		cd $(V2RAYPLUGIN_SRC) && \
+		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(V2RAYPLUGIN_BIN) $(V2RAYPLUGIN_DIR) && \
+		chmod +x $(V2RAYPLUGIN_BIN) && upx-4.2.4 --best --lzma $(V2RAYPLUGIN_BIN); \
+	fi )
+else
+	( if [ ! -e $(V2RAYPLUGIN_BIN) ]; then \
+		cd $(V2RAYPLUGIN_SRC) && \
+		env GOOS=linux GOARCH=mipsle CGO_ENABLED=0 go build -trimpath -ldflags "-w -s" -o $(V2RAYPLUGIN_BIN) $(V2RAYPLUGIN_DIR); \
+	fi )
+endif
+
+clean: clean_mieru clean_xray clean_hysteria2 clean_naive clean_v2ray clean_v2rayplugin clean_sdns clean_ipt clean_ssr clean_ss
 	rm -f ssr_config_done ss_config_done ipt_config_done sdns_config_done
-	rm -rf $(CACERT_DIR)
+	rm -f gfwlist/gfwlist.bz2
+	rm -f chnlist/chnlist.bz2
+	rm -rf $(DOMAINLIST_DIR)
 	rm -rf $(CHNROUTE_DIR)
+	rm -rf $(CACERT_DIR)
 
 clean_mieru:
 	( if [ -e $(MIERU_BIN) ]; then \
@@ -400,30 +370,6 @@ clean_mieru:
 	fi )
 	( if [ -d $(MIERU_SRC) ]; then \
 		rm -rf $(MIERU_SRC); \
-	fi )
-
-clean_naive:
-	( if [ -e $(NAIVE_BIN) ]; then \
-		rm -rf $(NAIVE_BIN); \
-	fi )
-	( if [ -d $(NAIVE_SRC) ]; then \
-		rm -rf $(NAIVE_SRC); \
-	fi )
-
-clean_v2rayplugin:
-	( if [ -e $(V2RAYPLUGIN_BIN) ]; then \
-		rm -rf $(V2RAYPLUGIN_BIN); \
-	fi )
-	( if [ -d $(V2RAYPLUGIN_SRC) ]; then \
-		rm -rf $(V2RAYPLUGIN_SRC); \
-	fi )
-
-clean_v2ray:
-	( if [ -e $(V2RAY_BIN) ]; then \
-		rm -rf $(V2RAY_BIN); \
-	fi )
-	( if [ -d $(V2RAY_SRC) ]; then \
-		rm -rf $(V2RAY_SRC); \
 	fi )
 
 clean_xray:
@@ -440,6 +386,30 @@ clean_hysteria2:
 	fi )
 	( if [ -d $(HYSTERIA2_SRC) ]; then \
 		rm -rf $(HYSTERIA2_SRC); \
+	fi )
+
+clean_naive:
+	( if [ -e $(NAIVE_BIN) ]; then \
+		rm -rf $(NAIVE_BIN); \
+	fi )
+	( if [ -d $(NAIVE_SRC) ]; then \
+		rm -rf $(NAIVE_SRC); \
+	fi )
+
+clean_v2ray:
+	( if [ -e $(V2RAY_BIN) ]; then \
+		rm -rf $(V2RAY_BIN); \
+	fi )
+	( if [ -d $(V2RAY_SRC) ]; then \
+		rm -rf $(V2RAY_SRC); \
+	fi )
+
+clean_v2rayplugin:
+	( if [ -e $(V2RAYPLUGIN_BIN) ]; then \
+		rm -rf $(V2RAYPLUGIN_BIN); \
+	fi )
+	( if [ -d $(V2RAYPLUGIN_SRC) ]; then \
+		rm -rf $(V2RAYPLUGIN_SRC); \
 	fi )
 
 clean_sdns:
